@@ -13,8 +13,11 @@ import {
   Plus
 } from "lucide-react";
 import { mockVehicles, mockCustomers, mockInvoices, mockMaintenanceOrders } from "@/data/mockData";
+import { useNavigate } from "react-router-dom";
 
 const Dashboard = () => {
+  const navigate = useNavigate();
+  
   // Calculate KPIs
   const totalVehicles = mockVehicles.length;
   const availableVehicles = mockVehicles.filter(v => v.status === 'disponivel').length;
@@ -41,7 +44,10 @@ const Dashboard = () => {
           <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
           <p className="text-muted-foreground">Visão geral do seu negócio de locação de motos</p>
         </div>
-        <Button className="bg-gradient-primary hover:opacity-90">
+        <Button 
+          className="bg-gradient-primary hover:opacity-90"
+          onClick={() => navigate('/rentals')}
+        >
           <Plus className="h-4 w-4 mr-2" />
           Novo Contrato
         </Button>
