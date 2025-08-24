@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,8 +15,10 @@ import {
   Clock
 } from "lucide-react";
 import { mockInvoices, mockCustomers } from "@/data/mockData";
+import InvoiceDialog from "@/components/InvoiceDialog";
 
 const Finance = () => {
+  const [isInvoiceDialogOpen, setIsInvoiceDialogOpen] = useState(false);
   const totalRevenue = mockInvoices.reduce((sum, inv) => sum + inv.amount, 0);
   const paidInvoices = mockInvoices.filter(inv => inv.status === 'pago');
   const pendingInvoices = mockInvoices.filter(inv => inv.status === 'pendente');
@@ -38,7 +41,10 @@ const Finance = () => {
           <h1 className="text-3xl font-bold text-foreground">Financeiro</h1>
           <p className="text-muted-foreground">Controle suas receitas, faturas e cobrança</p>
         </div>
-        <Button className="bg-gradient-primary hover:opacity-90">
+        <Button 
+          className="bg-gradient-primary hover:opacity-90"
+          onClick={() => setIsInvoiceDialogOpen(true)}
+        >
           <Plus className="h-4 w-4 mr-2" />
           Nova Fatura
         </Button>
@@ -256,6 +262,11 @@ const Finance = () => {
           </div>
         </TabsContent>
       </Tabs>
+
+      <InvoiceDialog 
+        open={isInvoiceDialogOpen} 
+        onOpenChange={setIsInvoiceDialogOpen} 
+      />
     </div>
   );
 };
