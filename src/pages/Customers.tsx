@@ -1,11 +1,14 @@
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Plus, Search, Filter, User, Building2, Phone, Mail } from "lucide-react";
 import { mockCustomers } from "@/data/mockData";
+import CustomerDialog from "@/components/CustomerDialog";
 
 const Customers = () => {
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -14,7 +17,10 @@ const Customers = () => {
           <h1 className="text-3xl font-bold text-foreground">Clientes</h1>
           <p className="text-muted-foreground">Gerencie seus clientes pessoa física e jurídica</p>
         </div>
-        <Button className="bg-gradient-primary hover:opacity-90">
+        <Button 
+          className="bg-gradient-primary hover:opacity-90"
+          onClick={() => setIsDialogOpen(true)}
+        >
           <Plus className="h-4 w-4 mr-2" />
           Novo Cliente
         </Button>
@@ -107,12 +113,20 @@ const Customers = () => {
           <p className="text-muted-foreground mb-4">
             Cadastre novos clientes para expandir sua base
           </p>
-          <Button className="bg-gradient-primary hover:opacity-90">
+          <Button 
+            className="bg-gradient-primary hover:opacity-90"
+            onClick={() => setIsDialogOpen(true)}
+          >
             <Plus className="h-4 w-4 mr-2" />
             Cadastrar Cliente
           </Button>
         </CardContent>
       </Card>
+
+      <CustomerDialog 
+        open={isDialogOpen} 
+        onOpenChange={setIsDialogOpen} 
+      />
     </div>
   );
 };
