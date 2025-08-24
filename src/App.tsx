@@ -11,6 +11,7 @@ import Vehicles from "@/pages/Vehicles";
 import Rentals from "@/pages/Rentals";
 import Maintenance from "@/pages/Maintenance";
 import Finance from "@/pages/Finance";
+import Invoices from "@/pages/Invoices";
 import Devices from "@/pages/Devices";
 import Settings from "@/pages/Settings";
 import Map from "@/pages/Map";
@@ -34,6 +35,7 @@ const App = () => (
               <Route path="/rentals" element={<Rentals />} />
               <Route path="/maintenance" element={<Maintenance />} />
               <Route path="/finance" element={<Finance />} />
+              <Route path="/invoices" element={<Invoices />} />
               <Route path="/devices" element={<Devices />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/map" element={<Map />} />
