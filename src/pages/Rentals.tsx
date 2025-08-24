@@ -17,14 +17,22 @@ import {
 } from "lucide-react";
 import { mockRentals, mockCustomers, mockVehicles } from "@/data/mockData";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { useEffect } from "react";
 import ContractDialog from "@/components/ContractDialog";
 import RentalDetailsDialog from "@/components/RentalDetailsDialog";
+import LoginDialog from "@/components/LoginDialog";
 
 const Rentals = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [isContractDialogOpen, setIsContractDialogOpen] = useState(false);
   const [selectedRental, setSelectedRental] = useState<any>(null);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
+  const [showLoginDialog, setShowLoginDialog] = useState(false);
+  const [contracts, setContracts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const getCustomerName = (customerId: string) => {
     const customer = mockCustomers.find(c => c.id === customerId);
     return customer?.name || 'Cliente não encontrado';
@@ -35,14 +43,90 @@ const Rentals = () => {
     return vehicle ? `${vehicle.brand} ${vehicle.model} - ${vehicle.plate}` : 'Veículo não encontrado';
   };
 
-  const activeRentals = mockRentals.filter(r => r.status === 'ativo').length;
-  const finishedRentals = mockRentals.filter(r => r.status === 'finalizado').length;
-  const overdueRentals = mockRentals.filter(r => r.status === 'atrasado').length;
-  const totalRevenue = mockRentals.reduce((sum, rental) => sum + rental.totalValue, 0);
+  // Fetch contracts from Supabase
+  const fetchContracts = async () => {
+    if (!user) {
+      setContracts([]);
+      setLoading(false);
+      return;
+    }
 
-  const handleViewDetails = (rental: any) => {
-    setSelectedRental(rental);
+    try {
+      const { data, error } = await supabase
+        .from('contratos')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching contracts:', error);
+        toast({
+          title: "Erro ao carregar contratos",
+          description: error.message,
+          variant: "destructive"
+        });
+        return;
+      }
+
+      setContracts(data || []);
+    } catch (error) {
+      console.error('Unexpected error:', error);
+      toast({
+        title: "Erro inesperado",
+        description: "Erro ao carregar contratos",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchContracts();
+  }, [user]);
+
+  // Listen for real-time updates
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel('contratos-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'contratos',
+          filter: `user_id=eq.${user.id}`
+        },
+        () => {
+          fetchContracts();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
+
+  // Calculate stats from real contracts data
+  const activeRentals = contracts.filter(c => c.status === 'ativo').length;
+  const finishedRentals = contracts.filter(c => c.status === 'finalizado').length;
+  const overdueRentals = contracts.filter(c => c.status === 'atrasado').length;
+  const totalRevenue = contracts.reduce((sum, contract) => sum + (contract.valor_mensal || 0), 0);
+
+  const handleViewDetails = (contract: any) => {
+    setSelectedRental(contract);
     setIsDetailsDialogOpen(true);
+  };
+
+  const handleNewContract = () => {
+    if (!user) {
+      setShowLoginDialog(true);
+      return;
+    }
+    setIsContractDialogOpen(true);
   };
 
   const handleFilters = () => {
@@ -62,7 +146,7 @@ const Rentals = () => {
         </div>
         <Button 
           className="bg-gradient-primary hover:opacity-90"
-          onClick={() => setIsContractDialogOpen(true)}
+          onClick={handleNewContract}
         >
           <Plus className="h-4 w-4 mr-2" />
           Novo Contrato
@@ -141,10 +225,34 @@ const Rentals = () => {
         </CardContent>
       </Card>
 
-      {/* Rental List */}
+      {/* Contract List */}
       <div className="space-y-4">
-        {mockRentals.map((rental) => (
-          <Card key={rental.id} className="hover:shadow-md transition-shadow">
+        {!user ? (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground mb-4">
+              Faça login para visualizar seus contratos
+            </p>
+            <Button onClick={() => setShowLoginDialog(true)}>
+              Fazer Login
+            </Button>
+          </div>
+        ) : loading ? (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">Carregando contratos...</p>
+          </div>
+        ) : contracts.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground mb-4">
+              Nenhum contrato encontrado
+            </p>
+            <Button onClick={handleNewContract} className="bg-gradient-primary hover:opacity-90">
+              <Plus className="h-4 w-4 mr-2" />
+              Criar Primeiro Contrato
+            </Button>
+          </div>
+        ) : (
+          contracts.map((contract) => (
+          <Card key={contract.id} className="hover:shadow-md transition-shadow">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
@@ -152,14 +260,14 @@ const Rentals = () => {
                     <FileText className="h-8 w-8 text-primary" />
                   </div>
                   <div className="space-y-1">
-                    <h3 className="font-semibold text-lg">Contrato #{rental.id}</h3>
+                    <h3 className="font-semibold text-lg">Contrato #{contract.id.slice(-8)}</h3>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <User className="h-4 w-4" />
-                      <span>{getCustomerName(rental.customerId)}</span>
+                      <span>{contract.cliente_nome}</span>
                     </div>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Car className="h-4 w-4" />
-                      <span>{getVehicleInfo(rental.vehicleId)}</span>
+                      <span>{contract.moto_modelo}</span>
                     </div>
                   </div>
                 </div>
@@ -169,13 +277,14 @@ const Rentals = () => {
                     <div className="flex items-center gap-2 mb-1">
                       <Calendar className="h-4 w-4 text-muted-foreground" />
                       <span className="text-sm text-muted-foreground">
-                        {new Date(rental.startDate).toLocaleDateString('pt-BR')} - {new Date(rental.endDate).toLocaleDateString('pt-BR')}
+                        {new Date(contract.data_inicio).toLocaleDateString('pt-BR')} - 
+                        {contract.data_fim ? new Date(contract.data_fim).toLocaleDateString('pt-BR') : 'Indefinido'}
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
                       <DollarSign className="h-4 w-4 text-muted-foreground" />
                       <span className="font-semibold">
-                        R$ {rental.totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        R$ {contract.valor_mensal?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) || '0,00'}
                       </span>
                     </div>
                   </div>
@@ -183,40 +292,39 @@ const Rentals = () => {
                   <div className="flex items-center gap-3">
                     <Badge 
                       variant={
-                        rental.status === 'ativo' ? 'default' :
-                        rental.status === 'finalizado' ? 'secondary' :
-                        rental.status === 'atrasado' ? 'destructive' : 'outline'
+                        contract.status === 'ativo' ? 'default' :
+                        contract.status === 'finalizado' ? 'secondary' :
+                        contract.status === 'atrasado' ? 'destructive' : 'outline'
                       }
                       className={
-                        rental.status === 'ativo' ? 'bg-accent text-accent-foreground' :
-                        rental.status === 'finalizado' ? 'bg-success text-success-foreground' :
-                        rental.status === 'atrasado' ? 'bg-warning text-warning-foreground' : ''
+                        contract.status === 'ativo' ? 'bg-accent text-accent-foreground' :
+                        contract.status === 'finalizado' ? 'bg-success text-success-foreground' :
+                        contract.status === 'atrasado' ? 'bg-warning text-warning-foreground' : ''
                       }
                     >
-                      {rental.status === 'ativo' ? 'Ativo' :
-                       rental.status === 'finalizado' ? 'Finalizado' :
-                       rental.status === 'atrasado' ? 'Atrasado' : rental.status}
+                      {contract.status === 'ativo' ? 'Ativo' :
+                       contract.status === 'finalizado' ? 'Finalizado' :
+                       contract.status === 'atrasado' ? 'Atrasado' : contract.status}
                     </Badge>
 
                     <Badge variant="outline">
-                      {rental.type === 'diaria' ? 'Diária' :
-                       rental.type === 'semanal' ? 'Semanal' :
-                       rental.type === 'mensal' ? 'Mensal' : 'Longo Prazo'}
+                      Mensal
                     </Badge>
 
                     <Button 
                       variant="outline" 
                       size="sm"
-                      onClick={() => handleViewDetails(rental)}
+                      onClick={() => handleViewDetails(contract)}
                     >
                       Ver Detalhes
                     </Button>
                   </div>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        ))}
+              </CardContent>
+            </Card>
+          ))
+        )}
       </div>
 
       {/* Empty state for demo */}
@@ -229,7 +337,7 @@ const Rentals = () => {
           </p>
           <Button 
             className="bg-gradient-primary hover:opacity-90"
-            onClick={() => setIsContractDialogOpen(true)}
+            onClick={handleNewContract}
           >
             <Plus className="h-4 w-4 mr-2" />
             Iniciar Wizard
@@ -246,6 +354,11 @@ const Rentals = () => {
         open={isDetailsDialogOpen} 
         onOpenChange={setIsDetailsDialogOpen}
         rental={selectedRental}
+      />
+
+      <LoginDialog 
+        open={showLoginDialog}
+        onOpenChange={setShowLoginDialog}
       />
     </div>
   );

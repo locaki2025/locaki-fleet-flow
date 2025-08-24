@@ -11,6 +11,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { mockCustomers, mockVehicles } from "@/data/mockData";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import { CalendarIcon, User, Car, DollarSign } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -23,6 +25,7 @@ interface ContractDialogProps {
 
 const ContractDialog = ({ open, onOpenChange }: ContractDialogProps) => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
     customerId: "",
@@ -38,27 +41,91 @@ const ContractDialog = ({ open, onOpenChange }: ContractDialogProps) => {
   const availableVehicles = mockVehicles.filter(v => v.status === 'disponivel');
   const activeCustomers = mockCustomers.filter(c => c.status === 'ativo');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    toast({
-      title: "Contrato criado com sucesso!",
-      description: "O novo contrato foi registrado no sistema.",
-    });
-    
-    // Reset form
-    setFormData({
-      customerId: "",
-      vehicleId: "",
-      type: "",
-      startDate: undefined,
-      endDate: undefined,
-      dailyRate: "",
-      totalValue: "",
-      observations: ""
-    });
-    setCurrentStep(1);
-    onOpenChange(false);
+    if (!user) {
+      toast({
+        title: "Erro",
+        description: "Você precisa estar logado para criar contratos.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const selectedCustomer = getSelectedCustomer();
+      const selectedVehicle = getSelectedVehicle();
+      
+      if (!selectedCustomer || !selectedVehicle) {
+        toast({
+          title: "Erro",
+          description: "Cliente ou veículo não encontrado.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Calculate next billing date (7 days from start date by default)
+      const nextBilling = new Date(formData.startDate!);
+      nextBilling.setDate(nextBilling.getDate() + 7);
+
+      const contractData = {
+        user_id: user.id,
+        cliente_id: selectedCustomer.id,
+        cliente_nome: selectedCustomer.name,
+        cliente_email: selectedCustomer.email,
+        cliente_cpf: selectedCustomer.cpfCnpj,
+        moto_id: selectedVehicle.id,
+        moto_modelo: `${selectedVehicle.brand} ${selectedVehicle.model}`,
+        valor_mensal: parseFloat(formData.totalValue) || 0,
+        data_inicio: formData.startDate?.toISOString().split('T')[0],
+        data_fim: formData.endDate?.toISOString().split('T')[0],
+        proxima_cobranca: nextBilling.toISOString().split('T')[0],
+        descricao: formData.observations,
+        status: 'ativo'
+      };
+
+      const { error } = await supabase
+        .from('contratos')
+        .insert([contractData]);
+
+      if (error) {
+        console.error('Error creating contract:', error);
+        toast({
+          title: "Erro ao criar contrato",
+          description: error.message,
+          variant: "destructive"
+        });
+        return;
+      }
+
+      toast({
+        title: "Contrato criado com sucesso!",
+        description: "O novo contrato foi registrado no sistema.",
+      });
+      
+      // Reset form
+      setFormData({
+        customerId: "",
+        vehicleId: "",
+        type: "",
+        startDate: undefined,
+        endDate: undefined,
+        dailyRate: "",
+        totalValue: "",
+        observations: ""
+      });
+      setCurrentStep(1);
+      onOpenChange(false);
+    } catch (error) {
+      console.error('Unexpected error:', error);
+      toast({
+        title: "Erro inesperado",
+        description: "Ocorreu um erro ao criar o contrato.",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleNext = () => {
