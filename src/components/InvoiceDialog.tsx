@@ -12,9 +12,10 @@ import { supabase } from "@/integrations/supabase/client";
 interface InvoiceDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onInvoiceCreated?: () => void;
 }
 
-const InvoiceDialog = ({ open, onOpenChange }: InvoiceDialogProps) => {
+const InvoiceDialog = ({ open, onOpenChange, onInvoiceCreated }: InvoiceDialogProps) => {
   const { toast } = useToast();
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -78,6 +79,7 @@ const InvoiceDialog = ({ open, onOpenChange }: InvoiceDialogProps) => {
       });
 
       onOpenChange(false);
+      onInvoiceCreated?.();
     } catch (error) {
       console.error('Error creating invoice:', error);
       toast({

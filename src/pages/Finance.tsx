@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,24 +14,91 @@ import {
   CheckCircle2,
   Clock
 } from "lucide-react";
-import { mockInvoices, mockCustomers } from "@/data/mockData";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 import InvoiceDialog from "@/components/InvoiceDialog";
 
 const Finance = () => {
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [isInvoiceDialogOpen, setIsInvoiceDialogOpen] = useState(false);
-  const totalRevenue = mockInvoices.reduce((sum, inv) => sum + inv.amount, 0);
-  const paidInvoices = mockInvoices.filter(inv => inv.status === 'pago');
-  const pendingInvoices = mockInvoices.filter(inv => inv.status === 'pendente');
-  const overdueInvoices = mockInvoices.filter(inv => inv.status === 'vencido');
+  const [invoices, setInvoices] = useState<any[]>([]);
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (user) {
+      fetchInvoices();
+      fetchCustomers();
+    }
+  }, [user]);
+
+  const fetchInvoices = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('boletos')
+        .select('*')
+        .eq('user_id', user?.id);
+
+      if (error) throw error;
+      setInvoices(data || []);
+    } catch (error) {
+      console.error('Error fetching invoices:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao carregar faturas",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchCustomers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('user_id', user?.id);
+
+      if (error) throw error;
+      setCustomers(data || []);
+    } catch (error) {
+      console.error('Error fetching customers:', error);
+    }
+  };
+
+  // Calculate financial metrics
+  const totalRevenue = invoices.reduce((sum, inv) => sum + (Number(inv.valor) || 0), 0);
+  const paidInvoices = invoices.filter(inv => inv.status === 'pago');
+  const pendingInvoices = invoices.filter(inv => inv.status === 'pendente');
+  const overdueInvoices = invoices.filter(inv => inv.status === 'vencido');
   
-  const paidAmount = paidInvoices.reduce((sum, inv) => sum + inv.amount, 0);
-  const pendingAmount = pendingInvoices.reduce((sum, inv) => sum + inv.amount, 0);
-  const overdueAmount = overdueInvoices.reduce((sum, inv) => sum + inv.amount, 0);
+  const paidAmount = paidInvoices.reduce((sum, inv) => sum + (Number(inv.valor) || 0), 0);
+  const pendingAmount = pendingInvoices.reduce((sum, inv) => sum + (Number(inv.valor) || 0), 0);
+  const overdueAmount = overdueInvoices.reduce((sum, inv) => sum + (Number(inv.valor) || 0), 0);
 
   const getCustomerName = (customerId: string) => {
-    const customer = mockCustomers.find(c => c.id === customerId);
+    const customer = customers.find(c => c.cliente_id === customerId);
     return customer?.name || 'Cliente não encontrado';
   };
+
+  if (!user) {
+    return (
+      <div className="p-6 text-center">
+        <p>Você precisa estar logado para acessar esta página.</p>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="p-6 text-center">
+        <p>Carregando...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6">
@@ -132,51 +199,57 @@ const Finance = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {mockInvoices.map((invoice) => (
-                  <div key={invoice.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50">
-                    <div className="flex items-center gap-4">
-                      <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                        <DollarSign className="h-6 w-6 text-primary" />
-                      </div>
-                      <div>
-                        <p className="font-medium">{getCustomerName(invoice.customerId)}</p>
-                        <p className="text-sm text-muted-foreground">{invoice.description}</p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center gap-4">
-                      <div className="text-right">
-                        <p className="font-medium">
-                          R$ {invoice.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          Venc. {new Date(invoice.dueDate).toLocaleDateString('pt-BR')}
-                        </p>
-                      </div>
-                      
-                      <Badge 
-                        variant={
-                          invoice.status === 'pago' ? 'default' :
-                          invoice.status === 'pendente' ? 'secondary' :
-                          invoice.status === 'vencido' ? 'destructive' : 'outline'
-                        }
-                        className={
-                          invoice.status === 'pago' ? 'bg-success text-success-foreground' :
-                          invoice.status === 'pendente' ? 'bg-warning text-warning-foreground' :
-                          invoice.status === 'vencido' ? 'bg-destructive text-destructive-foreground' : ''
-                        }
-                      >
-                        {invoice.status === 'pago' ? 'Pago' :
-                         invoice.status === 'pendente' ? 'Pendente' :
-                         invoice.status === 'vencido' ? 'Vencido' : invoice.status}
-                      </Badge>
-                      
-                      <Button variant="outline" size="sm">
-                        {invoice.status === 'pendente' ? 'Cobrar' : 'Ver Detalhes'}
-                      </Button>
-                    </div>
+                {invoices.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    Nenhuma fatura encontrada
                   </div>
-                ))}
+                ) : (
+                  invoices.map((invoice) => (
+                    <div key={invoice.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50">
+                      <div className="flex items-center gap-4">
+                        <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+                          <DollarSign className="h-6 w-6 text-primary" />
+                        </div>
+                        <div>
+                          <p className="font-medium">{invoice.cliente_nome}</p>
+                          <p className="text-sm text-muted-foreground">{invoice.descricao}</p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-4">
+                        <div className="text-right">
+                          <p className="font-medium">
+                            R$ {(Number(invoice.valor) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            Venc. {new Date(invoice.vencimento).toLocaleDateString('pt-BR')}
+                          </p>
+                        </div>
+                        
+                        <Badge 
+                          variant={
+                            invoice.status === 'pago' ? 'default' :
+                            invoice.status === 'pendente' ? 'secondary' :
+                            invoice.status === 'vencido' ? 'destructive' : 'outline'
+                          }
+                          className={
+                            invoice.status === 'pago' ? 'bg-success text-success-foreground' :
+                            invoice.status === 'pendente' ? 'bg-warning text-warning-foreground' :
+                            invoice.status === 'vencido' ? 'bg-destructive text-destructive-foreground' : ''
+                          }
+                        >
+                          {invoice.status === 'pago' ? 'Pago' :
+                           invoice.status === 'pendente' ? 'Pendente' :
+                           invoice.status === 'vencido' ? 'Vencido' : invoice.status}
+                        </Badge>
+                        
+                        <Button variant="outline" size="sm">
+                          {invoice.status === 'pendente' ? 'Cobrar' : 'Ver Detalhes'}
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </CardContent>
           </Card>
@@ -192,34 +265,40 @@ const Finance = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {paidInvoices.map((invoice) => (
-                  <div key={invoice.id} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="flex items-center gap-4">
-                      <div className="h-12 w-12 rounded-full bg-success/10 flex items-center justify-center">
-                        <CheckCircle2 className="h-6 w-6 text-success" />
-                      </div>
-                      <div>
-                        <p className="font-medium">{getCustomerName(invoice.customerId)}</p>
-                        <p className="text-sm text-muted-foreground">{invoice.description}</p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center gap-4">
-                      <div className="text-right">
-                        <p className="font-medium text-success">
-                          R$ {invoice.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {invoice.paymentMethod?.toUpperCase()} - {new Date(invoice.dueDate).toLocaleDateString('pt-BR')}
-                        </p>
+                {paidInvoices.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    Nenhum pagamento encontrado
+                  </div>
+                ) : (
+                  paidInvoices.map((invoice) => (
+                    <div key={invoice.id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div className="flex items-center gap-4">
+                        <div className="h-12 w-12 rounded-full bg-success/10 flex items-center justify-center">
+                          <CheckCircle2 className="h-6 w-6 text-success" />
+                        </div>
+                        <div>
+                          <p className="font-medium">{invoice.cliente_nome}</p>
+                          <p className="text-sm text-muted-foreground">{invoice.descricao}</p>
+                        </div>
                       </div>
                       
-                      <Button variant="ghost" size="sm">
-                        Ver Comprovante
-                      </Button>
+                      <div className="flex items-center gap-4">
+                        <div className="text-right">
+                          <p className="font-medium text-success">
+                            R$ {(Number(invoice.valor) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {invoice.metodo_pagamento?.toUpperCase()} - {new Date(invoice.data_pagamento || invoice.vencimento).toLocaleDateString('pt-BR')}
+                          </p>
+                        </div>
+                        
+                        <Button variant="ghost" size="sm">
+                          Ver Comprovante
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </CardContent>
           </Card>
@@ -251,7 +330,7 @@ const Finance = () => {
               <CardContent>
                 <div className="text-center space-y-2">
                   <div className="text-3xl font-bold text-destructive">
-                    {((overdueInvoices.length / mockInvoices.length) * 100).toFixed(1)}%
+                    {invoices.length > 0 ? ((overdueInvoices.length / invoices.length) * 100).toFixed(1) : '0'}%
                   </div>
                   <p className="text-sm text-muted-foreground">
                     Taxa de inadimplência atual
@@ -265,7 +344,8 @@ const Finance = () => {
 
       <InvoiceDialog 
         open={isInvoiceDialogOpen} 
-        onOpenChange={setIsInvoiceDialogOpen} 
+        onOpenChange={setIsInvoiceDialogOpen}
+        onInvoiceCreated={fetchInvoices}
       />
     </div>
   );
