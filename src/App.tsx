@@ -9,6 +9,7 @@ import Dashboard from "@/components/Dashboard";
 import Customers from "@/pages/Customers";
 import Vehicles from "@/pages/Vehicles";
 import Rentals from "@/pages/Rentals";
+import Maintenance from "@/pages/Maintenance";
 import Finance from "@/pages/Finance";
 import Map from "@/pages/Map";
 import Reports from "@/pages/Reports";
@@ -29,6 +30,7 @@ const App = () => (
               <Route path="/customers" element={<Customers />} />
               <Route path="/vehicles" element={<Vehicles />} />
               <Route path="/rentals" element={<Rentals />} />
+              <Route path="/maintenance" element={<Maintenance />} />
               <Route path="/finance" element={<Finance />} />
               <Route path="/map" element={<Map />} />
               <Route path="/reports" element={<Reports />} />
