@@ -114,7 +114,10 @@ const Rentals = () => {
   const activeRentals = contracts.filter(c => c.status === 'ativo').length;
   const finishedRentals = contracts.filter(c => c.status === 'finalizado').length;
   const overdueRentals = contracts.filter(c => c.status === 'atrasado').length;
-  const totalRevenue = contracts.reduce((sum, contract) => sum + (contract.valor_mensal || 0), 0);
+  const totalRevenue = contracts.reduce((sum, contract) => {
+    const valor = Number(contract.valor_mensal) || 0;
+    return sum + valor;
+  }, 0);
 
   const handleViewDetails = (contract: any) => {
     setSelectedRental(contract);
@@ -284,7 +287,7 @@ const Rentals = () => {
                     <div className="flex items-center gap-2">
                       <DollarSign className="h-4 w-4 text-muted-foreground" />
                       <span className="font-semibold">
-                        R$ {contract.valor_mensal?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) || '0,00'}
+                        R$ {Number(contract.valor_mensal || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </span>
                     </div>
                   </div>
