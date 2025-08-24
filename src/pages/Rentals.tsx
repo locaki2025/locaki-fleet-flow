@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,8 +16,15 @@ import {
   CheckCircle2
 } from "lucide-react";
 import { mockRentals, mockCustomers, mockVehicles } from "@/data/mockData";
+import { useToast } from "@/hooks/use-toast";
+import ContractDialog from "@/components/ContractDialog";
+import RentalDetailsDialog from "@/components/RentalDetailsDialog";
 
 const Rentals = () => {
+  const { toast } = useToast();
+  const [isContractDialogOpen, setIsContractDialogOpen] = useState(false);
+  const [selectedRental, setSelectedRental] = useState<any>(null);
+  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const getCustomerName = (customerId: string) => {
     const customer = mockCustomers.find(c => c.id === customerId);
     return customer?.name || 'Cliente não encontrado';
@@ -32,6 +40,18 @@ const Rentals = () => {
   const overdueRentals = mockRentals.filter(r => r.status === 'atrasado').length;
   const totalRevenue = mockRentals.reduce((sum, rental) => sum + rental.totalValue, 0);
 
+  const handleViewDetails = (rental: any) => {
+    setSelectedRental(rental);
+    setIsDetailsDialogOpen(true);
+  };
+
+  const handleFilters = () => {
+    toast({
+      title: "Filtros",
+      description: "Funcionalidade de filtros será implementada em breve",
+    });
+  };
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -40,7 +60,10 @@ const Rentals = () => {
           <h1 className="text-3xl font-bold text-foreground">Contratos</h1>
           <p className="text-muted-foreground">Gerencie contratos de locação e acompanhe prazos</p>
         </div>
-        <Button className="bg-gradient-primary hover:opacity-90">
+        <Button 
+          className="bg-gradient-primary hover:opacity-90"
+          onClick={() => setIsContractDialogOpen(true)}
+        >
           <Plus className="h-4 w-4 mr-2" />
           Novo Contrato
         </Button>
@@ -110,7 +133,7 @@ const Rentals = () => {
                 className="pl-10"
               />
             </div>
-            <Button variant="outline">
+            <Button variant="outline" onClick={handleFilters}>
               <Filter className="h-4 w-4 mr-2" />
               Filtros
             </Button>
@@ -181,7 +204,11 @@ const Rentals = () => {
                        rental.type === 'mensal' ? 'Mensal' : 'Longo Prazo'}
                     </Badge>
 
-                    <Button variant="outline" size="sm">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleViewDetails(rental)}
+                    >
                       Ver Detalhes
                     </Button>
                   </div>
@@ -200,12 +227,26 @@ const Rentals = () => {
           <p className="text-muted-foreground mb-4">
             Use nosso wizard inteligente para criar contratos rapidamente
           </p>
-          <Button className="bg-gradient-primary hover:opacity-90">
+          <Button 
+            className="bg-gradient-primary hover:opacity-90"
+            onClick={() => setIsContractDialogOpen(true)}
+          >
             <Plus className="h-4 w-4 mr-2" />
             Iniciar Wizard
           </Button>
         </CardContent>
       </Card>
+
+      <ContractDialog 
+        open={isContractDialogOpen} 
+        onOpenChange={setIsContractDialogOpen} 
+      />
+
+      <RentalDetailsDialog 
+        open={isDetailsDialogOpen} 
+        onOpenChange={setIsDetailsDialogOpen}
+        rental={selectedRental}
+      />
     </div>
   );
 };
