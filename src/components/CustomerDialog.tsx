@@ -1,22 +1,24 @@
-import { useState } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import React, { useState } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface CustomerDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-const CustomerDialog = ({ open, onOpenChange }: CustomerDialogProps) => {
-  const { toast } = useToast();
-  const [formData, setFormData] = useState({
+const CustomerDialog: React.FC<CustomerDialogProps> = ({ open, onOpenChange }) => {
+  const { user } = useAuth();
+  const [customerData, setCustomerData] = useState({
     name: "",
-    type: "PF",
+    type: "",
     cpfCnpj: "",
     email: "",
     phone: "",
@@ -29,39 +31,72 @@ const CustomerDialog = ({ open, onOpenChange }: CustomerDialogProps) => {
     },
     observations: ""
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Simulate saving customer
-    toast({
-      title: "Cliente cadastrado com sucesso!",
-      description: `${formData.name} foi adicionado ao sistema.`,
-    });
-    
-    // Reset form and close dialog
-    setFormData({
-      name: "",
-      type: "PF",
-      cpfCnpj: "",
-      email: "",
-      phone: "",
-      address: {
-        street: "",
-        number: "",
-        city: "",
-        state: "",
-        zipCode: ""
-      },
-      observations: ""
-    });
-    onOpenChange(false);
+    if (!user) {
+      toast.error("Você precisa estar logado para cadastrar clientes");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const { error } = await supabase
+        .from('customers')
+        .insert([
+          {
+            user_id: user.id,
+            name: customerData.name,
+            type: customerData.type,
+            cpf_cnpj: customerData.cpfCnpj,
+            email: customerData.email,
+            phone: customerData.phone,
+            street: customerData.address.street,
+            number: customerData.address.number,
+            city: customerData.address.city,
+            state: customerData.address.state,
+            zip_code: customerData.address.zipCode,
+            observations: customerData.observations
+          }
+        ]);
+
+      if (error) throw error;
+
+      toast.success("Cliente cadastrado com sucesso!");
+      
+      // Reset form and close dialog
+      setCustomerData({
+        name: "",
+        type: "",
+        cpfCnpj: "",
+        email: "",
+        phone: "",
+        address: {
+          street: "",
+          number: "",
+          city: "",
+          state: "",
+          zipCode: ""
+        },
+        observations: ""
+      });
+      
+      onOpenChange(false);
+    } catch (error) {
+      console.error('Error creating customer:', error);
+      toast.error("Erro ao cadastrar cliente");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleInputChange = (field: string, value: string) => {
     if (field.startsWith('address.')) {
       const addressField = field.split('.')[1];
-      setFormData(prev => ({
+      setCustomerData(prev => ({
         ...prev,
         address: {
           ...prev.address,
@@ -69,7 +104,7 @@ const CustomerDialog = ({ open, onOpenChange }: CustomerDialogProps) => {
         }
       }));
     } else {
-      setFormData(prev => ({
+      setCustomerData(prev => ({
         ...prev,
         [field]: value
       }));
@@ -92,7 +127,7 @@ const CustomerDialog = ({ open, onOpenChange }: CustomerDialogProps) => {
               <Label htmlFor="name">Nome *</Label>
               <Input
                 id="name"
-                value={formData.name}
+                value={customerData.name}
                 onChange={(e) => handleInputChange('name', e.target.value)}
                 placeholder="Nome completo"
                 required
@@ -101,7 +136,7 @@ const CustomerDialog = ({ open, onOpenChange }: CustomerDialogProps) => {
             
             <div className="space-y-2">
               <Label htmlFor="type">Tipo de Pessoa *</Label>
-              <Select value={formData.type} onValueChange={(value) => handleInputChange('type', value)}>
+              <Select value={customerData.type} onValueChange={(value) => handleInputChange('type', value)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o tipo" />
                 </SelectTrigger>
@@ -115,12 +150,12 @@ const CustomerDialog = ({ open, onOpenChange }: CustomerDialogProps) => {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="cpfCnpj">{formData.type === 'PF' ? 'CPF' : 'CNPJ'} *</Label>
+              <Label htmlFor="cpfCnpj">{customerData.type === 'PF' ? 'CPF' : 'CNPJ'} *</Label>
               <Input
                 id="cpfCnpj"
-                value={formData.cpfCnpj}
+                value={customerData.cpfCnpj}
                 onChange={(e) => handleInputChange('cpfCnpj', e.target.value)}
-                placeholder={formData.type === 'PF' ? '000.000.000-00' : '00.000.000/0000-00'}
+                placeholder={customerData.type === 'PF' ? '000.000.000-00' : '00.000.000/0000-00'}
                 required
               />
             </div>
@@ -129,7 +164,7 @@ const CustomerDialog = ({ open, onOpenChange }: CustomerDialogProps) => {
               <Label htmlFor="phone">Telefone *</Label>
               <Input
                 id="phone"
-                value={formData.phone}
+                value={customerData.phone}
                 onChange={(e) => handleInputChange('phone', e.target.value)}
                 placeholder="(11) 99999-9999"
                 required
@@ -142,7 +177,7 @@ const CustomerDialog = ({ open, onOpenChange }: CustomerDialogProps) => {
             <Input
               id="email"
               type="email"
-              value={formData.email}
+              value={customerData.email}
               onChange={(e) => handleInputChange('email', e.target.value)}
               placeholder="cliente@email.com"
               required
@@ -157,7 +192,7 @@ const CustomerDialog = ({ open, onOpenChange }: CustomerDialogProps) => {
                 <Label htmlFor="street">Rua</Label>
                 <Input
                   id="street"
-                  value={formData.address.street}
+                  value={customerData.address.street}
                   onChange={(e) => handleInputChange('address.street', e.target.value)}
                   placeholder="Nome da rua"
                 />
@@ -167,7 +202,7 @@ const CustomerDialog = ({ open, onOpenChange }: CustomerDialogProps) => {
                 <Label htmlFor="number">Número</Label>
                 <Input
                   id="number"
-                  value={formData.address.number}
+                  value={customerData.address.number}
                   onChange={(e) => handleInputChange('address.number', e.target.value)}
                   placeholder="123"
                 />
@@ -179,7 +214,7 @@ const CustomerDialog = ({ open, onOpenChange }: CustomerDialogProps) => {
                 <Label htmlFor="zipCode">CEP</Label>
                 <Input
                   id="zipCode"
-                  value={formData.address.zipCode}
+                  value={customerData.address.zipCode}
                   onChange={(e) => handleInputChange('address.zipCode', e.target.value)}
                   placeholder="00000-000"
                 />
@@ -189,7 +224,7 @@ const CustomerDialog = ({ open, onOpenChange }: CustomerDialogProps) => {
                 <Label htmlFor="city">Cidade</Label>
                 <Input
                   id="city"
-                  value={formData.address.city}
+                  value={customerData.address.city}
                   onChange={(e) => handleInputChange('address.city', e.target.value)}
                   placeholder="São Paulo"
                 />
@@ -199,7 +234,7 @@ const CustomerDialog = ({ open, onOpenChange }: CustomerDialogProps) => {
                 <Label htmlFor="state">Estado</Label>
                 <Input
                   id="state"
-                  value={formData.address.state}
+                  value={customerData.address.state}
                   onChange={(e) => handleInputChange('address.state', e.target.value)}
                   placeholder="SP"
                 />
@@ -211,7 +246,7 @@ const CustomerDialog = ({ open, onOpenChange }: CustomerDialogProps) => {
             <Label htmlFor="observations">Observações</Label>
             <Textarea
               id="observations"
-              value={formData.observations}
+              value={customerData.observations}
               onChange={(e) => handleInputChange('observations', e.target.value)}
               placeholder="Informações adicionais sobre o cliente"
               rows={3}
@@ -222,8 +257,12 @@ const CustomerDialog = ({ open, onOpenChange }: CustomerDialogProps) => {
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
-            <Button type="submit" className="bg-gradient-primary hover:opacity-90">
-              Cadastrar Cliente
+            <Button 
+              type="submit" 
+              className="bg-gradient-primary hover:opacity-90"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? "Cadastrando..." : "Cadastrar Cliente"}
             </Button>
           </DialogFooter>
         </form>

@@ -154,6 +154,63 @@ export type Database = {
         }
         Relationships: []
       }
+      customers: {
+        Row: {
+          city: string
+          cpf_cnpj: string
+          created_at: string
+          email: string
+          id: string
+          name: string
+          number: string
+          observations: string | null
+          phone: string
+          state: string
+          status: string
+          street: string
+          type: string
+          updated_at: string
+          user_id: string
+          zip_code: string
+        }
+        Insert: {
+          city: string
+          cpf_cnpj: string
+          created_at?: string
+          email: string
+          id?: string
+          name: string
+          number: string
+          observations?: string | null
+          phone: string
+          state: string
+          status?: string
+          street: string
+          type: string
+          updated_at?: string
+          user_id: string
+          zip_code: string
+        }
+        Update: {
+          city?: string
+          cpf_cnpj?: string
+          created_at?: string
+          email?: string
+          id?: string
+          name?: string
+          number?: string
+          observations?: string | null
+          phone?: string
+          state?: string
+          status?: string
+          street?: string
+          type?: string
+          updated_at?: string
+          user_id?: string
+          zip_code?: string
+        }
+        Relationships: []
+      }
       financial_entries: {
         Row: {
           amount: number
