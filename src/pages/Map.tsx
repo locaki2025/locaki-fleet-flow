@@ -1,0 +1,230 @@
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { 
+  MapPin, 
+  Search, 
+  Filter, 
+  Car, 
+  Navigation, 
+  Clock,
+  Zap,
+  AlertTriangle,
+  RefreshCw
+} from "lucide-react";
+import { mockVehicles } from "@/data/mockData";
+
+const Map = () => {
+  const vehiclesWithLocation = mockVehicles.filter(v => v.lastLocation);
+  const onlineVehicles = vehiclesWithLocation.length;
+  const offlineVehicles = mockVehicles.length - onlineVehicles;
+
+  return (
+    <div className="p-6 space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Mapa & Rastreamento</h1>
+          <p className="text-muted-foreground">Acompanhe a localização da sua frota em tempo real</p>
+        </div>
+        <Button variant="outline">
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Atualizar
+        </Button>
+      </div>
+
+      {/* Status Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card className="border-l-4 border-l-success">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Online</p>
+                <p className="text-2xl font-bold text-success">{onlineVehicles}</p>
+              </div>
+              <div className="h-8 w-8 rounded-full bg-success/20 flex items-center justify-center">
+                <Navigation className="h-4 w-4 text-success" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card className="border-l-4 border-l-destructive">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Offline</p>
+                <p className="text-2xl font-bold text-destructive">{offlineVehicles}</p>
+              </div>
+              <div className="h-8 w-8 rounded-full bg-destructive/20 flex items-center justify-center">
+                <AlertTriangle className="h-4 w-4 text-destructive" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card className="border-l-4 border-l-accent">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Em Movimento</p>
+                <p className="text-2xl font-bold text-accent">2</p>
+              </div>
+              <div className="h-8 w-8 rounded-full bg-accent/20 flex items-center justify-center">
+                <Car className="h-4 w-4 text-accent" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card className="border-l-4 border-l-warning">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Alertas</p>
+                <p className="text-2xl font-bold text-warning">1</p>
+              </div>
+              <div className="h-8 w-8 rounded-full bg-warning/20 flex items-center justify-center">
+                <Zap className="h-4 w-4 text-warning" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Map Area */}
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <MapPin className="h-5 w-5 text-primary" />
+                  Mapa da Frota
+                </CardTitle>
+                <CardDescription>
+                  Visualização em tempo real dos veículos
+                </CardDescription>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm">
+                  <Filter className="h-4 w-4 mr-2" />
+                  Filtros
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {/* Mock Map */}
+            <div className="h-96 bg-muted/30 rounded-lg border-2 border-dashed border-muted-foreground/20 flex items-center justify-center">
+              <div className="text-center space-y-2">
+                <MapPin className="h-12 w-12 text-muted-foreground mx-auto" />
+                <p className="text-lg font-medium text-muted-foreground">Mapa Interativo</p>
+                <p className="text-sm text-muted-foreground">
+                  Aqui seria exibido o mapa com a localização dos veículos em tempo real
+                </p>
+                <div className="flex items-center justify-center gap-2 mt-4">
+                  <div className="flex items-center gap-1">
+                    <div className="h-3 w-3 rounded-full bg-success"></div>
+                    <span className="text-xs">Online</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <div className="h-3 w-3 rounded-full bg-accent"></div>
+                    <span className="text-xs">Em movimento</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <div className="h-3 w-3 rounded-full bg-destructive"></div>
+                    <span className="text-xs">Offline</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Vehicle List */}
+        <div className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Veículos Online</CardTitle>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Input
+                  placeholder="Buscar veículo..."
+                  className="pl-10"
+                />
+              </div>
+            </CardHeader>
+            <CardContent className="max-h-96 overflow-y-auto space-y-3">
+              {vehiclesWithLocation.map((vehicle) => (
+                <div key={vehicle.id} className="p-3 border rounded-lg hover:bg-muted/50 cursor-pointer">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                        <Car className="h-4 w-4 text-primary" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm">{vehicle.brand} {vehicle.model}</p>
+                        <p className="text-xs text-muted-foreground font-mono">{vehicle.plate}</p>
+                      </div>
+                    </div>
+                    <Badge 
+                      variant="outline" 
+                      className="bg-success/10 text-success border-success"
+                    >
+                      Online
+                    </Badge>
+                  </div>
+                  
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <Clock className="h-3 w-3" />
+                      <span>
+                        Atualizado {new Date(vehicle.lastLocation!.updatedAt).toLocaleTimeString('pt-BR')}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <Navigation className="h-3 w-3" />
+                      <span>Coordenadas: {vehicle.lastLocation!.lat.toFixed(4)}, {vehicle.lastLocation!.lng.toFixed(4)}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-warning" />
+                Alertas Recentes
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="p-3 bg-warning/10 border border-warning/20 rounded-lg">
+                <div className="flex items-center gap-2 mb-1">
+                  <Zap className="h-4 w-4 text-warning" />
+                  <span className="text-sm font-medium">Velocidade Excedida</span>
+                </div>
+                <p className="text-xs text-muted-foreground">Honda CG 160 - ABC-1234</p>
+                <p className="text-xs text-muted-foreground">Há 15 minutos</p>
+              </div>
+              
+              <div className="p-3 bg-accent/10 border border-accent/20 rounded-lg">
+                <div className="flex items-center gap-2 mb-1">
+                  <MapPin className="h-4 w-4 text-accent" />
+                  <span className="text-sm font-medium">Entrada em Geofence</span>
+                </div>
+                <p className="text-xs text-muted-foreground">Yamaha Factor - DEF-5678</p>
+                <p className="text-xs text-muted-foreground">Há 32 minutos</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Map;
