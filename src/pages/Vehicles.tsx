@@ -1,11 +1,41 @@
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Plus, Search, Filter, Car, MapPin, Gauge, Calendar } from "lucide-react";
 import { mockVehicles } from "@/data/mockData";
+import { useNavigate } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
+import VehicleDialog from "@/components/VehicleDialog";
+import VehicleDetailsDialog from "@/components/VehicleDetailsDialog";
 
 const Vehicles = () => {
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const [isVehicleDialogOpen, setIsVehicleDialogOpen] = useState(false);
+  const [selectedVehicle, setSelectedVehicle] = useState<any>(null);
+  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
+  const handleViewOnMap = (vehicle: any) => {
+    navigate('/map');
+    toast({
+      title: "Redirecionando para o mapa",
+      description: `Mostrando localização de ${vehicle.plate}`,
+    });
+  };
+
+  const handleViewDetails = (vehicle: any) => {
+    setSelectedVehicle(vehicle);
+    setIsDetailsDialogOpen(true);
+  };
+
+  const handleFilters = () => {
+    toast({
+      title: "Filtros",
+      description: "Funcionalidade de filtros será implementada em breve",
+    });
+  };
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -14,7 +44,10 @@ const Vehicles = () => {
           <h1 className="text-3xl font-bold text-foreground">Veículos</h1>
           <p className="text-muted-foreground">Gerencie sua frota de motocicletas</p>
         </div>
-        <Button className="bg-gradient-primary hover:opacity-90">
+        <Button 
+          className="bg-gradient-primary hover:opacity-90"
+          onClick={() => setIsVehicleDialogOpen(true)}
+        >
           <Plus className="h-4 w-4 mr-2" />
           Novo Veículo
         </Button>
@@ -85,7 +118,7 @@ const Vehicles = () => {
                 className="pl-10"
               />
             </div>
-            <Button variant="outline">
+            <Button variant="outline" onClick={handleFilters}>
               <Filter className="h-4 w-4 mr-2" />
               Filtros
             </Button>
@@ -155,7 +188,11 @@ const Vehicles = () => {
                       {new Date(vehicle.lastLocation.updatedAt).toLocaleString('pt-BR')}
                     </p>
                   </div>
-                  <Button variant="ghost" size="sm">
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => handleViewOnMap(vehicle)}
+                  >
                     Ver no Mapa
                   </Button>
                 </div>
@@ -165,7 +202,11 @@ const Vehicles = () => {
                 <span className="text-xs text-muted-foreground">
                   {vehicle.tracker ? `Rastreador: ${vehicle.tracker}` : 'Sem rastreador'}
                 </span>
-                <Button variant="outline" size="sm">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => handleViewDetails(vehicle)}
+                >
                   Ver Detalhes
                 </Button>
               </div>
@@ -173,6 +214,17 @@ const Vehicles = () => {
           </Card>
         ))}
       </div>
+
+      <VehicleDialog 
+        open={isVehicleDialogOpen} 
+        onOpenChange={setIsVehicleDialogOpen} 
+      />
+
+      <VehicleDetailsDialog 
+        open={isDetailsDialogOpen} 
+        onOpenChange={setIsDetailsDialogOpen}
+        vehicle={selectedVehicle}
+      />
     </div>
   );
 };
