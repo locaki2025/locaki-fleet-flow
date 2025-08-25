@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileText, User, Car, Calendar, DollarSign, MapPin, Printer } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { mockCustomers, mockVehicles } from "@/data/mockData";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Contract {
   id: string;
@@ -46,11 +46,32 @@ const RentalDetailsDialog = ({ open, onOpenChange, rental }: RentalDetailsDialog
     });
   };
 
-  const handleFinalizeContract = () => {
-    toast({
-      title: "Finalizando contrato",
-      description: `Contrato #${rental.id} será finalizado`,
-    });
+  const handleFinalizeContract = async () => {
+    try {
+      // Update contract status to 'finalizado' and set data_fim to today
+      const { error } = await supabase
+        .from('contratos')
+        .update({ 
+          status: 'finalizado',
+          data_fim: new Date().toISOString().split('T')[0]
+        })
+        .eq('id', rental.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Contrato finalizado",
+        description: `Contrato #${rental.id} foi finalizado com sucesso`,
+      });
+      
+      onOpenChange(false);
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Não foi possível finalizar o contrato",
+        variant: "destructive"
+      });
+    }
   };
 
   return (
