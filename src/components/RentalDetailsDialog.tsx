@@ -134,6 +134,18 @@ const RentalDetailsDialog = ({ open, onOpenChange, rental }: RentalDetailsDialog
                 </p>
               </div>
               
+              {rental.status === 'finalizado' && rental.data_fim && (
+                <div>
+                  <p className="text-sm font-medium text-red-600 flex items-center gap-2">
+                    <Calendar className="h-4 w-4" />
+                    Data de Encerramento
+                  </p>
+                  <p className="font-medium text-red-600">
+                    {new Date(rental.data_fim).toLocaleDateString('pt-BR')}
+                  </p>
+                </div>
+              )}
+              
               <div>
                 <p className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                   <DollarSign className="h-4 w-4" />
