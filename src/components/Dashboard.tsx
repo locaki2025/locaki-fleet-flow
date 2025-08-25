@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,29 +13,93 @@ import {
   Clock,
   Plus
 } from "lucide-react";
-import { mockVehicles, mockCustomers, mockInvoices, mockMaintenanceOrders } from "@/data/mockData";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { toast } = useToast();
+  
+  const [vehicles, setVehicles] = useState<any[]>([]);
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [contracts, setContracts] = useState<any[]>([]);
+  const [devices, setDevices] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (user) {
+      fetchDashboardData();
+    }
+  }, [user]);
+
+  const fetchDashboardData = async () => {
+    try {
+      const [vehiclesData, customersData, contractsData, devicesData] = await Promise.all([
+        supabase.from('vehicles').select('*').eq('user_id', user?.id),
+        supabase.from('customers').select('*').eq('user_id', user?.id),
+        supabase.from('contratos').select('*').eq('user_id', user?.id),
+        supabase.from('devices').select('*').eq('user_id', user?.id)
+      ]);
+
+      setVehicles(vehiclesData.data || []);
+      setCustomers(customersData.data || []);
+      setContracts(contractsData.data || []);
+      setDevices(devicesData.data || []);
+    } catch (error) {
+      console.error('Erro ao carregar dados do dashboard:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar os dados do dashboard.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
   
   // Calculate KPIs
-  const totalVehicles = mockVehicles.length;
-  const availableVehicles = mockVehicles.filter(v => v.status === 'disponivel').length;
-  const rentedVehicles = mockVehicles.filter(v => v.status === 'alugado').length;
-  const maintenanceVehicles = mockVehicles.filter(v => v.status === 'manutencao').length;
+  const totalVehicles = vehicles.length;
+  const availableVehicles = vehicles.filter(v => v.status === 'disponivel').length;
+  const rentedVehicles = vehicles.filter(v => v.status === 'alugado').length;
+  const maintenanceVehicles = vehicles.filter(v => v.status === 'manutencao').length;
   
-  const totalCustomers = mockCustomers.length;
-  const activeCustomers = mockCustomers.filter(c => c.status === 'ativo').length;
-  const defaultingCustomers = mockCustomers.filter(c => c.status === 'inadimplente').length;
+  const totalCustomers = customers.length;
+  const activeCustomers = customers.filter(c => c.status === 'ativo').length;
+  const defaultingCustomers = customers.filter(c => c.status === 'inadimplente').length;
   
-  const totalRevenue = mockInvoices.reduce((sum, inv) => sum + inv.amount, 0);
-  const pendingInvoices = mockInvoices.filter(inv => inv.status === 'pendente').length;
-  const overdueInvoices = mockInvoices.filter(inv => inv.status === 'vencido').length;
+  const totalRevenue = contracts.reduce((sum, contract) => sum + (contract.valor_mensal || 0), 0);
+  const activeContracts = contracts.filter(c => c.status === 'ativo').length;
+  const expiredContracts = contracts.filter(c => c.status === 'vencido').length;
   
-  const openMaintenances = mockMaintenanceOrders.filter(m => m.status === 'aberta' || m.status === 'em_andamento').length;
+  const onlineDevices = devices.filter(d => d.status === 'online').length;
+  const offlineDevices = devices.filter(d => d.status === 'offline').length;
   
-  const occupationRate = ((rentedVehicles / totalVehicles) * 100).toFixed(1);
+  const occupationRate = totalVehicles > 0 ? ((rentedVehicles / totalVehicles) * 100).toFixed(1) : '0';
+
+  if (!user) {
+    return (
+      <div className="p-6 space-y-6">
+        <div className="text-center">
+          <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
+          <p className="text-muted-foreground mt-2">Faça login para acessar o dashboard</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="p-6 space-y-6">
+        <div className="text-center">
+          <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
+          <p className="text-muted-foreground mt-2">Carregando dados...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6">
@@ -88,7 +153,7 @@ const Dashboard = () => {
 
         <Card className="border-l-4 border-l-success">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Receita do Mês</CardTitle>
+            <CardTitle className="text-sm font-medium">Receita Mensal</CardTitle>
             <DollarSign className="h-4 w-4 text-success" />
           </CardHeader>
           <CardContent>
@@ -96,20 +161,20 @@ const Dashboard = () => {
               R$ {totalRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </div>
             <p className="text-xs text-muted-foreground">
-              +12% em relação ao mês anterior
+              {activeContracts} contratos ativos
             </p>
           </CardContent>
         </Card>
 
         <Card className="border-l-4 border-l-warning">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Inadimplência</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-warning" />
+            <CardTitle className="text-sm font-medium">Clientes</CardTitle>
+            <Users className="h-4 w-4 text-warning" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{defaultingCustomers}</div>
+            <div className="text-2xl font-bold">{totalCustomers}</div>
             <p className="text-xs text-muted-foreground">
-              {overdueInvoices} faturas em atraso
+              {activeCustomers} ativos, {defaultingCustomers} inadimplentes
             </p>
           </CardContent>
         </Card>
@@ -128,44 +193,59 @@ const Dashboard = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {mockVehicles.slice(0, 4).map((vehicle) => (
-                <div key={vehicle.id} className="flex items-center justify-between p-3 rounded-lg border">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                      <Car className="h-5 w-5 text-primary" />
+            {vehicles.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">Nenhum veículo cadastrado.</p>
+                <Button 
+                  variant="outline" 
+                  className="mt-4"
+                  onClick={() => navigate('/vehicles')}
+                >
+                  Cadastrar primeiro veículo
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {vehicles.slice(0, 4).map((vehicle) => (
+                  <div key={vehicle.id} className="flex items-center justify-between p-3 rounded-lg border">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                        <Car className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <p className="font-medium">{vehicle.brand} {vehicle.model}</p>
+                        <p className="text-sm text-muted-foreground">{vehicle.plate}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-medium">{vehicle.brand} {vehicle.model}</p>
-                      <p className="text-sm text-muted-foreground">{vehicle.plate}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge 
-                      variant={
-                        vehicle.status === 'disponivel' ? 'default' :
-                        vehicle.status === 'alugado' ? 'secondary' :
-                        vehicle.status === 'manutencao' ? 'destructive' : 'outline'
-                      }
-                      className={
-                        vehicle.status === 'disponivel' ? 'bg-success text-success-foreground' :
-                        vehicle.status === 'alugado' ? 'bg-accent text-accent-foreground' :
-                        vehicle.status === 'manutencao' ? 'bg-warning text-warning-foreground' : ''
-                      }
-                    >
-                      {vehicle.status === 'disponivel' ? 'Disponível' :
-                       vehicle.status === 'alugado' ? 'Alugada' :
-                       vehicle.status === 'manutencao' ? 'Manutenção' : vehicle.status}
-                    </Badge>
-                    {vehicle.lastLocation && (
-                      <Button variant="ghost" size="sm">
+                    <div className="flex items-center gap-2">
+                      <Badge 
+                        variant={
+                          vehicle.status === 'disponivel' ? 'default' :
+                          vehicle.status === 'alugado' ? 'secondary' :
+                          vehicle.status === 'manutencao' ? 'destructive' : 'outline'
+                        }
+                        className={
+                          vehicle.status === 'disponivel' ? 'bg-success text-success-foreground' :
+                          vehicle.status === 'alugado' ? 'bg-accent text-accent-foreground' :
+                          vehicle.status === 'manutencao' ? 'bg-warning text-warning-foreground' : ''
+                        }
+                      >
+                        {vehicle.status === 'disponivel' ? 'Disponível' :
+                         vehicle.status === 'alugado' ? 'Alugada' :
+                         vehicle.status === 'manutencao' ? 'Manutenção' : vehicle.status}
+                      </Badge>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => navigate('/map')}
+                      >
                         <MapPin className="h-4 w-4" />
                       </Button>
-                    )}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -181,40 +261,49 @@ const Dashboard = () => {
               <div className="flex items-center gap-2 p-2 rounded-lg bg-warning/10">
                 <AlertTriangle className="h-4 w-4 text-warning" />
                 <div className="flex-1">
-                  <p className="text-sm font-medium">Revisão pendente</p>
-                  <p className="text-xs text-muted-foreground">Honda CG 160 - ABC-1234</p>
+                  <p className="text-sm font-medium">Dispositivos offline</p>
+                  <p className="text-xs text-muted-foreground">{offlineDevices} dispositivos</p>
                 </div>
               </div>
-              <div className="flex items-center gap-2 p-2 rounded-lg bg-destructive/10">
-                <AlertTriangle className="h-4 w-4 text-destructive" />
-                <div className="flex-1">
-                  <p className="text-sm font-medium">Fatura vencida</p>
-                  <p className="text-xs text-muted-foreground">João Silva - R$ 850,00</p>
+              {expiredContracts > 0 && (
+                <div className="flex items-center gap-2 p-2 rounded-lg bg-destructive/10">
+                  <AlertTriangle className="h-4 w-4 text-destructive" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">Contratos vencidos</p>
+                    <p className="text-xs text-muted-foreground">{expiredContracts} contratos</p>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-2 p-2 rounded-lg bg-accent/10">
-                <Clock className="h-4 w-4 text-accent" />
-                <div className="flex-1">
-                  <p className="text-sm font-medium">Contrato vencendo</p>
-                  <p className="text-xs text-muted-foreground">Maria Santos - 7 dias</p>
+              )}
+              {maintenanceVehicles > 0 && (
+                <div className="flex items-center gap-2 p-2 rounded-lg bg-accent/10">
+                  <Wrench className="h-4 w-4 text-accent" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">Manutenção pendente</p>
+                    <p className="text-xs text-muted-foreground">{maintenanceVehicles} veículos</p>
+                  </div>
                 </div>
-              </div>
+              )}
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Wrench className="h-5 w-5 text-primary" />
-                Manutenções
+                <MapPin className="h-5 w-5 text-primary" />
+                Dispositivos GPS
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-center">
-                <div className="text-2xl font-bold text-warning">{openMaintenances}</div>
-                <p className="text-sm text-muted-foreground">ordens em andamento</p>
-                <Button variant="outline" size="sm" className="mt-3">
-                  Ver todas
+                <div className="text-2xl font-bold text-success">{onlineDevices}</div>
+                <p className="text-sm text-muted-foreground">online de {devices.length} total</p>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="mt-3"
+                  onClick={() => navigate('/devices')}
+                >
+                  Ver dispositivos
                 </Button>
               </div>
             </CardContent>
