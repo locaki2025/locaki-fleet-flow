@@ -284,6 +284,13 @@ const Rentals = () => {
                         {contract.data_fim ? new Date(contract.data_fim).toLocaleDateString('pt-BR') : 'Indefinido'}
                       </span>
                     </div>
+                    {contract.status === 'finalizado' && contract.data_fim && (
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-sm text-red-600 font-medium">
+                          Cancelado em: {new Date(contract.data_fim).toLocaleDateString('pt-BR')}
+                        </span>
+                      </div>
+                    )}
                     <div className="flex items-center gap-2">
                       <DollarSign className="h-4 w-4 text-muted-foreground" />
                       <span className="font-semibold">
