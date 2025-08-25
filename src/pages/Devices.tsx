@@ -28,6 +28,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import DeviceDialog from "@/components/DeviceDialog";
 
 // Mock data para rastreadores
 const mockDevices = [
@@ -97,7 +98,8 @@ const Devices = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
-  const [devices] = useState(mockDevices);
+  const [devices, setDevices] = useState(mockDevices);
+  const [isDeviceDialogOpen, setIsDeviceDialogOpen] = useState(false);
 
   const filteredDevices = devices.filter(device =>
     device.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -157,6 +159,14 @@ const Devices = () => {
     });
   };
 
+  const handleDeviceCreated = () => {
+    // In a real app, this would refetch devices from the API
+    toast({
+      title: "Sucesso",
+      description: "Dispositivo adicionado com sucesso!",
+    });
+  };
+
   if (!user) {
     return (
       <div className="p-6 text-center">
@@ -178,7 +188,7 @@ const Devices = () => {
         </div>
         <Button 
           className="bg-gradient-primary hover:opacity-90"
-          onClick={() => toast({ title: "Em desenvolvimento", description: "Funcionalidade em breve!" })}
+          onClick={() => setIsDeviceDialogOpen(true)}
         >
           <Plus className="h-4 w-4 mr-2" />
           Adicionar Dispositivo
@@ -432,6 +442,12 @@ const Devices = () => {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <DeviceDialog 
+        open={isDeviceDialogOpen}
+        onOpenChange={setIsDeviceDialogOpen}
+        onDeviceCreated={handleDeviceCreated}
+      />
     </div>
   );
 };
