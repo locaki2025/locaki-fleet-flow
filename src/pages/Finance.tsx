@@ -181,166 +181,234 @@ const Finance = () => {
         </Card>
       </div>
 
-      {/* Tabs for different views */}
-      <Tabs defaultValue="invoices" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="invoices">Faturas</TabsTrigger>
-          <TabsTrigger value="payments">Pagamentos</TabsTrigger>
-          <TabsTrigger value="reports">Relatórios</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="invoices" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Todas as Faturas</CardTitle>
-              <CardDescription>
-                Gerencie suas faturas e cobrança de clientes
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {invoices.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    Nenhuma fatura encontrada
-                  </div>
-                ) : (
-                  invoices.map((invoice) => (
-                    <div key={invoice.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50">
-                      <div className="flex items-center gap-4">
-                        <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                          <DollarSign className="h-6 w-6 text-primary" />
-                        </div>
-                        <div>
-                          <p className="font-medium">{invoice.cliente_nome}</p>
-                          <p className="text-sm text-muted-foreground">{invoice.descricao}</p>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center gap-4">
-                        <div className="text-right">
-                          <p className="font-medium">
-                            R$ {(Number(invoice.valor) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            Venc. {new Date(invoice.vencimento).toLocaleDateString('pt-BR')}
-                          </p>
-                        </div>
-                        
-                        <Badge 
-                          variant={
-                            invoice.status === 'pago' ? 'default' :
-                            invoice.status === 'pendente' ? 'secondary' :
-                            invoice.status === 'vencido' ? 'destructive' : 'outline'
-                          }
-                          className={
-                            invoice.status === 'pago' ? 'bg-success text-success-foreground' :
-                            invoice.status === 'pendente' ? 'bg-warning text-warning-foreground' :
-                            invoice.status === 'vencido' ? 'bg-destructive text-destructive-foreground' : ''
-                          }
-                        >
-                          {invoice.status === 'pago' ? 'Pago' :
-                           invoice.status === 'pendente' ? 'Pendente' :
-                           invoice.status === 'vencido' ? 'Vencido' : invoice.status}
-                        </Badge>
-                        
-                        <Button variant="outline" size="sm">
-                          {invoice.status === 'pendente' ? 'Cobrar' : 'Ver Detalhes'}
-                        </Button>
-                      </div>
-                    </div>
-                  ))
-                )}
+      {/* Financial Entries and Expenses */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Histórico de Entradas */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold">Histórico de Entradas</CardTitle>
+            <CardDescription>Registro de todas as receitas recebidas</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex gap-4 text-sm font-medium text-muted-foreground border-b pb-2">
+                <div className="w-16">Status</div>
+                <div className="flex-1">Tipo</div>
+                <div className="w-32">Placa - Veículo - Locatário</div>
+                <div className="w-24">Valor</div>
+                <div className="w-24">Data</div>
+                <div className="w-24">Descrição</div>
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="payments" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Histórico de Pagamentos</CardTitle>
-              <CardDescription>
-                Visualize todos os pagamentos recebidos
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {paidInvoices.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    Nenhum pagamento encontrado
+              
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {/* Sample entry - replace with actual data */}
+                <div className="flex gap-4 text-sm py-2 border-b">
+                  <div className="w-16">
+                    <span className="px-2 py-1 bg-success/10 text-success text-xs rounded">Pago</span>
                   </div>
-                ) : (
-                  paidInvoices.map((invoice) => (
-                    <div key={invoice.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center gap-4">
-                        <div className="h-12 w-12 rounded-full bg-success/10 flex items-center justify-center">
-                          <CheckCircle2 className="h-6 w-6 text-success" />
-                        </div>
-                        <div>
-                          <p className="font-medium">{invoice.cliente_nome}</p>
-                          <p className="text-sm text-muted-foreground">{invoice.descricao}</p>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center gap-4">
-                        <div className="text-right">
-                          <p className="font-medium text-success">
-                            R$ {(Number(invoice.valor) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {invoice.metodo_pagamento?.toUpperCase()} - {new Date(invoice.data_pagamento || invoice.vencimento).toLocaleDateString('pt-BR')}
-                          </p>
-                        </div>
-                        
-                        <Button variant="ghost" size="sm">
-                          Ver Comprovante
-                        </Button>
-                      </div>
-                    </div>
-                  ))
-                )}
+                  <div className="flex-1">Locação RECORRENTE</div>
+                  <div className="w-32 text-xs">TME0546 (DK 160) - ADRIANO MARTINS DE SOUZA</div>
+                  <div className="w-24 font-medium">R$ 559,00</div>
+                  <div className="w-24">27/08/2025</div>
+                  <div className="w-24 text-xs">Fatura recorrente para locação #192</div>
+                </div>
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+            </div>
+          </CardContent>
+        </Card>
 
-        <TabsContent value="reports" className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Receita por Período</CardTitle>
-                <CardDescription>
-                  Análise de receita dos últimos meses
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="h-32 flex items-center justify-center text-muted-foreground">
-                  Gráfico de receita seria exibido aqui
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Taxa de Inadimplência</CardTitle>
-                <CardDescription>
-                  Acompanhe os índices de pagamento
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center space-y-2">
-                  <div className="text-3xl font-bold text-destructive">
-                    {invoices.length > 0 ? ((overdueInvoices.length / invoices.length) * 100).toFixed(1) : '0'}%
+        {/* Histórico de Saídas */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold">Histórico de Saídas</CardTitle>
+            <CardDescription>Registro de todas as despesas pagas</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex gap-4 text-sm font-medium text-muted-foreground border-b pb-2">
+                <div className="w-16">Status</div>
+                <div className="flex-1">Tipo</div>
+                <div className="w-32">Veículo</div>
+                <div className="w-24">Valor</div>
+                <div className="w-24">Data</div>
+                <div className="w-24">Descrição</div>
+              </div>
+              
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {/* Sample expense - replace with actual data */}
+                <div className="flex gap-4 text-sm py-2 border-b">
+                  <div className="w-16">
+                    <span className="px-2 py-1 bg-success/10 text-success text-xs rounded">Pago</span>
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    Taxa de inadimplência atual
-                  </p>
+                  <div className="flex-1">Manutenção_Rec</div>
+                  <div className="w-32">TMI2208 (DK 160)</div>
+                  <div className="w-24 font-medium">R$ 0,00</div>
+                  <div className="w-24">24/08/2025</div>
+                  <div className="w-24 text-xs">(Sem Descrição)</div>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-      </Tabs>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Forms for Adding Entries and Expenses */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Cadastrar Entradas */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold">Cadastrar Entradas</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form className="space-y-4">
+              <div>
+                <label className="text-sm font-medium">Tipo de Entrada</label>
+                <select className="w-full mt-1 px-3 py-2 border border-input bg-background rounded-md">
+                  <option>Locação</option>
+                  <option>Manutenção</option>
+                  <option>Outros</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium">Placa</label>
+                <input 
+                  type="text" 
+                  placeholder="Digite o nome do veículo ou placa"
+                  className="w-full mt-1 px-3 py-2 border border-input bg-background rounded-md"
+                />
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium">Locatário</label>
+                <select className="w-full mt-1 px-3 py-2 border border-input bg-background rounded-md">
+                  <option>Locação</option>
+                </select>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium">Valor R$</label>
+                  <input 
+                    type="text" 
+                    placeholder="Valor (R$)"
+                    className="w-full mt-1 px-3 py-2 border border-input bg-background rounded-md"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Data de Vencimento</label>
+                  <input 
+                    type="date" 
+                    defaultValue="2025-08-24"
+                    className="w-full mt-1 px-3 py-2 border border-input bg-background rounded-md"
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium">Descrição</label>
+                <textarea 
+                  placeholder="Descrição..."
+                  className="w-full mt-1 px-3 py-2 border border-input bg-background rounded-md h-20 resize-none"
+                />
+              </div>
+              
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" className="rounded" />
+                  Valor recebido
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" className="rounded" />
+                  Gerar Boleto
+                </label>
+              </div>
+              
+              <Button className="bg-primary hover:bg-primary/90">
+                Salvar
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+
+        {/* Cadastrar Saída */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold">Cadastrar Saída</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form className="space-y-4">
+              <div>
+                <label className="text-sm font-medium">Tipo de Saída</label>
+                <select className="w-full mt-1 px-3 py-2 border border-input bg-background rounded-md">
+                  <option>Manutenção</option>
+                  <option>Combustível</option>
+                  <option>Seguro</option>
+                  <option>Outros</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium">Placa</label>
+                <input 
+                  type="text" 
+                  placeholder="Digite o nome do veículo ou placa"
+                  className="w-full mt-1 px-3 py-2 border border-input bg-background rounded-md"
+                />
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium">Locatário</label>
+                <select className="w-full mt-1 px-3 py-2 border border-input bg-background rounded-md">
+                  <option>Locação</option>
+                </select>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium">Valor R$</label>
+                  <input 
+                    type="text" 
+                    placeholder="Valor (R$)"
+                    className="w-full mt-1 px-3 py-2 border border-input bg-background rounded-md"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Data de Vencimento</label>
+                  <input 
+                    type="date" 
+                    defaultValue="2025-08-24"
+                    className="w-full mt-1 px-3 py-2 border border-input bg-background rounded-md"
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium">Descrição</label>
+                <textarea 
+                  placeholder="Descrição..."
+                  className="w-full mt-1 px-3 py-2 border border-input bg-background rounded-md h-20 resize-none"
+                />
+              </div>
+              
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" className="rounded" />
+                  Valor pago
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" className="rounded" />
+                  Anexar arquivos
+                </label>
+              </div>
+              
+              <Button className="bg-primary hover:bg-primary/90">
+                Salvar
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
 
       <InvoiceDialog 
         open={isInvoiceDialogOpen} 
