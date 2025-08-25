@@ -181,77 +181,6 @@ const Finance = () => {
         </Card>
       </div>
 
-      {/* Financial Entries and Expenses */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Histórico de Entradas */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold">Histórico de Entradas</CardTitle>
-            <CardDescription>Registro de todas as receitas recebidas</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex gap-4 text-sm font-medium text-muted-foreground border-b pb-2">
-                <div className="w-16">Status</div>
-                <div className="flex-1">Tipo</div>
-                <div className="w-32">Placa - Veículo - Locatário</div>
-                <div className="w-24">Valor</div>
-                <div className="w-24">Data</div>
-                <div className="w-24">Descrição</div>
-              </div>
-              
-              <div className="space-y-2 max-h-64 overflow-y-auto">
-                {/* Sample entry - replace with actual data */}
-                <div className="flex gap-4 text-sm py-2 border-b">
-                  <div className="w-16">
-                    <span className="px-2 py-1 bg-success/10 text-success text-xs rounded">Pago</span>
-                  </div>
-                  <div className="flex-1">Locação RECORRENTE</div>
-                  <div className="w-32 text-xs">TME0546 (DK 160) - ADRIANO MARTINS DE SOUZA</div>
-                  <div className="w-24 font-medium">R$ 559,00</div>
-                  <div className="w-24">27/08/2025</div>
-                  <div className="w-24 text-xs">Fatura recorrente para locação #192</div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Histórico de Saídas */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold">Histórico de Saídas</CardTitle>
-            <CardDescription>Registro de todas as despesas pagas</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex gap-4 text-sm font-medium text-muted-foreground border-b pb-2">
-                <div className="w-16">Status</div>
-                <div className="flex-1">Tipo</div>
-                <div className="w-32">Veículo</div>
-                <div className="w-24">Valor</div>
-                <div className="w-24">Data</div>
-                <div className="w-24">Descrição</div>
-              </div>
-              
-              <div className="space-y-2 max-h-64 overflow-y-auto">
-                {/* Sample expense - replace with actual data */}
-                <div className="flex gap-4 text-sm py-2 border-b">
-                  <div className="w-16">
-                    <span className="px-2 py-1 bg-success/10 text-success text-xs rounded">Pago</span>
-                  </div>
-                  <div className="flex-1">Manutenção_Rec</div>
-                  <div className="w-32">TMI2208 (DK 160)</div>
-                  <div className="w-24 font-medium">R$ 0,00</div>
-                  <div className="w-24">24/08/2025</div>
-                  <div className="w-24 text-xs">(Sem Descrição)</div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
       {/* Forms for Adding Entries and Expenses */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Cadastrar Entradas */}
@@ -406,6 +335,77 @@ const Finance = () => {
                 Salvar
               </Button>
             </form>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Financial Entries and Expenses History */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Histórico de Entradas */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold">Histórico de Entradas</CardTitle>
+            <CardDescription>Registro de todas as receitas recebidas</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex gap-4 text-sm font-medium text-muted-foreground border-b pb-2">
+                <div className="w-16">Status</div>
+                <div className="flex-1">Tipo</div>
+                <div className="w-32">Placa - Veículo - Locatário</div>
+                <div className="w-24">Valor</div>
+                <div className="w-24">Data</div>
+                <div className="w-24">Descrição</div>
+              </div>
+              
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {/* Sample entry - replace with actual data */}
+                <div className="flex gap-4 text-sm py-2 border-b">
+                  <div className="w-16">
+                    <span className="px-2 py-1 bg-success/10 text-success text-xs rounded">Pago</span>
+                  </div>
+                  <div className="flex-1">Locação RECORRENTE</div>
+                  <div className="w-32 text-xs">TME0546 (DK 160) - ADRIANO MARTINS DE SOUZA</div>
+                  <div className="w-24 font-medium">R$ 559,00</div>
+                  <div className="w-24">27/08/2025</div>
+                  <div className="w-24 text-xs">Fatura recorrente para locação #192</div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Histórico de Saídas */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold">Histórico de Saídas</CardTitle>
+            <CardDescription>Registro de todas as despesas pagas</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex gap-4 text-sm font-medium text-muted-foreground border-b pb-2">
+                <div className="w-16">Status</div>
+                <div className="flex-1">Tipo</div>
+                <div className="w-32">Veículo</div>
+                <div className="w-24">Valor</div>
+                <div className="w-24">Data</div>
+                <div className="w-24">Descrição</div>
+              </div>
+              
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {/* Sample expense - replace with actual data */}
+                <div className="flex gap-4 text-sm py-2 border-b">
+                  <div className="w-16">
+                    <span className="px-2 py-1 bg-success/10 text-success text-xs rounded">Pago</span>
+                  </div>
+                  <div className="flex-1">Manutenção_Rec</div>
+                  <div className="w-32">TMI2208 (DK 160)</div>
+                  <div className="w-24 font-medium">R$ 0,00</div>
+                  <div className="w-24">24/08/2025</div>
+                  <div className="w-24 text-xs">(Sem Descrição)</div>
+                </div>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
