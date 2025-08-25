@@ -1,10 +1,13 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Car, MapPin, Gauge, Calendar, FileText, Settings } from "lucide-react";
+import { Car, MapPin, Gauge, Calendar, FileText, Settings, Edit, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
+import { useState } from "react";
+import VehicleDialog from "./VehicleDialog";
 
 interface Vehicle {
   id: string;
@@ -29,11 +32,14 @@ interface VehicleDetailsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   vehicle: Vehicle | null;
+  onVehicleUpdate?: () => void;
 }
 
-const VehicleDetailsDialog = ({ open, onOpenChange, vehicle }: VehicleDetailsDialogProps) => {
+const VehicleDetailsDialog = ({ open, onOpenChange, vehicle, onVehicleUpdate }: VehicleDetailsDialogProps) => {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   if (!vehicle) return null;
 
@@ -59,6 +65,34 @@ const VehicleDetailsDialog = ({ open, onOpenChange, vehicle }: VehicleDetailsDia
     toast({
       title: "Agendando manutenção",
       description: `Manutenção agendada para ${vehicle.plate}`,
+    });
+  };
+
+  const handleEdit = () => {
+    setEditDialogOpen(true);
+  };
+
+  const handleDelete = () => {
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = () => {
+    toast({
+      title: "Veículo excluído",
+      description: `${vehicle.brand} ${vehicle.model} - ${vehicle.plate} foi removido da frota.`,
+      variant: "destructive",
+    });
+    setDeleteDialogOpen(false);
+    onOpenChange(false);
+    onVehicleUpdate?.();
+  };
+
+  const handleVehicleUpdated = () => {
+    setEditDialogOpen(false);
+    onVehicleUpdate?.();
+    toast({
+      title: "Veículo atualizado",
+      description: `${vehicle.brand} ${vehicle.model} - ${vehicle.plate} foi atualizado com sucesso.`,
     });
   };
 
@@ -191,11 +225,56 @@ const VehicleDetailsDialog = ({ open, onOpenChange, vehicle }: VehicleDetailsDia
                   <Settings className="h-4 w-4 mr-2" />
                   Agendar Manutenção
                 </Button>
+                
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline" 
+                    className="flex-1"
+                    onClick={handleEdit}
+                  >
+                    <Edit className="h-4 w-4 mr-2" />
+                    Editar
+                  </Button>
+                  
+                  <Button 
+                    variant="destructive" 
+                    className="flex-1"
+                    onClick={handleDelete}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Excluir
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
         </div>
       </DialogContent>
+
+      <VehicleDialog 
+        open={editDialogOpen} 
+        onOpenChange={setEditDialogOpen}
+        vehicle={vehicle}
+        onVehicleUpdated={handleVehicleUpdated}
+      />
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir o veículo <strong>{vehicle.brand} {vehicle.model} - {vehicle.plate}</strong>? 
+              Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive hover:bg-destructive/90">
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 };

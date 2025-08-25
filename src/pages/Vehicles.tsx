@@ -224,6 +224,13 @@ const Vehicles = () => {
         open={isDetailsDialogOpen} 
         onOpenChange={setIsDetailsDialogOpen}
         vehicle={selectedVehicle}
+        onVehicleUpdate={() => {
+          // Refresh the vehicle list when a vehicle is updated or deleted
+          toast({
+            title: "Lista atualizada",
+            description: "A lista de veículos foi atualizada.",
+          });
+        }}
       />
     </div>
   );

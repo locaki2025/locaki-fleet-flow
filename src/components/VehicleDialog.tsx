@@ -7,47 +7,69 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 
+interface Vehicle {
+  id: string;
+  plate: string;
+  brand: string;
+  model: string;
+  year: number;
+  color: string;
+  category: string;
+  status: string;
+  odometer: number;
+  tracker?: string;
+}
+
 interface VehicleDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  vehicle?: Vehicle | null;
+  onVehicleUpdated?: () => void;
 }
 
-const VehicleDialog = ({ open, onOpenChange }: VehicleDialogProps) => {
+const VehicleDialog = ({ open, onOpenChange, vehicle, onVehicleUpdated }: VehicleDialogProps) => {
   const { toast } = useToast();
+  const isEditing = !!vehicle;
+  
   const [formData, setFormData] = useState({
-    plate: "",
-    brand: "",
-    model: "",
-    year: "",
-    color: "",
-    category: "",
+    plate: vehicle?.plate || "",
+    brand: vehicle?.brand || "",
+    model: vehicle?.model || "",
+    year: vehicle?.year?.toString() || "",
+    color: vehicle?.color || "",
+    category: vehicle?.category || "",
     renavam: "",
     chassis: "",
-    odometer: "",
+    odometer: vehicle?.odometer?.toString() || "",
     observations: ""
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    toast({
-      title: "Veículo cadastrado com sucesso!",
-      description: `${formData.brand} ${formData.model} - ${formData.plate} foi adicionado à frota.`,
-    });
-    
-    setFormData({
-      plate: "",
-      brand: "",
-      model: "",
-      year: "",
-      color: "",
-      category: "",
-      renavam: "",
-      chassis: "",
-      odometer: "",
-      observations: ""
-    });
-    onOpenChange(false);
+    if (isEditing) {
+      onVehicleUpdated?.();
+      onOpenChange(false);
+    } else {
+      toast({
+        title: "Veículo cadastrado com sucesso!",
+        description: `${formData.brand} ${formData.model} - ${formData.plate} foi adicionado à frota.`,
+      });
+      
+      setFormData({
+        plate: "",
+        brand: "",
+        model: "",
+        year: "",
+        color: "",
+        category: "",
+        renavam: "",
+        chassis: "",
+        odometer: "",
+        observations: ""
+      });
+      onOpenChange(false);
+    }
   };
 
   const handleInputChange = (field: string, value: string) => {
@@ -61,9 +83,9 @@ const VehicleDialog = ({ open, onOpenChange }: VehicleDialogProps) => {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Novo Veículo</DialogTitle>
+          <DialogTitle>{isEditing ? 'Editar Veículo' : 'Novo Veículo'}</DialogTitle>
           <DialogDescription>
-            Cadastre um novo veículo na frota
+            {isEditing ? 'Edite as informações do veículo' : 'Cadastre um novo veículo na frota'}
           </DialogDescription>
         </DialogHeader>
         
@@ -212,7 +234,7 @@ const VehicleDialog = ({ open, onOpenChange }: VehicleDialogProps) => {
               Cancelar
             </Button>
             <Button type="submit" className="bg-gradient-primary hover:opacity-90">
-              Cadastrar Veículo
+              {isEditing ? 'Salvar Alterações' : 'Cadastrar Veículo'}
             </Button>
           </DialogFooter>
         </form>
