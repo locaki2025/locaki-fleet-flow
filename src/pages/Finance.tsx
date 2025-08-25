@@ -185,8 +185,16 @@ const Finance = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Cadastrar Entradas */}
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-lg font-semibold">Cadastrar Entradas</CardTitle>
+            <Button 
+              variant="outline" 
+              size="sm"
+              className="text-success border-success hover:bg-success hover:text-success-foreground"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Adicionar Nova Entrada
+            </Button>
           </CardHeader>
           <CardContent>
             <form className="space-y-4">
@@ -262,8 +270,16 @@ const Finance = () => {
 
         {/* Cadastrar Saída */}
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-lg font-semibold">Cadastrar Saída</CardTitle>
+            <Button 
+              variant="outline" 
+              size="sm"
+              className="text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Adicionar Nova Saída
+            </Button>
           </CardHeader>
           <CardContent>
             <form className="space-y-4">
