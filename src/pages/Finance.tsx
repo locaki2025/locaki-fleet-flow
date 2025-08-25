@@ -18,11 +18,15 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import InvoiceDialog from "@/components/InvoiceDialog";
+import FinancialEntryDialog from "@/components/FinancialEntryDialog";
+import FinancialExpenseDialog from "@/components/FinancialExpenseDialog";
 
 const Finance = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [isInvoiceDialogOpen, setIsInvoiceDialogOpen] = useState(false);
+  const [isEntryDialogOpen, setIsEntryDialogOpen] = useState(false);
+  const [isExpenseDialogOpen, setIsExpenseDialogOpen] = useState(false);
   const [invoices, setInvoices] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -191,6 +195,7 @@ const Finance = () => {
               variant="outline" 
               size="sm"
               className="text-success border-success hover:bg-success hover:text-success-foreground"
+              onClick={() => setIsEntryDialogOpen(true)}
             >
               <Plus className="h-4 w-4 mr-2" />
               Adicionar Nova Entrada
@@ -276,6 +281,7 @@ const Finance = () => {
               variant="outline" 
               size="sm"
               className="text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground"
+              onClick={() => setIsExpenseDialogOpen(true)}
             >
               <Plus className="h-4 w-4 mr-2" />
               Adicionar Nova Saída
@@ -430,6 +436,18 @@ const Finance = () => {
         open={isInvoiceDialogOpen} 
         onOpenChange={setIsInvoiceDialogOpen}
         onInvoiceCreated={fetchInvoices}
+      />
+      
+      <FinancialEntryDialog 
+        open={isEntryDialogOpen} 
+        onOpenChange={setIsEntryDialogOpen}
+        onEntryCreated={() => {}}
+      />
+      
+      <FinancialExpenseDialog 
+        open={isExpenseDialogOpen} 
+        onOpenChange={setIsExpenseDialogOpen}
+        onExpenseCreated={() => {}}
       />
     </div>
   );
