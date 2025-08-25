@@ -19,12 +19,14 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { mockMaintenanceOrders, mockVehicles } from "@/data/mockData";
+import MaintenanceOrderDialog from "@/components/MaintenanceOrderDialog";
 
 const Maintenance = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isOrderDialogOpen, setIsOrderDialogOpen] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -101,7 +103,7 @@ const Maintenance = () => {
         </div>
         <Button 
           className="bg-gradient-primary hover:opacity-90"
-          onClick={() => toast({ title: "Em desenvolvimento", description: "Funcionalidade em breve!" })}
+          onClick={() => setIsOrderDialogOpen(true)}
         >
           <Plus className="h-4 w-4 mr-2" />
           Nova Ordem
@@ -377,6 +379,17 @@ const Maintenance = () => {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <MaintenanceOrderDialog
+        open={isOrderDialogOpen}
+        onOpenChange={setIsOrderDialogOpen}
+        onOrderCreated={() => {
+          toast({
+            title: "Lista atualizada",
+            description: "A nova ordem foi adicionada à lista.",
+          });
+        }}
+      />
     </div>
   );
 };
