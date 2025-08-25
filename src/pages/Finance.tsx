@@ -317,7 +317,7 @@ const Finance = () => {
               variant="outline" 
               size="sm"
               className="text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground"
-              onClick={() => setIsExpenseDialogOpen(true)}
+              onClick={() => setIsAddExpenseTypeDialogOpen(true)}
             >
               <Plus className="h-4 w-4 mr-2" />
               Adicionar Nova Saída
