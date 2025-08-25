@@ -29,12 +29,16 @@ const Finance = () => {
   const [isExpenseDialogOpen, setIsExpenseDialogOpen] = useState(false);
   const [invoices, setInvoices] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
+  const [financialEntries, setFinancialEntries] = useState<any[]>([]);
+  const [financialExpenses, setFinancialExpenses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (user) {
       fetchInvoices();
       fetchCustomers();
+      fetchFinancialEntries();
+      fetchFinancialExpenses();
     }
   }, [user]);
 
@@ -70,6 +74,36 @@ const Finance = () => {
       setCustomers(data || []);
     } catch (error) {
       console.error('Error fetching customers:', error);
+    }
+  };
+
+  const fetchFinancialEntries = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('financial_entries')
+        .select('*')
+        .eq('user_id', user?.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setFinancialEntries(data || []);
+    } catch (error) {
+      console.error('Error fetching financial entries:', error);
+    }
+  };
+
+  const fetchFinancialExpenses = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('financial_expenses')
+        .select('*')
+        .eq('user_id', user?.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setFinancialExpenses(data || []);
+    } catch (error) {
+      console.error('Error fetching financial expenses:', error);
     }
   };
 
@@ -381,17 +415,33 @@ const Finance = () => {
               </div>
               
               <div className="space-y-2 max-h-64 overflow-y-auto">
-                {/* Sample entry - replace with actual data */}
-                <div className="flex gap-4 text-sm py-2 border-b">
-                  <div className="w-16">
-                    <span className="px-2 py-1 bg-success/10 text-success text-xs rounded">Pago</span>
+                {financialEntries.map((entry) => (
+                  <div key={entry.id} className="flex gap-4 text-sm py-2 border-b">
+                    <div className="w-16">
+                      <span className={`px-2 py-1 text-xs rounded ${
+                        entry.is_received 
+                          ? 'bg-success/10 text-success' 
+                          : 'bg-warning/10 text-warning'
+                      }`}>
+                        {entry.is_received ? 'Recebido' : 'Pendente'}
+                      </span>
+                    </div>
+                    <div className="flex-1 capitalize">{entry.type}</div>
+                    <div className="w-32 text-xs">{entry.plate} - {entry.location || 'N/A'}</div>
+                    <div className="w-24 font-medium">
+                      R$ {Number(entry.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </div>
+                    <div className="w-24">
+                      {entry.due_date ? new Date(entry.due_date).toLocaleDateString('pt-BR') : 'N/A'}
+                    </div>
+                    <div className="w-24 text-xs">{entry.description || '(Sem Descrição)'}</div>
                   </div>
-                  <div className="flex-1">Locação RECORRENTE</div>
-                  <div className="w-32 text-xs">TME0546 (DK 160) - ADRIANO MARTINS DE SOUZA</div>
-                  <div className="w-24 font-medium">R$ 559,00</div>
-                  <div className="w-24">27/08/2025</div>
-                  <div className="w-24 text-xs">Fatura recorrente para locação #192</div>
-                </div>
+                ))}
+                {financialEntries.length === 0 && (
+                  <div className="text-center text-muted-foreground py-4">
+                    Nenhuma entrada registrada
+                  </div>
+                )}
               </div>
             </div>
           </CardContent>
@@ -415,17 +465,33 @@ const Finance = () => {
               </div>
               
               <div className="space-y-2 max-h-64 overflow-y-auto">
-                {/* Sample expense - replace with actual data */}
-                <div className="flex gap-4 text-sm py-2 border-b">
-                  <div className="w-16">
-                    <span className="px-2 py-1 bg-success/10 text-success text-xs rounded">Pago</span>
+                {financialExpenses.map((expense) => (
+                  <div key={expense.id} className="flex gap-4 text-sm py-2 border-b">
+                    <div className="w-16">
+                      <span className={`px-2 py-1 text-xs rounded ${
+                        expense.is_paid 
+                          ? 'bg-success/10 text-success' 
+                          : 'bg-destructive/10 text-destructive'
+                      }`}>
+                        {expense.is_paid ? 'Pago' : 'Pendente'}
+                      </span>
+                    </div>
+                    <div className="flex-1 capitalize">{expense.type}</div>
+                    <div className="w-32">{expense.plate}</div>
+                    <div className="w-24 font-medium">
+                      R$ {Number(expense.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </div>
+                    <div className="w-24">
+                      {expense.due_date ? new Date(expense.due_date).toLocaleDateString('pt-BR') : 'N/A'}
+                    </div>
+                    <div className="w-24 text-xs">{expense.description || '(Sem Descrição)'}</div>
                   </div>
-                  <div className="flex-1">Manutenção_Rec</div>
-                  <div className="w-32">TMI2208 (DK 160)</div>
-                  <div className="w-24 font-medium">R$ 0,00</div>
-                  <div className="w-24">24/08/2025</div>
-                  <div className="w-24 text-xs">(Sem Descrição)</div>
-                </div>
+                ))}
+                {financialExpenses.length === 0 && (
+                  <div className="text-center text-muted-foreground py-4">
+                    Nenhuma saída registrada
+                  </div>
+                )}
               </div>
             </div>
           </CardContent>
@@ -441,13 +507,13 @@ const Finance = () => {
       <FinancialEntryDialog 
         open={isEntryDialogOpen} 
         onOpenChange={setIsEntryDialogOpen}
-        onEntryCreated={() => {}}
+        onEntryCreated={fetchFinancialEntries}
       />
       
       <FinancialExpenseDialog 
         open={isExpenseDialogOpen} 
         onOpenChange={setIsExpenseDialogOpen}
-        onExpenseCreated={() => {}}
+        onExpenseCreated={fetchFinancialExpenses}
       />
     </div>
   );
