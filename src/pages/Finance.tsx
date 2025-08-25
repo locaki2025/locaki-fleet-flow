@@ -20,6 +20,7 @@ import { useToast } from "@/hooks/use-toast";
 import InvoiceDialog from "@/components/InvoiceDialog";
 import FinancialEntryDialog from "@/components/FinancialEntryDialog";
 import FinancialExpenseDialog from "@/components/FinancialExpenseDialog";
+import AddExpenseTypeDialog from "@/components/AddExpenseTypeDialog";
 
 const Finance = () => {
   const { user } = useAuth();
@@ -27,6 +28,7 @@ const Finance = () => {
   const [isInvoiceDialogOpen, setIsInvoiceDialogOpen] = useState(false);
   const [isEntryDialogOpen, setIsEntryDialogOpen] = useState(false);
   const [isExpenseDialogOpen, setIsExpenseDialogOpen] = useState(false);
+  const [isAddExpenseTypeDialogOpen, setIsAddExpenseTypeDialogOpen] = useState(false);
   const [invoices, setInvoices] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [financialEntries, setFinancialEntries] = useState<any[]>([]);
@@ -315,7 +317,7 @@ const Finance = () => {
               variant="outline" 
               size="sm"
               className="text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground"
-              onClick={() => setIsExpenseDialogOpen(true)}
+              onClick={() => setIsAddExpenseTypeDialogOpen(true)}
             >
               <Plus className="h-4 w-4 mr-2" />
               Adicionar Nova Saída
@@ -514,6 +516,12 @@ const Finance = () => {
         open={isExpenseDialogOpen} 
         onOpenChange={setIsExpenseDialogOpen}
         onExpenseCreated={fetchFinancialExpenses}
+      />
+      
+      <AddExpenseTypeDialog 
+        open={isAddExpenseTypeDialogOpen}
+        onOpenChange={setIsAddExpenseTypeDialogOpen}
+        onTypeCreated={() => {}}
       />
     </div>
   );

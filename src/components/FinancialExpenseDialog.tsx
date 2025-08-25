@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -6,9 +6,11 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Plus } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import AddExpenseTypeDialog from "./AddExpenseTypeDialog";
 
 interface FinancialExpenseDialogProps {
   open: boolean;
@@ -20,6 +22,8 @@ const FinancialExpenseDialog = ({ open, onOpenChange, onExpenseCreated }: Financ
   const { user } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [expenseTypes, setExpenseTypes] = useState<any[]>([]);
+  const [isAddTypeDialogOpen, setIsAddTypeDialogOpen] = useState(false);
   const [formData, setFormData] = useState({
     type: "",
     plate: "",
@@ -30,6 +34,27 @@ const FinancialExpenseDialog = ({ open, onOpenChange, onExpenseCreated }: Financ
     is_paid: false,
     attach_files: false
   });
+
+  useEffect(() => {
+    if (user && open) {
+      fetchExpenseTypes();
+    }
+  }, [user, open]);
+
+  const fetchExpenseTypes = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('expense_types')
+        .select('*')
+        .eq('user_id', user?.id)
+        .order('name');
+
+      if (error) throw error;
+      setExpenseTypes(data || []);
+    } catch (error) {
+      console.error('Error fetching expense types:', error);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,7 +116,19 @@ const FinancialExpenseDialog = ({ open, onOpenChange, onExpenseCreated }: Financ
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <Label>Tipo de Saída</Label>
+            <div className="flex items-center justify-between mb-2">
+              <Label>Tipo de Saída</Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setIsAddTypeDialogOpen(true)}
+                className="h-6 px-2 text-xs"
+              >
+                <Plus className="h-3 w-3 mr-1" />
+                Novo Tipo
+              </Button>
+            </div>
             <Select value={formData.type} onValueChange={(value) => setFormData(prev => ({ ...prev, type: value }))}>
               <SelectTrigger>
                 <SelectValue placeholder="Selecione o tipo" />
@@ -101,6 +138,11 @@ const FinancialExpenseDialog = ({ open, onOpenChange, onExpenseCreated }: Financ
                 <SelectItem value="combustivel">Combustível</SelectItem>
                 <SelectItem value="seguro">Seguro</SelectItem>
                 <SelectItem value="outros">Outros</SelectItem>
+                {expenseTypes.map((type) => (
+                  <SelectItem key={type.id} value={type.name.toLowerCase()}>
+                    {type.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -184,6 +226,12 @@ const FinancialExpenseDialog = ({ open, onOpenChange, onExpenseCreated }: Financ
             </Button>
           </div>
         </form>
+        
+        <AddExpenseTypeDialog 
+          open={isAddTypeDialogOpen}
+          onOpenChange={setIsAddTypeDialogOpen}
+          onTypeCreated={fetchExpenseTypes}
+        />
       </DialogContent>
     </Dialog>
   );
