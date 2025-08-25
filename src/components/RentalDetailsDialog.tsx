@@ -6,30 +6,31 @@ import { FileText, User, Car, Calendar, DollarSign, MapPin, Printer } from "luci
 import { useToast } from "@/hooks/use-toast";
 import { mockCustomers, mockVehicles } from "@/data/mockData";
 
-interface Rental {
+interface Contract {
   id: string;
-  customerId: string;
-  vehicleId: string;
-  type: string;
+  cliente_id: string;
+  cliente_nome: string;
+  cliente_cpf: string;
+  cliente_email: string;
+  moto_id: string;
+  moto_modelo: string;
   status: string;
-  startDate: string;
-  endDate: string;
-  totalValue: number;
+  data_inicio: string;
+  data_fim: string | null;
+  valor_mensal: number;
+  descricao?: string;
 }
 
 interface RentalDetailsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  rental: Rental | null;
+  rental: Contract | null;
 }
 
 const RentalDetailsDialog = ({ open, onOpenChange, rental }: RentalDetailsDialogProps) => {
   const { toast } = useToast();
 
   if (!rental) return null;
-
-  const customer = mockCustomers.find(c => c.id === rental.customerId);
-  const vehicle = mockVehicles.find(v => v.id === rental.vehicleId);
 
   const handlePrintContract = () => {
     toast({
@@ -97,9 +98,7 @@ const RentalDetailsDialog = ({ open, onOpenChange, rental }: RentalDetailsDialog
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Tipo</p>
                   <Badge variant="outline">
-                    {rental.type === 'diaria' ? 'Diária' :
-                     rental.type === 'semanal' ? 'Semanal' :
-                     rental.type === 'mensal' ? 'Mensal' : 'Longo Prazo'}
+                    Mensal
                   </Badge>
                 </div>
               </div>
@@ -110,7 +109,7 @@ const RentalDetailsDialog = ({ open, onOpenChange, rental }: RentalDetailsDialog
                   Período
                 </p>
                 <p className="font-medium">
-                  {new Date(rental.startDate).toLocaleDateString('pt-BR')} - {new Date(rental.endDate).toLocaleDateString('pt-BR')}
+                  {new Date(rental.data_inicio).toLocaleDateString('pt-BR')} - {rental.data_fim ? new Date(rental.data_fim).toLocaleDateString('pt-BR') : 'Indefinido'}
                 </p>
               </div>
               
@@ -120,7 +119,7 @@ const RentalDetailsDialog = ({ open, onOpenChange, rental }: RentalDetailsDialog
                   Valor Total
                 </p>
                 <p className="font-bold text-primary text-lg">
-                  R$ {rental.totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  R$ {Number(rental.valor_mensal || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </p>
               </div>
             </CardContent>
@@ -137,10 +136,9 @@ const RentalDetailsDialog = ({ open, onOpenChange, rental }: RentalDetailsDialog
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                <p className="font-medium">{customer?.name}</p>
-                <p className="text-sm text-muted-foreground">{customer?.cpfCnpj}</p>
-                <p className="text-sm text-muted-foreground">{customer?.email}</p>
-                <p className="text-sm text-muted-foreground">{customer?.phone}</p>
+                <p className="font-medium">{rental.cliente_nome}</p>
+                <p className="text-sm text-muted-foreground">{rental.cliente_cpf}</p>
+                <p className="text-sm text-muted-foreground">{rental.cliente_email}</p>
               </CardContent>
             </Card>
 
@@ -153,15 +151,10 @@ const RentalDetailsDialog = ({ open, onOpenChange, rental }: RentalDetailsDialog
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                <p className="font-medium">{vehicle?.brand} {vehicle?.model}</p>
-                <p className="text-sm text-muted-foreground">Placa: {vehicle?.plate}</p>
-                <p className="text-sm text-muted-foreground">Ano: {vehicle?.year}</p>
-                <p className="text-sm text-muted-foreground">Cor: {vehicle?.color}</p>
-                {vehicle?.lastLocation && (
-                  <div className="flex items-center gap-2 mt-2">
-                    <MapPin className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">Localização disponível</span>
-                  </div>
+                <p className="font-medium">{rental.moto_modelo}</p>
+                <p className="text-sm text-muted-foreground">ID: {rental.moto_id}</p>
+                {rental.descricao && (
+                  <p className="text-sm text-muted-foreground">Obs: {rental.descricao}</p>
                 )}
               </CardContent>
             </Card>
