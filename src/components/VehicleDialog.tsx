@@ -6,6 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Vehicle {
   id: string;
@@ -29,7 +31,9 @@ interface VehicleDialogProps {
 
 const VehicleDialog = ({ open, onOpenChange, vehicle, onVehicleUpdated }: VehicleDialogProps) => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const isEditing = !!vehicle;
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const [formData, setFormData] = useState({
     plate: vehicle?.plate || "",
@@ -44,31 +48,94 @@ const VehicleDialog = ({ open, onOpenChange, vehicle, onVehicleUpdated }: Vehicl
     observations: ""
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (isEditing) {
+    if (!user) {
+      toast({
+        title: "Erro",
+        description: "Você precisa estar logado para cadastrar veículos.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    
+    try {
+      if (isEditing) {
+        const { error } = await supabase
+          .from('vehicles')
+          .update({
+            plate: formData.plate,
+            brand: formData.brand,
+            model: formData.model,
+            year: parseInt(formData.year),
+            color: formData.color,
+            category: formData.category,
+            renavam: formData.renavam || null,
+            chassis: formData.chassis || null,
+            odometer: parseInt(formData.odometer) || 0,
+            observations: formData.observations || null,
+          })
+          .eq('id', vehicle?.id);
+
+        if (error) throw error;
+
+        toast({
+          title: "Veículo atualizado!",
+          description: `${formData.brand} ${formData.model} - ${formData.plate} foi atualizado.`,
+        });
+      } else {
+        const { error } = await supabase
+          .from('vehicles')
+          .insert({
+            user_id: user.id,
+            plate: formData.plate,
+            brand: formData.brand,
+            model: formData.model,
+            year: parseInt(formData.year),
+            color: formData.color,
+            category: formData.category,
+            renavam: formData.renavam || null,
+            chassis: formData.chassis || null,
+            odometer: parseInt(formData.odometer) || 0,
+            observations: formData.observations || null,
+            status: 'disponivel',
+          });
+
+        if (error) throw error;
+
+        toast({
+          title: "Veículo cadastrado com sucesso!",
+          description: `${formData.brand} ${formData.model} - ${formData.plate} foi adicionado à frota.`,
+        });
+        
+        setFormData({
+          plate: "",
+          brand: "",
+          model: "",
+          year: "",
+          color: "",
+          category: "",
+          renavam: "",
+          chassis: "",
+          odometer: "",
+          observations: ""
+        });
+      }
+
       onVehicleUpdated?.();
       onOpenChange(false);
-    } else {
+    } catch (error) {
+      console.error('Erro ao salvar veículo:', error);
       toast({
-        title: "Veículo cadastrado com sucesso!",
-        description: `${formData.brand} ${formData.model} - ${formData.plate} foi adicionado à frota.`,
+        title: "Erro",
+        description: "Não foi possível salvar o veículo. Tente novamente.",
+        variant: "destructive",
       });
-      
-      setFormData({
-        plate: "",
-        brand: "",
-        model: "",
-        year: "",
-        color: "",
-        category: "",
-        renavam: "",
-        chassis: "",
-        odometer: "",
-        observations: ""
-      });
-      onOpenChange(false);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -233,8 +300,12 @@ const VehicleDialog = ({ open, onOpenChange, vehicle, onVehicleUpdated }: Vehicl
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
-            <Button type="submit" className="bg-gradient-primary hover:opacity-90">
-              {isEditing ? 'Salvar Alterações' : 'Cadastrar Veículo'}
+            <Button 
+              type="submit" 
+              className="bg-gradient-primary hover:opacity-90"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? 'Salvando...' : (isEditing ? 'Salvar Alterações' : 'Cadastrar Veículo')}
             </Button>
           </DialogFooter>
         </form>

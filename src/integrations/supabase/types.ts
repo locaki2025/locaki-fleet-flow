@@ -424,6 +424,63 @@ export type Database = {
         }
         Relationships: []
       }
+      vehicles: {
+        Row: {
+          brand: string
+          category: string
+          chassis: string | null
+          color: string
+          created_at: string
+          id: string
+          model: string
+          observations: string | null
+          odometer: number | null
+          plate: string
+          renavam: string | null
+          status: string
+          tracker_id: string | null
+          updated_at: string
+          user_id: string
+          year: number
+        }
+        Insert: {
+          brand: string
+          category: string
+          chassis?: string | null
+          color: string
+          created_at?: string
+          id?: string
+          model: string
+          observations?: string | null
+          odometer?: number | null
+          plate: string
+          renavam?: string | null
+          status?: string
+          tracker_id?: string | null
+          updated_at?: string
+          user_id: string
+          year: number
+        }
+        Update: {
+          brand?: string
+          category?: string
+          chassis?: string | null
+          color?: string
+          created_at?: string
+          id?: string
+          model?: string
+          observations?: string | null
+          odometer?: number | null
+          plate?: string
+          renavam?: string | null
+          status?: string
+          tracker_id?: string | null
+          updated_at?: string
+          user_id?: string
+          year?: number
+        }
+        Relationships: []
+      }
       webhook_logs: {
         Row: {
           amount: number | null

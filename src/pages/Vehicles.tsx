@@ -1,21 +1,56 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Plus, Search, Filter, Car, MapPin, Gauge, Calendar } from "lucide-react";
-import { mockVehicles } from "@/data/mockData";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import VehicleDialog from "@/components/VehicleDialog";
 import VehicleDetailsDialog from "@/components/VehicleDetailsDialog";
 
 const Vehicles = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
   const [isVehicleDialogOpen, setIsVehicleDialogOpen] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState<any>(null);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
+  const [vehicles, setVehicles] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    if (user) {
+      fetchVehicles();
+    }
+  }, [user]);
+
+  const fetchVehicles = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('vehicles')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setVehicles(data || []);
+    } catch (error) {
+      console.error('Erro ao buscar veículos:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar os veículos.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVehicleCreated = () => {
+    fetchVehicles(); // Atualiza a lista após criar um veículo
+  };
+
   const handleViewOnMap = (vehicle: any) => {
     navigate('/map');
     toast({
@@ -60,7 +95,7 @@ const Vehicles = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Total</p>
-                <p className="text-2xl font-bold">{mockVehicles.length}</p>
+                <p className="text-2xl font-bold">{vehicles.length}</p>
               </div>
               <Car className="h-8 w-8 text-primary" />
             </div>
@@ -71,7 +106,7 @@ const Vehicles = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Disponíveis</p>
-                <p className="text-2xl font-bold text-success">{mockVehicles.filter(v => v.status === 'disponivel').length}</p>
+                <p className="text-2xl font-bold text-success">{vehicles.filter(v => v.status === 'disponivel').length}</p>
               </div>
               <div className="h-8 w-8 rounded-full bg-success/20 flex items-center justify-center">
                 <Car className="h-4 w-4 text-success" />
@@ -84,7 +119,7 @@ const Vehicles = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Alugadas</p>
-                <p className="text-2xl font-bold text-accent">{mockVehicles.filter(v => v.status === 'alugado').length}</p>
+                <p className="text-2xl font-bold text-accent">{vehicles.filter(v => v.status === 'alugado').length}</p>
               </div>
               <div className="h-8 w-8 rounded-full bg-accent/20 flex items-center justify-center">
                 <Car className="h-4 w-4 text-accent" />
@@ -97,7 +132,7 @@ const Vehicles = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Manutenção</p>
-                <p className="text-2xl font-bold text-warning">{mockVehicles.filter(v => v.status === 'manutencao').length}</p>
+                <p className="text-2xl font-bold text-warning">{vehicles.filter(v => v.status === 'manutencao').length}</p>
               </div>
               <div className="h-8 w-8 rounded-full bg-warning/20 flex items-center justify-center">
                 <Car className="h-4 w-4 text-warning" />
@@ -128,7 +163,23 @@ const Vehicles = () => {
 
       {/* Vehicle Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {mockVehicles.map((vehicle) => (
+        {loading ? (
+          <div className="col-span-full text-center py-8">
+            <p className="text-muted-foreground">Carregando veículos...</p>
+          </div>
+        ) : vehicles.length === 0 ? (
+          <div className="col-span-full text-center py-8">
+            <p className="text-muted-foreground">Nenhum veículo cadastrado.</p>
+            <Button 
+              variant="outline" 
+              className="mt-4"
+              onClick={() => setIsVehicleDialogOpen(true)}
+            >
+              Cadastrar primeiro veículo
+            </Button>
+          </div>
+        ) : (
+          vehicles.map((vehicle) => (
           <Card key={vehicle.id} className="hover:shadow-lg transition-all hover:scale-[1.02]">
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between">
@@ -212,25 +263,21 @@ const Vehicles = () => {
               </div>
             </CardContent>
           </Card>
-        ))}
+          ))
+        )}
       </div>
 
       <VehicleDialog 
         open={isVehicleDialogOpen} 
-        onOpenChange={setIsVehicleDialogOpen} 
+        onOpenChange={setIsVehicleDialogOpen}
+        onVehicleUpdated={handleVehicleCreated}
       />
 
       <VehicleDetailsDialog 
         open={isDetailsDialogOpen} 
         onOpenChange={setIsDetailsDialogOpen}
         vehicle={selectedVehicle}
-        onVehicleUpdate={() => {
-          // Refresh the vehicle list when a vehicle is updated or deleted
-          toast({
-            title: "Lista atualizada",
-            description: "A lista de veículos foi atualizada.",
-          });
-        }}
+        onVehicleUpdate={handleVehicleCreated}
       />
     </div>
   );
