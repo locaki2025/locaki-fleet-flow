@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 interface MaintenanceOrderDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onOrderCreated?: () => void;
+  onOrderCreated?: (newOrder: any) => void;
 }
 
 const MaintenanceOrderDialog = ({ open, onOpenChange, onOrderCreated }: MaintenanceOrderDialogProps) => {
@@ -44,6 +44,21 @@ const MaintenanceOrderDialog = ({ open, onOpenChange, onOrderCreated }: Maintena
       });
       return;
     }
+
+    // Create new order object
+    const newOrder = {
+      id: `order_${Date.now()}`,
+      vehicleId: formData.vehicleId,
+      type: formData.type,
+      priority: formData.priority || 'media',
+      description: formData.description,
+      cost: parseFloat(formData.estimatedCost) || 0,
+      status: 'aberta',
+      scheduledDate: scheduledDate.toISOString(),
+      mechanic: formData.mechanic,
+      location: formData.location,
+      createdAt: new Date().toISOString()
+    };
     
     toast({
       title: "Ordem de serviço criada!",
@@ -62,7 +77,7 @@ const MaintenanceOrderDialog = ({ open, onOpenChange, onOrderCreated }: Maintena
     });
     setScheduledDate(undefined);
     onOpenChange(false);
-    onOrderCreated?.();
+    onOrderCreated?.(newOrder);
   };
 
   const handleInputChange = (field: string, value: string) => {

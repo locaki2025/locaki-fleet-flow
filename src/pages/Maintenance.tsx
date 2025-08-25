@@ -383,7 +383,9 @@ const Maintenance = () => {
       <MaintenanceOrderDialog
         open={isOrderDialogOpen}
         onOpenChange={setIsOrderDialogOpen}
-        onOrderCreated={() => {
+        onOrderCreated={(newOrder) => {
+          // Add the new order to the current list
+          setOrders(prev => [newOrder, ...prev]);
           toast({
             title: "Lista atualizada",
             description: "A nova ordem foi adicionada à lista.",
