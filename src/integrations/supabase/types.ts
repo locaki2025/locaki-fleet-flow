@@ -253,6 +253,63 @@ export type Database = {
         }
         Relationships: []
       }
+      devices: {
+        Row: {
+          address: string | null
+          battery: number | null
+          chip_number: string | null
+          created_at: string
+          id: string
+          imei: string
+          last_update: string | null
+          latitude: number | null
+          longitude: number | null
+          name: string
+          signal: number | null
+          status: string
+          tracker_model: string | null
+          updated_at: string
+          user_id: string
+          vehicle_plate: string
+        }
+        Insert: {
+          address?: string | null
+          battery?: number | null
+          chip_number?: string | null
+          created_at?: string
+          id?: string
+          imei: string
+          last_update?: string | null
+          latitude?: number | null
+          longitude?: number | null
+          name: string
+          signal?: number | null
+          status?: string
+          tracker_model?: string | null
+          updated_at?: string
+          user_id: string
+          vehicle_plate: string
+        }
+        Update: {
+          address?: string | null
+          battery?: number | null
+          chip_number?: string | null
+          created_at?: string
+          id?: string
+          imei?: string
+          last_update?: string | null
+          latitude?: number | null
+          longitude?: number | null
+          name?: string
+          signal?: number | null
+          status?: string
+          tracker_model?: string | null
+          updated_at?: string
+          user_id?: string
+          vehicle_plate?: string
+        }
+        Relationships: []
+      }
       expense_types: {
         Row: {
           created_at: string

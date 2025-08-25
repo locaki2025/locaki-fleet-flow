@@ -18,6 +18,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface DeviceDialogProps {
   open: boolean;
@@ -27,15 +29,28 @@ interface DeviceDialogProps {
 
 const DeviceDialog = ({ open, onOpenChange, onDeviceCreated }: DeviceDialogProps) => {
   const { toast } = useToast();
+  const { user } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     imei: "",
     vehiclePlate: "",
+    chipNumber: "",
+    trackerModel: "",
     status: "online",
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!user) {
+      toast({
+        title: "Erro",
+        description: "Você precisa estar logado para adicionar dispositivos",
+        variant: "destructive",
+      });
+      return;
+    }
     
     if (!formData.name || !formData.imei || !formData.vehiclePlate) {
       toast({
@@ -46,19 +61,45 @@ const DeviceDialog = ({ open, onOpenChange, onDeviceCreated }: DeviceDialogProps
       return;
     }
 
-    toast({
-      title: "Dispositivo criado",
-      description: `${formData.name} foi adicionado com sucesso`,
-    });
+    setIsLoading(true);
 
-    onDeviceCreated();
-    onOpenChange(false);
-    setFormData({
-      name: "",
-      imei: "",
-      vehiclePlate: "",
-      status: "online",
-    });
+    try {
+      const { error } = await supabase.from('devices').insert({
+        user_id: user.id,
+        name: formData.name,
+        imei: formData.imei,
+        vehicle_plate: formData.vehiclePlate,
+        chip_number: formData.chipNumber || null,
+        tracker_model: formData.trackerModel || null,
+        status: formData.status,
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Dispositivo criado",
+        description: `${formData.name} foi adicionado com sucesso`,
+      });
+
+      onDeviceCreated();
+      onOpenChange(false);
+      setFormData({
+        name: "",
+        imei: "",
+        vehiclePlate: "",
+        chipNumber: "",
+        trackerModel: "",
+        status: "online",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Erro",
+        description: error.message || "Erro ao criar dispositivo",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -105,6 +146,26 @@ const DeviceDialog = ({ open, onOpenChange, onDeviceCreated }: DeviceDialogProps
           </div>
           
           <div className="space-y-2">
+            <Label htmlFor="chipNumber">Número do Chip</Label>
+            <Input
+              id="chipNumber"
+              placeholder="Ex: 11999999999"
+              value={formData.chipNumber}
+              onChange={(e) => setFormData({ ...formData, chipNumber: e.target.value })}
+            />
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="trackerModel">Modelo do Rastreador</Label>
+            <Input
+              id="trackerModel"
+              placeholder="Ex: GT06N, TK102, ST901"
+              value={formData.trackerModel}
+              onChange={(e) => setFormData({ ...formData, trackerModel: e.target.value })}
+            />
+          </div>
+          
+          <div className="space-y-2">
             <Label htmlFor="status">Status Inicial</Label>
             <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
               <SelectTrigger>
@@ -122,8 +183,12 @@ const DeviceDialog = ({ open, onOpenChange, onDeviceCreated }: DeviceDialogProps
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
-            <Button type="submit" className="bg-gradient-primary hover:opacity-90">
-              Adicionar Dispositivo
+            <Button 
+              type="submit" 
+              className="bg-gradient-primary hover:opacity-90"
+              disabled={isLoading}
+            >
+              {isLoading ? "Criando..." : "Adicionar Dispositivo"}
             </Button>
           </DialogFooter>
         </form>
