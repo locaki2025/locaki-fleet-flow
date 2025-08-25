@@ -118,6 +118,7 @@ const generateInvoicesForUser = async (userId: string) => {
       const dueDate = new Date(contract.proxima_cobranca);
       dueDate.setDate(dueDate.getDate() + 7);
 
+      // First, create the invoice in our database
       const invoiceData = {
         user_id: userId,
         contrato_id: contract.id,
@@ -133,14 +134,28 @@ const generateInvoicesForUser = async (userId: string) => {
         status: 'pendente',
         tipo_cobranca: 'recorrente',
         tentativas_cobranca: 0,
+        metodo_pagamento: config.payment_types.join(','),
       };
 
-      console.log(`Creating invoice for contract ${contract.id}`);
+      console.log(`Creating invoice in database for contract ${contract.id}`);
 
-      // Create invoice with Cora
-      let coraResponse;
+      // Insert invoice into database first
+      const { data: createdInvoice, error: insertError } = await supabase
+        .from('boletos')
+        .insert(invoiceData)
+        .select()
+        .single();
+
+      if (insertError) {
+        console.error(`Error inserting invoice for contract ${contract.id}:`, insertError);
+        continue;
+      }
+
+      console.log(`Invoice created in database with ID: ${createdInvoice.id}, now sending to Cora...`);
+
+      // Then, send to Cora API to generate boleto/PIX
       try {
-        coraResponse = await createCoraInvoice(invoiceData, config);
+        const coraResponse = await createCoraInvoice(invoiceData, config);
         
         await logIntegration(
           userId,
@@ -151,11 +166,22 @@ const generateInvoicesForUser = async (userId: string) => {
           'success'
         );
 
-        // Update invoice data with Cora response
-        invoiceData.codigo_barras = coraResponse.barcode;
-        invoiceData.qr_code_pix = coraResponse.pix_qr_code;
-        invoiceData.url_boleto = coraResponse.pdf_url;
-        invoiceData.metodo_pagamento = coraResponse.payment_method;
+        // Update the database record with Cora response data
+        const { error: updateError } = await supabase
+          .from('boletos')
+          .update({
+            codigo_barras: coraResponse.barcode,
+            qr_code_pix: coraResponse.pix_qr_code,
+            url_boleto: coraResponse.pdf_url,
+            fatura_id: coraResponse.id || invoiceData.fatura_id, // Use Cora ID if available
+          })
+          .eq('id', createdInvoice.id);
+
+        if (updateError) {
+          console.error(`Error updating invoice with Cora data:`, updateError);
+        } else {
+          console.log(`Invoice ${createdInvoice.id} updated with Cora data successfully`);
+        }
 
       } catch (coraError) {
         console.error(`Cora API error for contract ${contract.id}:`, coraError);
@@ -170,24 +196,23 @@ const generateInvoicesForUser = async (userId: string) => {
           coraError.message
         );
 
-        // Continue with local invoice creation even if Cora fails
-      }
+        // Update invoice with error status
+        await supabase
+          .from('boletos')
+          .update({ 
+            status: 'erro',
+            observacoes: `Erro na integração Cora: ${coraError.message}`
+          })
+          .eq('id', createdInvoice.id);
 
-      // Insert invoice into database
-      const { error: insertError } = await supabase
-        .from('boletos')
-        .insert(invoiceData);
-
-      if (insertError) {
-        console.error(`Error inserting invoice for contract ${contract.id}:`, insertError);
-        continue;
+        console.log(`Invoice ${createdInvoice.id} marked with error status due to Cora API failure`);
       }
 
       // Update contract's proxima_cobranca (next billing date)
       const nextBilling = new Date(contract.proxima_cobranca);
       nextBilling.setDate(nextBilling.getDate() + 30); // Next month
 
-      const { error: updateError } = await supabase
+      const { error: contractUpdateError } = await supabase
         .from('contratos')
         .update({
           proxima_cobranca: nextBilling.toISOString().split('T')[0],
@@ -195,8 +220,8 @@ const generateInvoicesForUser = async (userId: string) => {
         })
         .eq('id', contract.id);
 
-      if (updateError) {
-        console.error(`Error updating contract ${contract.id}:`, updateError);
+      if (contractUpdateError) {
+        console.error(`Error updating contract ${contract.id}:`, contractUpdateError);
       }
 
       console.log(`Successfully processed contract ${contract.id}`);
