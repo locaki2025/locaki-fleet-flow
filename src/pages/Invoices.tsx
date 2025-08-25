@@ -18,12 +18,14 @@ import {
   AlertCircle,
   CheckCircle2,
   Clock,
-  Send
+  Send,
+  Settings
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import InvoiceDialog from "@/components/InvoiceDialog";
+import CoraConfigDialog from "@/components/CoraConfigDialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,6 +37,7 @@ const Invoices = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [isInvoiceDialogOpen, setIsInvoiceDialogOpen] = useState(false);
+  const [isCoraConfigOpen, setIsCoraConfigOpen] = useState(false);
   const [invoices, setInvoices] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -159,6 +162,7 @@ const Invoices = () => {
             <p className="text-muted-foreground">Gerencie todas as faturas e cobranças</p>
           </div>
         </div>
+        <div className="flex gap-2">
         <Button 
           className="bg-gradient-primary hover:opacity-90"
           onClick={() => setIsInvoiceDialogOpen(true)}
@@ -166,6 +170,14 @@ const Invoices = () => {
           <Plus className="h-4 w-4 mr-2" />
           Nova Fatura
         </Button>
+        <Button 
+          variant="outline"
+          onClick={() => setIsCoraConfigOpen(true)}
+        >
+          <Settings className="h-4 w-4 mr-2" />
+          Config. Cora
+        </Button>
+        </div>
       </div>
 
       {/* KPIs */}
@@ -500,6 +512,10 @@ const Invoices = () => {
         open={isInvoiceDialogOpen} 
         onOpenChange={setIsInvoiceDialogOpen}
         onInvoiceCreated={fetchInvoices}
+      />
+      <CoraConfigDialog 
+        open={isCoraConfigOpen} 
+        onOpenChange={setIsCoraConfigOpen}
       />
     </div>
   );

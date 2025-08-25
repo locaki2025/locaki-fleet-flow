@@ -22,14 +22,18 @@ export type Database = {
           cliente_nome: string
           codigo_barras: string | null
           contrato_id: string | null
+          contrato_origem_id: string | null
           created_at: string
           data_pagamento: string | null
+          data_proxima_tentativa: string | null
           descricao: string | null
           fatura_id: string
           id: string
           metodo_pagamento: string | null
           qr_code_pix: string | null
           status: string
+          tentativas_cobranca: number | null
+          tipo_cobranca: string | null
           updated_at: string
           url_boleto: string | null
           user_id: string
@@ -44,14 +48,18 @@ export type Database = {
           cliente_nome: string
           codigo_barras?: string | null
           contrato_id?: string | null
+          contrato_origem_id?: string | null
           created_at?: string
           data_pagamento?: string | null
+          data_proxima_tentativa?: string | null
           descricao?: string | null
           fatura_id: string
           id?: string
           metodo_pagamento?: string | null
           qr_code_pix?: string | null
           status?: string
+          tentativas_cobranca?: number | null
+          tipo_cobranca?: string | null
           updated_at?: string
           url_boleto?: string | null
           user_id: string
@@ -66,14 +74,18 @@ export type Database = {
           cliente_nome?: string
           codigo_barras?: string | null
           contrato_id?: string | null
+          contrato_origem_id?: string | null
           created_at?: string
           data_pagamento?: string | null
+          data_proxima_tentativa?: string | null
           descricao?: string | null
           fatura_id?: string
           id?: string
           metodo_pagamento?: string | null
           qr_code_pix?: string | null
           status?: string
+          tentativas_cobranca?: number | null
+          tipo_cobranca?: string | null
           updated_at?: string
           url_boleto?: string | null
           user_id?: string
@@ -419,6 +431,69 @@ export type Database = {
           location?: string | null
           plate?: string
           type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      integration_logs: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          id: string
+          operation: string
+          request_data: Json | null
+          response_data: Json | null
+          service: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          operation: string
+          request_data?: Json | null
+          response_data?: Json | null
+          service: string
+          status: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          operation?: string
+          request_data?: Json | null
+          response_data?: Json | null
+          service?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      tenant_config: {
+        Row: {
+          config_key: string
+          config_value: Json
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          config_key: string
+          config_value: Json
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          config_key?: string
+          config_value?: Json
+          created_at?: string
+          id?: string
           updated_at?: string
           user_id?: string
         }
