@@ -29,6 +29,7 @@ const Finance = () => {
   const [isEntryDialogOpen, setIsEntryDialogOpen] = useState(false);
   const [isExpenseDialogOpen, setIsExpenseDialogOpen] = useState(false);
   const [isAddExpenseTypeDialogOpen, setIsAddExpenseTypeDialogOpen] = useState(false);
+  const [expenseDialogKey, setExpenseDialogKey] = useState(0);
   const [invoices, setInvoices] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [financialEntries, setFinancialEntries] = useState<any[]>([]);
@@ -107,6 +108,13 @@ const Finance = () => {
     } catch (error) {
       console.error('Error fetching financial expenses:', error);
     }
+  };
+
+  const handleExpenseTypeCreated = () => {
+    // Force refresh of expense dialog to reload types
+    setExpenseDialogKey(prev => prev + 1);
+    setIsAddExpenseTypeDialogOpen(false);
+    setIsExpenseDialogOpen(true);
   };
 
   // Calculate financial metrics
@@ -513,6 +521,7 @@ const Finance = () => {
       />
       
       <FinancialExpenseDialog 
+        key={expenseDialogKey}
         open={isExpenseDialogOpen} 
         onOpenChange={setIsExpenseDialogOpen}
         onExpenseCreated={fetchFinancialExpenses}
@@ -521,7 +530,7 @@ const Finance = () => {
       <AddExpenseTypeDialog 
         open={isAddExpenseTypeDialogOpen}
         onOpenChange={setIsAddExpenseTypeDialogOpen}
-        onTypeCreated={() => {}}
+        onTypeCreated={handleExpenseTypeCreated}
       />
     </div>
   );
