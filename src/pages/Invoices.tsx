@@ -128,33 +128,6 @@ const Invoices = () => {
     }
   };
 
-  const handleDeleteInvoice = async (invoiceId: string) => {
-    try {
-      const { error } = await supabase
-        .from('boletos')
-        .delete()
-        .eq('id', invoiceId)
-        .eq('user_id', user?.id);
-
-      if (error) throw error;
-
-      toast({
-        title: "Fatura excluída",
-        description: "A fatura foi excluída com sucesso",
-      });
-
-      // Refresh the invoices list
-      fetchInvoices();
-    } catch (error) {
-      console.error('Error deleting invoice:', error);
-      toast({
-        title: "Erro",
-        description: "Erro ao excluir a fatura",
-        variant: "destructive",
-      });
-    }
-  };
-
   const handleInvoiceAction = (action: string, invoiceId: string) => {
     toast({
       title: `${action} executado`,
@@ -379,7 +352,7 @@ const Invoices = () => {
                               Baixar PDF
                             </DropdownMenuItem>
                             <DropdownMenuItem 
-                              onClick={() => handleDeleteInvoice(invoice.id)}
+                              onClick={() => handleInvoiceAction("Excluir", invoice.fatura_id)}
                               className="text-destructive"
                             >
                               <Trash2 className="h-4 w-4 mr-2" />
