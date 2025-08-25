@@ -268,10 +268,21 @@ const Rentals = () => {
                       <User className="h-4 w-4" />
                       <span>{contract.cliente_nome}</span>
                     </div>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Car className="h-4 w-4" />
-                      <span>{contract.moto_modelo}</span>
-                    </div>
+                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                       <Car className="h-4 w-4" />
+                       <span>{contract.moto_modelo}</span>
+                     </div>
+                     {contract.diaria && (
+                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                         <DollarSign className="h-4 w-4" />
+                         <span>Diária: R$ {Number(contract.diaria).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                       </div>
+                     )}
+                     {contract.local_entrega && (
+                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                         <span>📍 {contract.local_entrega}</span>
+                       </div>
+                     )}
                   </div>
                 </div>
 

@@ -93,17 +93,31 @@ export type Database = {
       }
       contratos: {
         Row: {
+          cadeado_inclusos: boolean | null
+          capa_banco_inclusos: boolean | null
+          capacete_inclusos: boolean | null
+          caucionamento: number | null
           cliente_cpf: string | null
           cliente_email: string
           cliente_id: string
           cliente_nome: string
+          combustivel_devolucao: string | null
+          combustivel_entrega: string | null
           created_at: string
           data_fim: string | null
+          data_fim_completa: string | null
           data_inicio: string
+          data_inicio_completa: string | null
           descricao: string | null
+          diaria: number | null
           id: string
+          km_permitidos_dia: number | null
+          local_devolucao: string | null
+          local_entrega: string | null
           moto_id: string
           moto_modelo: string
+          multa_km_excedente: number | null
+          multimeios_inclusos: boolean | null
           proxima_cobranca: string
           recorrente: boolean | null
           status: string
@@ -113,17 +127,31 @@ export type Database = {
           valor_mensal: number
         }
         Insert: {
+          cadeado_inclusos?: boolean | null
+          capa_banco_inclusos?: boolean | null
+          capacete_inclusos?: boolean | null
+          caucionamento?: number | null
           cliente_cpf?: string | null
           cliente_email: string
           cliente_id: string
           cliente_nome: string
+          combustivel_devolucao?: string | null
+          combustivel_entrega?: string | null
           created_at?: string
           data_fim?: string | null
+          data_fim_completa?: string | null
           data_inicio?: string
+          data_inicio_completa?: string | null
           descricao?: string | null
+          diaria?: number | null
           id?: string
+          km_permitidos_dia?: number | null
+          local_devolucao?: string | null
+          local_entrega?: string | null
           moto_id: string
           moto_modelo: string
+          multa_km_excedente?: number | null
+          multimeios_inclusos?: boolean | null
           proxima_cobranca?: string
           recorrente?: boolean | null
           status?: string
@@ -133,17 +161,31 @@ export type Database = {
           valor_mensal?: number
         }
         Update: {
+          cadeado_inclusos?: boolean | null
+          capa_banco_inclusos?: boolean | null
+          capacete_inclusos?: boolean | null
+          caucionamento?: number | null
           cliente_cpf?: string | null
           cliente_email?: string
           cliente_id?: string
           cliente_nome?: string
+          combustivel_devolucao?: string | null
+          combustivel_entrega?: string | null
           created_at?: string
           data_fim?: string | null
+          data_fim_completa?: string | null
           data_inicio?: string
+          data_inicio_completa?: string | null
           descricao?: string | null
+          diaria?: number | null
           id?: string
+          km_permitidos_dia?: number | null
+          local_devolucao?: string | null
+          local_entrega?: string | null
           moto_id?: string
           moto_modelo?: string
+          multa_km_excedente?: number | null
+          multimeios_inclusos?: boolean | null
           proxima_cobranca?: string
           recorrente?: boolean | null
           status?: string
