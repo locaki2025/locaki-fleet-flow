@@ -20,6 +20,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { mockMaintenanceOrders, mockVehicles } from "@/data/mockData";
 import MaintenanceOrderDialog from "@/components/MaintenanceOrderDialog";
+import MaintenanceDetailsDialog from "@/components/MaintenanceDetailsDialog";
 
 const Maintenance = () => {
   const { user } = useAuth();
@@ -27,6 +28,8 @@ const Maintenance = () => {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isOrderDialogOpen, setIsOrderDialogOpen] = useState(false);
+  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<any>(null);
 
   useEffect(() => {
     if (user) {
@@ -75,6 +78,11 @@ const Maintenance = () => {
   const getVehicleInfo = (vehicleId: string) => {
     const vehicle = mockVehicles.find(v => v.id === vehicleId);
     return vehicle ? `${vehicle.brand} ${vehicle.model} - ${vehicle.plate}` : 'Veículo não encontrado';
+  };
+
+  const handleViewDetails = (order: any) => {
+    setSelectedOrder(order);
+    setIsDetailsDialogOpen(true);
   };
 
   if (!user) {
@@ -225,7 +233,11 @@ const Maintenance = () => {
                           {getStatusText(order.status)}
                         </Badge>
                         
-                        <Button variant="outline" size="sm">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleViewDetails(order)}
+                        >
                           Ver Detalhes
                         </Button>
                       </div>
@@ -391,6 +403,12 @@ const Maintenance = () => {
             description: "A nova ordem foi adicionada à lista.",
           });
         }}
+      />
+
+      <MaintenanceDetailsDialog
+        open={isDetailsDialogOpen}
+        onOpenChange={setIsDetailsDialogOpen}
+        order={selectedOrder}
       />
     </div>
   );
