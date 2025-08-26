@@ -13,12 +13,41 @@ import {
   AlertTriangle,
   RefreshCw
 } from "lucide-react";
-import { mockVehicles } from "@/data/mockData";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Map = () => {
-  const vehiclesWithLocation = mockVehicles.filter(v => v.lastLocation);
+  const { user } = useAuth();
+  const [vehicles, setVehicles] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (user) {
+      fetchVehicles();
+    }
+  }, [user]);
+
+  const fetchVehicles = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('vehicles')
+        .select('*')
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+      setVehicles(data || []);
+    } catch (error) {
+      console.error('Error fetching vehicles:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const vehiclesWithLocation = vehicles.filter(v => v.last_location);
   const onlineVehicles = vehiclesWithLocation.length;
-  const offlineVehicles = mockVehicles.length - onlineVehicles;
+  const offlineVehicles = vehicles.length - onlineVehicles;
 
   return (
     <div className="p-6 space-y-6">
@@ -28,12 +57,14 @@ const Map = () => {
           <h1 className="text-3xl font-bold text-foreground">Mapa & Rastreamento</h1>
           <p className="text-muted-foreground">Acompanhe a localização da sua frota em tempo real</p>
         </div>
-        <Button variant="outline" onClick={() => {
-          window.location.reload();
-        }}>
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Atualizar
-        </Button>
+            <Button 
+              variant="outline" 
+              onClick={fetchVehicles}
+              disabled={loading}
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              {loading ? 'Atualizando...' : 'Atualizar'}
+            </Button>
       </div>
 
       {/* Status Cards */}

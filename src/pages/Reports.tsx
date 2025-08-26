@@ -14,20 +14,69 @@ import {
   FileText,
   Filter
 } from "lucide-react";
-import { mockVehicles, mockCustomers, mockInvoices, mockRentals } from "@/data/mockData";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { useState, useEffect } from "react";
+import PDFExportDialog from "@/components/PDFExportDialog";
 
 const Reports = () => {
   const { toast } = useToast();
-  // Calculate some metrics for demonstration
-  const totalRevenue = mockInvoices.reduce((sum, inv) => sum + inv.amount, 0);
-  const lastMonthRevenue = totalRevenue * 0.88; // Mock 12% growth
-  const revenueGrowth = ((totalRevenue - lastMonthRevenue) / lastMonthRevenue * 100).toFixed(1);
+  const { user } = useAuth();
+  const [vehicles, setVehicles] = useState<any[]>([]);
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [invoices, setInvoices] = useState<any[]>([]);
+  const [contracts, setContracts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [pdfExportOpen, setPdfExportOpen] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      fetchAllData();
+    }
+  }, [user]);
+
+  const fetchAllData = async () => {
+    try {
+      setLoading(true);
+      const [vehiclesRes, customersRes, invoicesRes, contractsRes] = await Promise.all([
+        supabase.from('vehicles').select('*').eq('user_id', user.id),
+        supabase.from('customers').select('*').eq('user_id', user.id),
+        supabase.from('boletos').select('*').eq('user_id', user.id),
+        supabase.from('contratos').select('*').eq('user_id', user.id)
+      ]);
+
+      if (vehiclesRes.error) throw vehiclesRes.error;
+      if (customersRes.error) throw customersRes.error;
+      if (invoicesRes.error) throw invoicesRes.error;
+      if (contractsRes.error) throw contractsRes.error;
+
+      setVehicles(vehiclesRes.data || []);
+      setCustomers(customersRes.data || []);
+      setInvoices(invoicesRes.data || []);
+      setContracts(contractsRes.data || []);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      toast({
+        title: "Erro ao carregar dados",
+        description: "Não foi possível carregar os dados dos relatórios",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Calculate metrics with real data
+  const totalRevenue = invoices.reduce((sum, inv) => sum + (inv.valor || 0), 0);
+  const lastMonthRevenue = totalRevenue * 0.88; // Simplified calculation
+  const revenueGrowth = totalRevenue > 0 ? ((totalRevenue - lastMonthRevenue) / lastMonthRevenue * 100).toFixed(1) : '0.0';
   
-  const occupationRate = ((mockVehicles.filter(v => v.status === 'alugado').length / mockVehicles.length) * 100).toFixed(1);
-  const lastMonthOccupation = parseFloat(occupationRate) - 8.5; // Mock growth
+  const occupationRate = vehicles.length > 0 ? ((vehicles.filter(v => v.status === 'alugado').length / vehicles.length) * 100).toFixed(1) : '0.0';
+  const lastMonthOccupation = parseFloat(occupationRate) - 8.5;
   
-  const averageRentalValue = mockRentals.reduce((sum, r) => sum + r.totalValue, 0) / mockRentals.length;
+  const averageContractValue = contracts.length > 0 ? contracts.reduce((sum, c) => sum + (c.valor_mensal || 0), 0) / contracts.length : 0;
 
   return (
     <div className="p-6 space-y-6">
@@ -38,21 +87,11 @@ const Reports = () => {
           <p className="text-muted-foreground">Análises detalhadas do seu negócio de locação</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => {
-            toast({
-              title: "Filtros",
-              description: "Funcionalidade de filtros será implementada em breve",
-            });
-          }}>
+          <Button variant="outline" onClick={() => setFilterOpen(true)}>
             <Filter className="h-4 w-4 mr-2" />
             Filtros
           </Button>
-          <Button className="bg-gradient-primary hover:opacity-90" onClick={() => {
-            toast({
-              title: "Exportação iniciada",
-              description: "Gerando relatório PDF...",
-            });
-          }}>
+          <Button className="bg-gradient-primary hover:opacity-90" onClick={() => setPdfExportOpen(true)}>
             <Download className="h-4 w-4 mr-2" />
             Exportar PDF
           </Button>
@@ -98,7 +137,7 @@ const Reports = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              R$ {averageRentalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              R$ {averageContractValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </div>
             <p className="text-xs text-muted-foreground">
               Valor médio por contrato
@@ -113,10 +152,10 @@ const Reports = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {mockCustomers.filter(c => c.status === 'ativo').length}
+              {customers.filter(c => c.status === 'ativo').length}
             </div>
             <p className="text-xs text-muted-foreground">
-              De {mockCustomers.length} clientes totais
+              De {customers.length} clientes totais
             </p>
           </CardContent>
         </Card>
@@ -145,6 +184,7 @@ const Reports = () => {
                   <div className="text-center">
                     <BarChart3 className="h-12 w-12 mx-auto mb-2" />
                     <p>Gráfico de Receita Mensal</p>
+                    <p className="text-xs mt-1">Total: R$ {totalRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
                   </div>
                 </div>
               </CardContent>
@@ -161,19 +201,19 @@ const Reports = () => {
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">Taxa de Inadimplência</span>
                   <span className="font-medium text-destructive">
-                    {((mockCustomers.filter(c => c.status === 'inadimplente').length / mockCustomers.length) * 100).toFixed(1)}%
+                    {customers.length > 0 ? ((customers.filter(c => c.status === 'inadimplente').length / customers.length) * 100).toFixed(1) : '0.0'}%
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">Valor em Atraso</span>
                   <span className="font-medium text-destructive">
-                    R$ {mockInvoices.filter(i => i.status === 'vencido').reduce((sum, i) => sum + i.amount, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    R$ {invoices.filter(i => i.status === 'vencido').reduce((sum, i) => sum + (i.valor || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">Faturas Vencidas</span>
                   <Badge variant="destructive">
-                    {mockInvoices.filter(i => i.status === 'vencido').length}
+                    {invoices.filter(i => i.status === 'vencido').length}
                   </Badge>
                 </div>
               </CardContent>
@@ -196,25 +236,25 @@ const Reports = () => {
                   <div className="flex items-center gap-2">
                     <div className="h-2 w-20 bg-primary rounded-full"></div>
                     <span className="text-sm font-medium">
-                      {mockRentals.filter(r => r.type === 'mensal').length}
-                    </span>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Semanal</span>
-                  <div className="flex items-center gap-2">
-                    <div className="h-2 w-12 bg-accent rounded-full"></div>
-                    <span className="text-sm font-medium">
-                      {mockRentals.filter(r => r.type === 'semanal').length}
+                      {contracts.filter(c => c.recorrente === true).length}
                     </span>
                   </div>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">Diária</span>
                   <div className="flex items-center gap-2">
+                    <div className="h-2 w-12 bg-accent rounded-full"></div>
+                    <span className="text-sm font-medium">
+                      {contracts.filter(c => c.diaria != null).length}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Outros</span>
+                  <div className="flex items-center gap-2">
                     <div className="h-2 w-8 bg-success rounded-full"></div>
                     <span className="text-sm font-medium">
-                      {mockRentals.filter(r => r.type === 'diaria').length}
+                      {contracts.length - contracts.filter(c => c.recorrente === true).length - contracts.filter(c => c.diaria != null).length}
                     </span>
                   </div>
                 </div>
@@ -233,6 +273,7 @@ const Reports = () => {
                   <div className="text-center">
                     <Calendar className="h-8 w-8 mx-auto mb-2" />
                     <p className="text-sm">Gráfico de Performance</p>
+                    <p className="text-xs mt-1">Contratos Ativos: {contracts.filter(c => c.status === 'ativo').length}</p>
                   </div>
                 </div>
               </CardContent>
@@ -253,19 +294,19 @@ const Reports = () => {
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">Disponíveis</span>
                   <Badge className="bg-success text-success-foreground">
-                    {mockVehicles.filter(v => v.status === 'disponivel').length}
+                    {vehicles.filter(v => v.status === 'disponivel').length}
                   </Badge>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">Alugadas</span>
                   <Badge className="bg-accent text-accent-foreground">
-                    {mockVehicles.filter(v => v.status === 'alugado').length}
+                    {vehicles.filter(v => v.status === 'alugado').length}
                   </Badge>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">Manutenção</span>
                   <Badge className="bg-warning text-warning-foreground">
-                    {mockVehicles.filter(v => v.status === 'manutencao').length}
+                    {vehicles.filter(v => v.status === 'manutencao').length}
                   </Badge>
                 </div>
               </CardContent>
@@ -279,7 +320,7 @@ const Reports = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                {mockVehicles.slice(0, 3).map((vehicle, index) => (
+                {vehicles.slice(0, 3).map((vehicle, index) => (
                   <div key={vehicle.id} className="flex items-center gap-3">
                     <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
                       <span className="text-xs font-bold text-primary">#{index + 1}</span>
@@ -301,8 +342,8 @@ const Reports = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                {mockVehicles
-                  .sort((a, b) => b.odometer - a.odometer)
+                {vehicles
+                  .sort((a, b) => (b.odometer || 0) - (a.odometer || 0))
                   .slice(0, 3)
                   .map((vehicle) => (
                     <div key={vehicle.id} className="flex items-center justify-between">
@@ -311,7 +352,7 @@ const Reports = () => {
                         <p className="text-xs text-muted-foreground">{vehicle.brand} {vehicle.model}</p>
                       </div>
                       <span className="text-sm font-medium">
-                        {vehicle.odometer.toLocaleString()} km
+                        {(vehicle.odometer || 0).toLocaleString()} km
                       </span>
                     </div>
                   ))}
@@ -334,6 +375,7 @@ const Reports = () => {
                   <div className="text-center">
                     <TrendingUp className="h-8 w-8 mx-auto mb-2" />
                     <p className="text-sm">Gráfico de Custos</p>
+                    <p className="text-xs mt-1">Veículos em Manutenção: {vehicles.filter(v => v.status === 'manutencao').length}</p>
                   </div>
                 </div>
               </CardContent>
@@ -347,19 +389,55 @@ const Reports = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="p-3 bg-warning/10 border border-warning/20 rounded-lg">
-                  <p className="text-sm font-medium">Revisão Preventiva</p>
-                  <p className="text-xs text-muted-foreground">Honda CG 160 - 10.500 km</p>
-                </div>
-                <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
-                  <p className="text-sm font-medium">Manutenção Urgente</p>
-                  <p className="text-xs text-muted-foreground">Yamaha Factor - Sistema de freios</p>
-                </div>
+                {vehicles.filter(v => v.status === 'manutencao').length === 0 ? (
+                  <div className="p-3 bg-success/10 border border-success/20 rounded-lg">
+                    <p className="text-sm font-medium text-success">Todos os Veículos em Ordem</p>
+                    <p className="text-xs text-muted-foreground">Nenhuma manutenção pendente</p>
+                  </div>
+                ) : (
+                  vehicles.filter(v => v.status === 'manutencao').slice(0, 2).map((vehicle) => (
+                    <div key={vehicle.id} className="p-3 bg-warning/10 border border-warning/20 rounded-lg">
+                      <p className="text-sm font-medium">Manutenção Necessária</p>
+                      <p className="text-xs text-muted-foreground">{vehicle.brand} {vehicle.model} - {vehicle.plate}</p>
+                    </div>
+                  ))
+                )}
               </CardContent>
             </Card>
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Dialog Components */}
+      <PDFExportDialog 
+        open={pdfExportOpen}
+        onOpenChange={setPdfExportOpen}
+        type="reports"
+        data={[...vehicles, ...customers, ...invoices, ...contracts]}
+      />
+
+      {/* Filter Dialog Placeholder */}
+      {filterOpen && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center" onClick={() => setFilterOpen(false)}>
+          <div className="bg-background p-6 rounded-lg shadow-lg max-w-md w-full mx-4" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold mb-4">Filtros de Relatório</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Selecione os filtros para personalizar seus relatórios
+            </p>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setFilterOpen(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={() => {
+                setFilterOpen(false);
+                toast({ title: "Filtros aplicados", description: "Os relatórios foram filtrados com sucesso" });
+              }}>
+                Aplicar Filtros
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Download, FileText, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface PDFExportDialogProps {
   open: boolean;
@@ -72,22 +73,35 @@ const PDFExportDialog = ({ open, onOpenChange, type, data }: PDFExportDialogProp
   const handleExport = async () => {
     setLoading(true);
     try {
-      // Simulate PDF generation
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      toast({
-        title: "Exportação concluída",
-        description: `${type === 'contracts' ? 'Contratos' : type === 'maintenance' ? 'Ordens de manutenção' : type === 'invoices' ? 'Faturas' : 'Relatórios'} exportados em PDF com sucesso`,
+      const { data: pdfData, error } = await supabase.functions.invoke('generate-contract-pdf', {
+        body: {
+          type,
+          selectedFields,
+          format,
+          data: data.slice(0, 100) // Limit to first 100 records for performance
+        }
       });
-      
-      // Simulate file download
-      const element = document.createElement('a');
-      element.href = '#';
-      element.download = `${type}_export_${new Date().getTime()}.pdf`;
-      element.click();
+
+      if (error) throw error;
+
+      if (pdfData && pdfData.pdfUrl) {
+        // Create download link
+        const element = document.createElement('a');
+        element.href = pdfData.pdfUrl;
+        element.download = `${type}_export_${new Date().getTime()}.pdf`;
+        document.body.appendChild(element);
+        element.click();
+        document.body.removeChild(element);
+
+        toast({
+          title: "Exportação concluída",
+          description: `${type === 'contracts' ? 'Contratos' : type === 'maintenance' ? 'Ordens de manutenção' : type === 'invoices' ? 'Faturas' : 'Relatórios'} exportados em PDF com sucesso`,
+        });
+      }
       
       onOpenChange(false);
     } catch (error) {
+      console.error('Export error:', error);
       toast({
         title: "Erro na exportação",
         description: "Não foi possível gerar o arquivo PDF",

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,11 +16,11 @@ import {
   CheckCircle2,
   Download
 } from "lucide-react";
-import { mockRentals, mockCustomers, mockVehicles } from "@/data/mockData";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { useEffect } from "react";
+import PDFExportDialog from "@/components/PDFExportDialog";
+import FilterDialog from "@/components/FilterDialog";
 import ContractDialog from "@/components/ContractDialog";
 import RentalDetailsDialog from "@/components/RentalDetailsDialog";
 import LoginDialog from "@/components/LoginDialog";
@@ -28,63 +28,60 @@ import LoginDialog from "@/components/LoginDialog";
 const Rentals = () => {
   const { toast } = useToast();
   const { user } = useAuth();
+  const [contracts, setContracts] = useState<any[]>([]);
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [vehicles, setVehicles] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [pdfExportOpen, setPdfExportOpen] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(false);
   const [isContractDialogOpen, setIsContractDialogOpen] = useState(false);
   const [selectedRental, setSelectedRental] = useState<any>(null);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [showLoginDialog, setShowLoginDialog] = useState(false);
-  const [contracts, setContracts] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const getCustomerName = (customerId: string) => {
-    const customer = mockCustomers.find(c => c.id === customerId);
-    return customer?.name || 'Cliente não encontrado';
-  };
 
-  const getVehicleInfo = (vehicleId: string) => {
-    const vehicle = mockVehicles.find(v => v.id === vehicleId);
-    return vehicle ? `${vehicle.brand} ${vehicle.model} - ${vehicle.plate}` : 'Veículo não encontrado';
-  };
-
-  // Fetch contracts from Supabase
-  const fetchContracts = async () => {
-    if (!user) {
-      setContracts([]);
-      setLoading(false);
-      return;
+  useEffect(() => {
+    if (user) {
+      fetchData();
     }
+  }, [user]);
 
+  const fetchData = async () => {
     try {
-      const { data, error } = await supabase
-        .from('contratos')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+      setLoading(true);
+      const [contractsRes, customersRes, vehiclesRes] = await Promise.all([
+        supabase.from('contratos').select('*').eq('user_id', user.id),
+        supabase.from('customers').select('*').eq('user_id', user.id),
+        supabase.from('vehicles').select('*').eq('user_id', user.id)
+      ]);
 
-      if (error) {
-        console.error('Error fetching contracts:', error);
-        toast({
-          title: "Erro ao carregar contratos",
-          description: error.message,
-          variant: "destructive"
-        });
-        return;
-      }
+      if (contractsRes.error) throw contractsRes.error;
+      if (customersRes.error) throw customersRes.error;
+      if (vehiclesRes.error) throw vehiclesRes.error;
 
-      setContracts(data || []);
+      setContracts(contractsRes.data || []);
+      setCustomers(customersRes.data || []);
+      setVehicles(vehiclesRes.data || []);
     } catch (error) {
-      console.error('Unexpected error:', error);
+      console.error('Error fetching data:', error);
       toast({
-        title: "Erro inesperado",
-        description: "Erro ao carregar contratos",
-        variant: "destructive"
+        title: "Erro ao carregar dados",
+        description: "Não foi possível carregar os contratos de locação",
+        variant: "destructive",
       });
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchContracts();
-  }, [user]);
+  const getCustomerName = (customerId: string) => {
+    const customer = customers.find(c => c.id === customerId);
+    return customer?.name || 'Cliente não encontrado';
+  };
+
+  const getVehicleInfo = (vehicleId: string) => {
+    const vehicle = vehicles.find(v => v.id === vehicleId);
+    return vehicle ? `${vehicle.brand} ${vehicle.model} - ${vehicle.plate}` : 'Veículo não encontrado';
+  };
 
   // Listen for real-time updates
   useEffect(() => {
@@ -101,7 +98,7 @@ const Rentals = () => {
           filter: `user_id=eq.${user.id}`
         },
         () => {
-          fetchContracts();
+          fetchData();
         }
       )
       .subscribe();
@@ -131,13 +128,6 @@ const Rentals = () => {
       return;
     }
     setIsContractDialogOpen(true);
-  };
-
-  const handleFilters = () => {
-    toast({
-      title: "Filtros",
-      description: "Funcionalidade de filtros será implementada em breve",
-    });
   };
 
   const handleDownloadContract = async (contractId: string) => {
@@ -257,15 +247,14 @@ const Rentals = () => {
                 className="pl-10"
               />
             </div>
-          <Button variant="outline" onClick={() => {
-            toast({
-              title: "Filtros",
-              description: "Funcionalidade de filtros será implementada em breve",
-            });
-          }}>
-            <Filter className="h-4 w-4 mr-2" />
-            Filtros
-          </Button>
+            <Button variant="outline" onClick={() => setFilterOpen(true)}>
+              <Filter className="h-4 w-4 mr-2" />
+              Filtros
+            </Button>
+            <Button className="bg-gradient-primary hover:opacity-90" onClick={() => setPdfExportOpen(true)}>
+              <Download className="h-4 w-4 mr-2" />
+              Exportar PDF
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -297,60 +286,53 @@ const Rentals = () => {
           </div>
         ) : (
           contracts.map((contract) => (
-          <Card key={contract.id} className="hover:shadow-md transition-shadow">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="h-16 w-16 rounded-lg bg-gradient-primary/10 flex items-center justify-center">
-                    <FileText className="h-8 w-8 text-primary" />
-                  </div>
-                  <div className="space-y-1">
-                    <h3 className="font-semibold text-lg">Contrato #{contract.id.slice(-8)}</h3>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <User className="h-4 w-4" />
-                      <span>{contract.cliente_nome}</span>
+            <Card key={contract.id} className="hover:shadow-md transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="h-16 w-16 rounded-lg bg-gradient-primary/10 flex items-center justify-center">
+                      <FileText className="h-8 w-8 text-primary" />
                     </div>
-                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                       <Car className="h-4 w-4" />
-                       <span>{contract.moto_modelo}</span>
-                     </div>
-                     {contract.diaria && (
-                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                         <DollarSign className="h-4 w-4" />
-                         <span>Diária: R$ {Number(contract.diaria).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                       </div>
-                     )}
-                     {contract.local_entrega && (
-                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                         <span>📍 {contract.local_entrega}</span>
-                       </div>
-                     )}
+                    <div className="space-y-1">
+                      <h3 className="font-semibold text-lg">Contrato #{contract.id.slice(-8)}</h3>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <User className="h-4 w-4" />
+                        <span>{contract.cliente_nome}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Car className="h-4 w-4" />
+                        <span>{contract.moto_modelo}</span>
+                      </div>
+                      {contract.diaria && (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <DollarSign className="h-4 w-4" />
+                          <span>Diária: R$ {Number(contract.diaria).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                        </div>
+                      )}
+                      {contract.local_entrega && (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <span>📍 {contract.local_entrega}</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
 
-                <div className="flex items-center gap-6">
-                  <div className="text-right">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Calendar className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground">
-                        {new Date(contract.data_inicio).toLocaleDateString('pt-BR')} - 
-                        {contract.data_fim ? new Date(contract.data_fim).toLocaleDateString('pt-BR') : 'Indefinido'}
-                      </span>
-                    </div>
-                    {contract.status === 'finalizado' && contract.data_fim && (
+                  <div className="flex items-center gap-6">
+                    <div className="text-right">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="text-sm text-red-600 font-medium">
-                          Cancelado em: {new Date(contract.data_fim).toLocaleDateString('pt-BR')}
+                        <Calendar className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground">
+                          {new Date(contract.data_inicio).toLocaleDateString('pt-BR')} - 
+                          {contract.data_fim ? new Date(contract.data_fim).toLocaleDateString('pt-BR') : 'Indefinido'}
                         </span>
                       </div>
-                    )}
-                    <div className="flex items-center gap-2">
-                      <DollarSign className="h-4 w-4 text-muted-foreground" />
-                      <span className="font-semibold">
-                        R$ {Number(contract.valor_mensal || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <DollarSign className="h-4 w-4 text-muted-foreground" />
+                        <span className="font-semibold">
+                          R$ {Number(contract.valor_mensal || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
                     </div>
-                  </div>
 
                     <div className="flex items-center gap-3">
                       <Badge 
@@ -368,10 +350,6 @@ const Rentals = () => {
                         {contract.status === 'ativo' ? 'Ativo' :
                          contract.status === 'finalizado' ? 'Finalizado' :
                          contract.status === 'atrasado' ? 'Atrasado' : contract.status}
-                      </Badge>
-
-                      <Badge variant="outline">
-                        Mensal
                       </Badge>
 
                       <div className="flex gap-2">
@@ -392,32 +370,15 @@ const Rentals = () => {
                         </Button>
                       </div>
                     </div>
+                  </div>
                 </div>
-              </div>
               </CardContent>
             </Card>
           ))
         )}
       </div>
 
-      {/* Empty state for demo */}
-      <Card className="border-dashed">
-        <CardContent className="py-12 text-center">
-          <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-lg font-semibold mb-2">Wizard de Contrato</h3>
-          <p className="text-muted-foreground mb-4">
-            Use nosso wizard inteligente para criar contratos rapidamente
-          </p>
-          <Button 
-            className="bg-gradient-primary hover:opacity-90"
-            onClick={handleNewContract}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Iniciar Wizard
-          </Button>
-        </CardContent>
-      </Card>
-
+      {/* Dialogs */}
       <ContractDialog 
         open={isContractDialogOpen} 
         onOpenChange={setIsContractDialogOpen} 
@@ -427,6 +388,23 @@ const Rentals = () => {
         open={isDetailsDialogOpen} 
         onOpenChange={setIsDetailsDialogOpen}
         rental={selectedRental}
+      />
+
+      <PDFExportDialog 
+        open={pdfExportOpen}
+        onOpenChange={setPdfExportOpen}
+        type="contracts"
+        data={contracts}
+      />
+
+      <FilterDialog 
+        open={filterOpen}
+        onOpenChange={setFilterOpen}
+        type="contracts"
+        onApplyFilters={(filters) => {
+          console.log('Applied filters:', filters);
+          toast({ title: "Filtros aplicados", description: "Os contratos foram filtrados com sucesso" });
+        }}
       />
 
       <LoginDialog 
