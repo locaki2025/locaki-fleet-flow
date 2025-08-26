@@ -13,7 +13,8 @@ import {
   Car,
   DollarSign,
   Clock,
-  CheckCircle2
+  CheckCircle2,
+  Download
 } from "lucide-react";
 import { mockRentals, mockCustomers, mockVehicles } from "@/data/mockData";
 import { useToast } from "@/hooks/use-toast";
@@ -137,6 +138,42 @@ const Rentals = () => {
       title: "Filtros",
       description: "Funcionalidade de filtros será implementada em breve",
     });
+  };
+
+  const handleDownloadContract = async (contractId: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-contract-pdf', {
+        body: { 
+          contract_id: contractId, 
+          user_id: user?.id 
+        }
+      });
+
+      if (error) throw error;
+
+      // Create a blob and download
+      const blob = new Blob([data], { type: 'text/html' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `contrato-${contractId}.html`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+
+      toast({
+        title: "Contrato gerado!",
+        description: "O arquivo foi baixado com sucesso",
+      });
+    } catch (error) {
+      console.error('Error downloading contract:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível gerar o contrato",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -310,36 +347,46 @@ const Rentals = () => {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3">
-                    <Badge 
-                      variant={
-                        contract.status === 'ativo' ? 'default' :
-                        contract.status === 'finalizado' ? 'secondary' :
-                        contract.status === 'atrasado' ? 'destructive' : 'outline'
-                      }
-                      className={
-                        contract.status === 'ativo' ? 'bg-accent text-accent-foreground' :
-                        contract.status === 'finalizado' ? 'bg-success text-success-foreground' :
-                        contract.status === 'atrasado' ? 'bg-warning text-warning-foreground' : ''
-                      }
-                    >
-                      {contract.status === 'ativo' ? 'Ativo' :
-                       contract.status === 'finalizado' ? 'Finalizado' :
-                       contract.status === 'atrasado' ? 'Atrasado' : contract.status}
-                    </Badge>
+                    <div className="flex items-center gap-3">
+                      <Badge 
+                        variant={
+                          contract.status === 'ativo' ? 'default' :
+                          contract.status === 'finalizado' ? 'secondary' :
+                          contract.status === 'atrasado' ? 'destructive' : 'outline'
+                        }
+                        className={
+                          contract.status === 'ativo' ? 'bg-accent text-accent-foreground' :
+                          contract.status === 'finalizado' ? 'bg-success text-success-foreground' :
+                          contract.status === 'atrasado' ? 'bg-warning text-warning-foreground' : ''
+                        }
+                      >
+                        {contract.status === 'ativo' ? 'Ativo' :
+                         contract.status === 'finalizado' ? 'Finalizado' :
+                         contract.status === 'atrasado' ? 'Atrasado' : contract.status}
+                      </Badge>
 
-                    <Badge variant="outline">
-                      Mensal
-                    </Badge>
+                      <Badge variant="outline">
+                        Mensal
+                      </Badge>
 
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => handleViewDetails(contract)}
-                    >
-                      Ver Detalhes
-                    </Button>
-                  </div>
+                      <div className="flex gap-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleViewDetails(contract)}
+                        >
+                          Ver Detalhes
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleDownloadContract(contract.id)}
+                        >
+                          <Download className="h-4 w-4 mr-1" />
+                          PDF
+                        </Button>
+                      </div>
+                    </div>
                 </div>
               </div>
               </CardContent>

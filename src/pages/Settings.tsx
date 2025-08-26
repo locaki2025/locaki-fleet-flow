@@ -17,14 +17,17 @@ import {
   Database,
   Mail,
   Phone,
-  Building
+  Building,
+  Zap
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import IntegrationsConfigDialog from "@/components/IntegrationsConfigDialog";
 
 const Settings = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [integrationsDialogOpen, setIntegrationsDialogOpen] = useState(false);
   
   const [notifications, setNotifications] = useState({
     email: true,
@@ -305,7 +308,7 @@ const Settings = () => {
                     <h4 className="font-medium">Integração API</h4>
                     <p className="text-sm text-muted-foreground">Configure integrações com sistemas externos</p>
                   </div>
-                  <Button variant="outline">Configurar</Button>
+                  <Button variant="outline" onClick={() => setIntegrationsDialogOpen(true)}>Configurar</Button>
                 </div>
 
                 <div className="flex items-center justify-between p-4 border rounded-lg">
@@ -320,6 +323,11 @@ const Settings = () => {
           </Card>
         </TabsContent>
       </Tabs>
+      
+      <IntegrationsConfigDialog 
+        open={integrationsDialogOpen} 
+        onOpenChange={setIntegrationsDialogOpen} 
+      />
     </div>
   );
 };

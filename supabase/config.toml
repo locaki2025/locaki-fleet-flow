@@ -56,6 +56,12 @@ verify_jwt = false
 [functions.cora-webhook]
 verify_jwt = false
 
+[functions.rastrosystem-sync]
+verify_jwt = false
+
+[functions.generate-contract-pdf]
+verify_jwt = false
+
 [edge-runtime]
 policy = "per_worker"
 inspector_port = 8083
