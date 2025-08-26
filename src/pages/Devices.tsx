@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -152,11 +153,44 @@ const Devices = () => {
     ));
   };
 
-  const handleDeviceAction = (action: string, deviceId: string) => {
-    toast({
-      title: `${action} executado`,
-      description: `Ação "${action}" executada no dispositivo ${deviceId}`,
-    });
+  const handleDeviceAction = async (action: string, deviceId: string) => {
+    try {
+      if (action === "Ver localização") {
+        window.open(`/map?device=${deviceId}`, '_blank');
+        return;
+      }
+      
+      if (action === "Editar") {
+        setIsDeviceDialogOpen(true);
+        return;
+      }
+      
+      if (action === "Reiniciar" || action === "Remover") {
+        const { data, error } = await supabase.functions.invoke('rastrosystem-sync', {
+          body: { action: action.toLowerCase(), deviceId }
+        });
+        
+        if (error) throw error;
+        
+        toast({
+          title: "Sucesso",
+          description: `${action} executado com sucesso no dispositivo ${deviceId}`,
+        });
+        return;
+      }
+      
+      toast({
+        title: `${action} executado`,
+        description: `Ação "${action}" executada no dispositivo ${deviceId}`,
+      });
+    } catch (error) {
+      console.error('Error executing device action:', error);
+      toast({
+        title: "Erro",
+        description: `Erro ao executar "${action}" no dispositivo ${deviceId}`,
+        variant: "destructive",
+      });
+    }
   };
 
   const handleDeviceCreated = () => {
@@ -253,7 +287,12 @@ const Devices = () => {
             className="pl-10"
           />
         </div>
-        <Button variant="outline">
+        <Button variant="outline" onClick={() => {
+          toast({
+            title: "Filtros",
+            description: "Funcionalidade de filtros em desenvolvimento",
+          });
+        }}>
           <Filter className="h-4 w-4 mr-2" />
           Filtros
         </Button>
@@ -374,9 +413,9 @@ const Devices = () => {
                         <p className="text-sm text-muted-foreground">{device.vehiclePlate}</p>
                       </div>
                     </div>
-                    <Button variant="outline" size="sm">
-                      Localizar
-                    </Button>
+                     <Button variant="outline" size="sm" onClick={() => handleDeviceAction("Ver localização", device.id)}>
+                       Localizar
+                     </Button>
                   </div>
                 ))}
               </div>
@@ -403,9 +442,14 @@ const Devices = () => {
                         <p className="text-sm text-destructive">Sem comunicação há {Math.floor((Date.now() - new Date(device.lastUpdate).getTime()) / (1000 * 60 * 60))} horas</p>
                       </div>
                     </div>
-                    <Button variant="outline" size="sm">
-                      Diagnosticar
-                    </Button>
+                     <Button variant="outline" size="sm" onClick={() => {
+                       toast({
+                         title: "Diagnóstico",
+                         description: `Executando diagnóstico do dispositivo ${device.name}...`,
+                       });
+                     }}>
+                       Diagnosticar
+                     </Button>
                   </div>
                 ))}
               </div>
@@ -432,9 +476,19 @@ const Devices = () => {
                         <p className="text-sm text-warning">Em manutenção programada</p>
                       </div>
                     </div>
-                    <Button variant="outline" size="sm">
-                      Atualizar Status
-                    </Button>
+                     <Button variant="outline" size="sm" onClick={() => {
+                       const newStatus = device.status === 'maintenance' ? 'online' : 'maintenance';
+                       const updatedDevices = devices.map(d => 
+                         d.id === device.id ? { ...d, status: newStatus } : d
+                       );
+                       setDevices(updatedDevices);
+                       toast({
+                         title: "Status atualizado",
+                         description: `Status do dispositivo ${device.name} atualizado para ${newStatus}`,
+                       });
+                     }}>
+                       Atualizar Status
+                     </Button>
                   </div>
                 ))}
               </div>

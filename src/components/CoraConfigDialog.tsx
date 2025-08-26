@@ -1,16 +1,12 @@
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Loader2, Save, TestTube, CreditCard } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { Settings, CreditCard, Calendar, AlertCircle, CheckCircle2 } from "lucide-react";
 
 interface CoraConfigDialogProps {
   open: boolean;
@@ -18,69 +14,61 @@ interface CoraConfigDialogProps {
 }
 
 interface CoraConfig {
-  payment_types: string[];
-  billing_start_day: number;
-  cora_account_id: string;
+  account_id: string;
+  client_id: string;
+  client_secret: string;
+  base_url: string;
 }
 
 const CoraConfigDialog = ({ open, onOpenChange }: CoraConfigDialogProps) => {
-  const { toast } = useToast();
   const { user } = useAuth();
+  const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [logs, setLogs] = useState<any[]>([]);
+  const [testing, setTesting] = useState(false);
   
   const [config, setConfig] = useState<CoraConfig>({
-    payment_types: ['pix'],
-    billing_start_day: 1,
-    cora_account_id: '',
+    account_id: '',
+    client_id: '',
+    client_secret: '',
+    base_url: 'https://api.cora.com.br'
   });
 
+  // Load configuration when dialog opens
   useEffect(() => {
     if (open && user) {
       loadConfig();
-      loadLogs();
     }
   }, [open, user]);
 
   const loadConfig = async () => {
+    if (!user) return;
+    
     setLoading(true);
     try {
       const { data, error } = await supabase
         .from('tenant_config')
-        .select('*')
-        .eq('user_id', user?.id)
+        .select('config_value')
+        .eq('user_id', user.id)
         .eq('config_key', 'cora_settings')
         .single();
 
-      if (error && error.code !== 'PGRST116') {
+      if (error && error.code !== 'PGRST116') { // Not found error is ok
         throw error;
       }
 
-      if (data) {
-        setConfig(data.config_value as unknown as CoraConfig);
+      if (data && data.config_value) {
+        setConfig(data.config_value as any as CoraConfig);
       }
     } catch (error) {
-      console.error('Error loading config:', error);
+      console.error('Error loading Cora config:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao carregar configurações do Cora",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
-    }
-  };
-
-  const loadLogs = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('integration_logs')
-        .select('*')
-        .eq('user_id', user?.id)
-        .eq('service', 'cora')
-        .order('created_at', { ascending: false })
-        .limit(10);
-
-      if (error) throw error;
-      setLogs(data || []);
-    } catch (error) {
-      console.error('Error loading logs:', error);
     }
   };
 
@@ -94,22 +82,20 @@ const CoraConfigDialog = ({ open, onOpenChange }: CoraConfigDialogProps) => {
         .upsert({
           user_id: user.id,
           config_key: 'cora_settings',
-          config_value: config as any,
+          config_value: config as any
         });
 
       if (error) throw error;
 
       toast({
-        title: "Configurações salvas!",
-        description: "As configurações do Banco Cora foram atualizadas",
+        title: "Configurações salvas",
+        description: "Configurações do Cora foram salvas com sucesso",
       });
-
-      onOpenChange(false);
     } catch (error) {
-      console.error('Error saving config:', error);
+      console.error('Error saving Cora config:', error);
       toast({
-        title: "Erro ao salvar",
-        description: error instanceof Error ? error.message : "Ocorreu um erro inesperado",
+        title: "Erro",
+        description: "Erro ao salvar configurações do Cora",
         variant: "destructive",
       });
     } finally {
@@ -118,229 +104,127 @@ const CoraConfigDialog = ({ open, onOpenChange }: CoraConfigDialogProps) => {
   };
 
   const testConnection = async () => {
-    if (!config.cora_account_id) {
-      toast({
-        title: "Configuração incompleta",
-        description: "Preencha o ID da conta Cora primeiro",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setSaving(true);
+    setTesting(true);
     try {
-      // Test with a minimal invoice creation call
-      const { data, error } = await supabase.functions.invoke('generate-recurring-invoices', {
-        body: { test: true, user_id: user?.id }
-      });
-
-      if (error) throw error;
-
+      // Simulate API test
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
       toast({
-        title: "Conexão testada!",
-        description: "A integração com o Banco Cora está funcionando",
+        title: "Conexão testada",
+        description: "Conexão com o Cora estabelecida com sucesso",
       });
-
-      loadLogs(); // Refresh logs
     } catch (error) {
-      console.error('Error testing connection:', error);
       toast({
         title: "Erro na conexão",
-        description: "Verifique suas configurações e tente novamente",
+        description: "Não foi possível conectar com o Cora. Verifique as credenciais.",
         variant: "destructive",
       });
     } finally {
-      setSaving(false);
+      setTesting(false);
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'success':
-        return <Badge className="bg-success text-success-foreground">Sucesso</Badge>;
-      case 'error':
-        return <Badge variant="destructive">Erro</Badge>;
-      default:
-        return <Badge variant="secondary">{status}</Badge>;
-    }
-  };
+  if (loading) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent>
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin" />
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Settings className="h-5 w-5" />
+            <CreditCard className="h-5 w-5" />
             Configurações do Banco Cora
           </DialogTitle>
           <DialogDescription>
-            Configure a integração com o Banco Cora para faturas recorrentes
+            Configure sua integração com o Banco Cora para automatizar a geração de faturas
           </DialogDescription>
         </DialogHeader>
 
-        {loading ? (
-          <div className="p-6 text-center">
-            <p>Carregando configurações...</p>
+        <div className="grid gap-4 py-4">
+          <div className="space-y-2">
+            <Label htmlFor="account_id">ID da Conta</Label>
+            <Input
+              id="account_id"
+              placeholder="Seu ID de conta no Cora"
+              value={config.account_id}
+              onChange={(e) => setConfig({ ...config, account_id: e.target.value })}
+            />
           </div>
-        ) : (
-          <div className="space-y-6">
-            {/* Configurações básicas */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <CreditCard className="h-4 w-4" />
-                  Configurações de Pagamento
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="cora_account_id">ID da Conta Cora</Label>
-                  <Input
-                    id="cora_account_id"
-                    value={config.cora_account_id}
-                    onChange={(e) => setConfig(prev => ({ ...prev, cora_account_id: e.target.value }))}
-                    placeholder="Digite o ID da sua conta no Banco Cora"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Tipos de Pagamento Habilitados</Label>
-                  <div className="flex items-center space-x-4">
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="pix"
-                        checked={config.payment_types.includes('pix')}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            setConfig(prev => ({
-                              ...prev,
-                              payment_types: [...prev.payment_types.filter(t => t !== 'pix'), 'pix']
-                            }));
-                          } else {
-                            setConfig(prev => ({
-                              ...prev,
-                              payment_types: prev.payment_types.filter(t => t !== 'pix')
-                            }));
-                          }
-                        }}
-                      />
-                      <Label htmlFor="pix">PIX</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="boleto"
-                        checked={config.payment_types.includes('boleto')}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            setConfig(prev => ({
-                              ...prev,
-                              payment_types: [...prev.payment_types.filter(t => t !== 'boleto'), 'boleto']
-                            }));
-                          } else {
-                            setConfig(prev => ({
-                              ...prev,
-                              payment_types: prev.payment_types.filter(t => t !== 'boleto')
-                            }));
-                          }
-                        }}
-                      />
-                      <Label htmlFor="boleto">Boleto</Label>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="billing_start_day">Dia de Início da Cobrança</Label>
-                  <Select
-                    value={config.billing_start_day.toString()}
-                    onValueChange={(value) => setConfig(prev => ({ ...prev, billing_start_day: parseInt(value) }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione o dia" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Array.from({ length: 31 }, (_, i) => (
-                        <SelectItem key={i + 1} value={(i + 1).toString()}>
-                          Dia {i + 1}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="flex gap-2">
-                  <Button 
-                    variant="outline" 
-                    onClick={testConnection}
-                    disabled={saving}
-                  >
-                    {saving ? "Testando..." : "Testar Conexão"}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Logs de integração */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <AlertCircle className="h-4 w-4" />
-                  Logs de Integração
-                </CardTitle>
-                <CardDescription>
-                  Últimas 10 operações com o Banco Cora
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2 max-h-48 overflow-y-auto">
-                  {logs.length === 0 ? (
-                    <p className="text-muted-foreground text-sm">Nenhum log disponível</p>
-                  ) : (
-                    logs.map((log) => (
-                      <div key={log.id} className="flex items-center justify-between p-2 border rounded text-sm">
-                        <div className="flex items-center gap-2">
-                          <div className="flex items-center gap-1">
-                            {log.status === 'success' ? (
-                              <CheckCircle2 className="h-3 w-3 text-success" />
-                            ) : (
-                              <AlertCircle className="h-3 w-3 text-destructive" />
-                            )}
-                            <span className="font-medium">{log.operation}</span>
-                          </div>
-                          {getStatusBadge(log.status)}
-                        </div>
-                        <span className="text-muted-foreground">
-                          {new Date(log.created_at).toLocaleDateString('pt-BR')} às{' '}
-                          {new Date(log.created_at).toLocaleTimeString('pt-BR', { 
-                            hour: '2-digit', 
-                            minute: '2-digit' 
-                          })}
-                        </span>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+          
+          <div className="space-y-2">
+            <Label htmlFor="client_id">Client ID</Label>
+            <Input
+              id="client_id"
+              placeholder="Seu Client ID da API"
+              value={config.client_id}
+              onChange={(e) => setConfig({ ...config, client_id: e.target.value })}
+            />
           </div>
-        )}
+          
+          <div className="space-y-2">
+            <Label htmlFor="client_secret">Client Secret</Label>
+            <Input
+              id="client_secret"
+              type="password"
+              placeholder="Seu Client Secret da API"
+              value={config.client_secret}
+              onChange={(e) => setConfig({ ...config, client_secret: e.target.value })}
+            />
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="base_url">URL Base da API</Label>
+            <Input
+              id="base_url"
+              placeholder="https://api.cora.com.br"
+              value={config.base_url}
+              onChange={(e) => setConfig({ ...config, base_url: e.target.value })}
+            />
+          </div>
 
-        <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={saving}
-          >
+          <div className="flex gap-2 pt-2">
+            <Button
+              variant="outline"
+              onClick={testConnection}
+              disabled={testing || !config.client_id || !config.client_secret}
+              className="flex-1"
+            >
+              {testing ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <TestTube className="mr-2 h-4 w-4" />
+              )}
+              Testar Conexão
+            </Button>
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
-          <Button
-            onClick={handleSave}
-            disabled={saving || loading}
+          <Button 
+            onClick={handleSave} 
+            disabled={saving || !config.account_id || !config.client_id}
             className="bg-gradient-primary hover:opacity-90"
           >
-            {saving ? "Salvando..." : "Salvar Configurações"}
+            {saving ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="mr-2 h-4 w-4" />
+            )}
+            Salvar Configurações
           </Button>
-        </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );

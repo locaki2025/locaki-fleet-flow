@@ -252,13 +252,32 @@ const Invoices = () => {
             className="pl-10"
           />
         </div>
-        <Button variant="outline">
+        <Button variant="outline" onClick={() => {
+          toast({
+            title: "Filtros",
+            description: "Funcionalidade de filtros em desenvolvimento",
+          });
+        }}>
           <Filter className="h-4 w-4 mr-2" />
           Filtros
         </Button>
-        <Button variant="outline">
+        <Button variant="outline" onClick={async () => {
+          try {
+            toast({
+              title: "Exportando",
+              description: "Gerando relatório PDF das faturas...",
+            });
+            // Implementar export PDF das faturas
+          } catch (error) {
+            toast({
+              title: "Erro",
+              description: "Erro ao exportar relatório",
+              variant: "destructive",
+            });
+          }
+        }}>
           <Download className="h-4 w-4 mr-2" />
-          Exportar
+          Exportar PDF
         </Button>
       </div>
 

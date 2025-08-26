@@ -28,7 +28,9 @@ const Map = () => {
           <h1 className="text-3xl font-bold text-foreground">Mapa & Rastreamento</h1>
           <p className="text-muted-foreground">Acompanhe a localização da sua frota em tempo real</p>
         </div>
-        <Button variant="outline">
+        <Button variant="outline" onClick={() => {
+          window.location.reload();
+        }}>
           <RefreshCw className="h-4 w-4 mr-2" />
           Atualizar
         </Button>
@@ -108,10 +110,12 @@ const Map = () => {
                 </CardDescription>
               </div>
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm">
-                  <Filter className="h-4 w-4 mr-2" />
-                  Filtros
-                </Button>
+                 <Button variant="outline" size="sm" onClick={() => {
+                   alert("Funcionalidade de filtros em desenvolvimento");
+                 }}>
+                   <Filter className="h-4 w-4 mr-2" />
+                   Filtros
+                 </Button>
               </div>
             </div>
           </CardHeader>

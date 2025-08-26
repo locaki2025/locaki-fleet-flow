@@ -259,7 +259,12 @@ const Settings = () => {
                     <h4 className="font-medium">Alterar Senha</h4>
                     <p className="text-sm text-muted-foreground">Atualize sua senha regularmente</p>
                   </div>
-                  <Button variant="outline">Alterar</Button>
+                   <Button variant="outline" onClick={() => {
+                     toast({
+                       title: "Senha",
+                       description: "Funcionalidade de alteração de senha será implementada em breve",
+                     });
+                   }}>Alterar</Button>
                 </div>
 
                 <div className="flex items-center justify-between p-4 border rounded-lg">
@@ -267,7 +272,12 @@ const Settings = () => {
                     <h4 className="font-medium">Autenticação de Dois Fatores</h4>
                     <p className="text-sm text-muted-foreground">Adicione uma camada extra de segurança</p>
                   </div>
-                  <Button variant="outline">Configurar</Button>
+                   <Button variant="outline" onClick={() => {
+                     toast({
+                       title: "2FA",
+                       description: "Funcionalidade de autenticação de dois fatores será implementada em breve",
+                     });
+                   }}>Configurar</Button>
                 </div>
 
                 <div className="flex items-center justify-between p-4 border rounded-lg">
@@ -275,7 +285,12 @@ const Settings = () => {
                     <h4 className="font-medium">Sessões Ativas</h4>
                     <p className="text-sm text-muted-foreground">Visualize e gerencie sessões ativas</p>
                   </div>
-                  <Button variant="outline">Gerenciar</Button>
+                   <Button variant="outline" onClick={() => {
+                     toast({
+                       title: "Sessões",
+                       description: "Funcionalidade de gerenciamento de sessões será implementada em breve",
+                     });
+                   }}>Gerenciar</Button>
                 </div>
               </div>
             </CardContent>
@@ -300,7 +315,12 @@ const Settings = () => {
                     <h4 className="font-medium">Backup de Dados</h4>
                     <p className="text-sm text-muted-foreground">Último backup: Hoje às 03:00</p>
                   </div>
-                  <Button variant="outline">Baixar Backup</Button>
+                   <Button variant="outline" onClick={() => {
+                     toast({
+                       title: "Backup",
+                       description: "Funcionalidade de backup será implementada em breve",
+                     });
+                   }}>Baixar Backup</Button>
                 </div>
 
                 <div className="flex items-center justify-between p-4 border rounded-lg">
@@ -316,7 +336,12 @@ const Settings = () => {
                     <h4 className="font-medium">Logs do Sistema</h4>
                     <p className="text-sm text-muted-foreground">Visualize logs de atividade e erros</p>
                   </div>
-                  <Button variant="outline">Ver Logs</Button>
+                   <Button variant="outline" onClick={() => {
+                     toast({
+                       title: "Logs",
+                       description: "Funcionalidade de visualização de logs será implementada em breve",
+                     });
+                   }}>Ver Logs</Button>
                 </div>
               </div>
             </CardContent>

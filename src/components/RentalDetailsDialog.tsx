@@ -19,6 +19,7 @@ interface Contract {
   data_fim: string | null;
   valor_mensal: number;
   descricao?: string;
+  user_id?: string;
 }
 
 interface RentalDetailsDialogProps {
@@ -32,11 +33,36 @@ const RentalDetailsDialog = ({ open, onOpenChange, rental }: RentalDetailsDialog
 
   if (!rental) return null;
 
-  const handlePrintContract = () => {
-    toast({
-      title: "Imprimindo contrato",
-      description: `PDF do contrato #${rental.id} será gerado`,
-    });
+  const handlePrintContract = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-contract-pdf', {
+        body: { contract_id: rental.id, user_id: rental.user_id }
+      });
+
+      if (error) throw error;
+
+      // Create download
+      const blob = new Blob([data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `contrato-${rental.id}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+
+      toast({
+        title: "Contrato gerado",
+        description: `PDF do contrato #${rental.id} foi baixado com sucesso`,
+      });
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Não foi possível gerar o PDF do contrato",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleEditContract = () => {
@@ -212,7 +238,12 @@ const RentalDetailsDialog = ({ open, onOpenChange, rental }: RentalDetailsDialog
             </>
           )}
           
-          <Button variant="outline">
+          <Button variant="outline" onClick={() => {
+            toast({
+              title: "Histórico",
+              description: "Funcionalidade de histórico será implementada em breve",
+            });
+          }}>
             Histórico
           </Button>
         </div>

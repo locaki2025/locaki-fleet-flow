@@ -281,9 +281,19 @@ const Maintenance = () => {
                           {getStatusText(order.status)}
                         </Badge>
                         
-                        <Button variant="outline" size="sm">
-                          Atualizar
-                        </Button>
+                         <Button variant="outline" size="sm" onClick={() => {
+                           const newStatus = order.status === 'aberta' ? 'em_andamento' : 'finalizada';
+                           const updatedOrders = orders.map(o => 
+                             o.id === order.id ? { ...o, status: newStatus } : o
+                           );
+                           setOrders(updatedOrders);
+                           toast({
+                             title: "Status atualizado",
+                             description: `Ordem ${order.id} atualizada para ${getStatusText(newStatus)}`,
+                           });
+                         }}>
+                           Atualizar
+                         </Button>
                       </div>
                     </div>
                   ))
@@ -335,9 +345,14 @@ const Maintenance = () => {
                           </p>
                         </div>
                         
-                        <Button variant="ghost" size="sm">
-                          Ver Relatório
-                        </Button>
+                         <Button variant="ghost" size="sm" onClick={() => {
+                           toast({
+                             title: "Relatório",
+                             description: "Funcionalidade de relatório será implementada em breve",
+                           });
+                         }}>
+                           Ver Relatório
+                         </Button>
                       </div>
                     </div>
                   ))
@@ -379,9 +394,14 @@ const Maintenance = () => {
                           {getStatusText(order.status)}
                         </Badge>
                         
-                        <Button variant="outline" size="sm">
-                          Agendar
-                        </Button>
+                         <Button variant="outline" size="sm" onClick={() => {
+                           toast({
+                             title: "Agendamento",
+                             description: "Funcionalidade de agendamento será implementada em breve",
+                           });
+                         }}>
+                           Agendar
+                         </Button>
                       </div>
                     </div>
                   ))

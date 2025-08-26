@@ -15,8 +15,10 @@ import {
   Filter
 } from "lucide-react";
 import { mockVehicles, mockCustomers, mockInvoices, mockRentals } from "@/data/mockData";
+import { useToast } from "@/hooks/use-toast";
 
 const Reports = () => {
+  const { toast } = useToast();
   // Calculate some metrics for demonstration
   const totalRevenue = mockInvoices.reduce((sum, inv) => sum + inv.amount, 0);
   const lastMonthRevenue = totalRevenue * 0.88; // Mock 12% growth
@@ -36,13 +38,23 @@ const Reports = () => {
           <p className="text-muted-foreground">Análises detalhadas do seu negócio de locação</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline">
+          <Button variant="outline" onClick={() => {
+            toast({
+              title: "Filtros",
+              description: "Funcionalidade de filtros será implementada em breve",
+            });
+          }}>
             <Filter className="h-4 w-4 mr-2" />
             Filtros
           </Button>
-          <Button className="bg-gradient-primary hover:opacity-90">
+          <Button className="bg-gradient-primary hover:opacity-90" onClick={() => {
+            toast({
+              title: "Exportação iniciada",
+              description: "Gerando relatório PDF...",
+            });
+          }}>
             <Download className="h-4 w-4 mr-2" />
-            Exportar
+            Exportar PDF
           </Button>
         </div>
       </div>

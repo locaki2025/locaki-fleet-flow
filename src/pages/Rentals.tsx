@@ -257,10 +257,15 @@ const Rentals = () => {
                 className="pl-10"
               />
             </div>
-            <Button variant="outline" onClick={handleFilters}>
-              <Filter className="h-4 w-4 mr-2" />
-              Filtros
-            </Button>
+          <Button variant="outline" onClick={() => {
+            toast({
+              title: "Filtros",
+              description: "Funcionalidade de filtros será implementada em breve",
+            });
+          }}>
+            <Filter className="h-4 w-4 mr-2" />
+            Filtros
+          </Button>
           </div>
         </CardContent>
       </Card>
