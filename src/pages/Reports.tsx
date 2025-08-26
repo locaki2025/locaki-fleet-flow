@@ -76,6 +76,7 @@ const Reports = () => {
   const occupationRate = vehicles.length > 0 ? ((vehicles.filter(v => v.status === 'alugado').length / vehicles.length) * 100).toFixed(1) : '0.0';
   const lastMonthOccupation = parseFloat(occupationRate) - 8.5;
   
+  // Fixed variable name - using averageContractValue instead of averageRentalValue
   const averageContractValue = contracts.length > 0 ? contracts.reduce((sum, c) => sum + (c.valor_mensal || 0), 0) / contracts.length : 0;
 
   return (
