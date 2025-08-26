@@ -3,7 +3,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import CoraConfigDialog from "./CoraConfigDialog";
 import RastrosystemConfigDialog from "./RastrosystemConfigDialog";
-import { Settings, CreditCard, Satellite, FileText } from "lucide-react";
+import TraccarConfigDialog from "./TraccarConfigDialog";
+import { Settings, CreditCard, Satellite, FileText, MapPin } from "lucide-react";
 
 interface IntegrationsConfigDialogProps {
   open: boolean;
@@ -13,6 +14,7 @@ interface IntegrationsConfigDialogProps {
 const IntegrationsConfigDialog = ({ open, onOpenChange }: IntegrationsConfigDialogProps) => {
   const [coraDialogOpen, setCoraDialogOpen] = useState(false);
   const [rastrosystemDialogOpen, setRastrosystemDialogOpen] = useState(false);
+  const [traccarDialogOpen, setTraccarDialogOpen] = useState(false);
 
   return (
     <>
@@ -29,10 +31,11 @@ const IntegrationsConfigDialog = ({ open, onOpenChange }: IntegrationsConfigDial
           </DialogHeader>
 
           <Tabs defaultValue="overview" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="overview">Visão Geral</TabsTrigger>
               <TabsTrigger value="payment">Pagamentos</TabsTrigger>
               <TabsTrigger value="tracking">Rastreamento</TabsTrigger>
+              <TabsTrigger value="traccar">Traccar</TabsTrigger>
             </TabsList>
 
             <TabsContent value="overview" className="space-y-4">
@@ -59,6 +62,20 @@ const IntegrationsConfigDialog = ({ open, onOpenChange }: IntegrationsConfigDial
                       <h3 className="font-semibold">Rastrosystem</h3>
                       <p className="text-sm text-muted-foreground">
                         Sistema de rastreamento GPS
+                      </p>
+                      <p className="text-xs text-primary mt-1">Clique para configurar</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-4 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
+                     onClick={() => setTraccarDialogOpen(true)}>
+                  <div className="flex items-start gap-3">
+                    <MapPin className="h-6 w-6 text-primary mt-1" />
+                    <div>
+                      <h3 className="font-semibold">Traccar</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Plataforma open source de rastreamento GPS
                       </p>
                       <p className="text-xs text-primary mt-1">Clique para configurar</p>
                     </div>
@@ -111,6 +128,22 @@ const IntegrationsConfigDialog = ({ open, onOpenChange }: IntegrationsConfigDial
                 </button>
               </div>
             </TabsContent>
+
+            <TabsContent value="traccar" className="space-y-4">
+              <div className="text-center py-8">
+                <MapPin className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-semibold mb-2">Configurar Traccar</h3>
+                <p className="text-muted-foreground mb-4">
+                  Configure a integração com a plataforma open source de rastreamento GPS Traccar
+                </p>
+                <button 
+                  className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90"
+                  onClick={() => setTraccarDialogOpen(true)}
+                >
+                  Abrir Configurações do Traccar
+                </button>
+              </div>
+            </TabsContent>
           </Tabs>
         </DialogContent>
       </Dialog>
@@ -123,6 +156,10 @@ const IntegrationsConfigDialog = ({ open, onOpenChange }: IntegrationsConfigDial
       <RastrosystemConfigDialog 
         open={rastrosystemDialogOpen} 
         onOpenChange={setRastrosystemDialogOpen} 
+      />
+      <TraccarConfigDialog 
+        open={traccarDialogOpen} 
+        onOpenChange={setTraccarDialogOpen} 
       />
     </>
   );
