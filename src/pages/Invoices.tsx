@@ -51,20 +51,31 @@ const Invoices = () => {
   }, [user]);
 
   const fetchInvoices = async () => {
+    if (!user?.id) {
+      console.warn('No user ID found, skipping invoice fetch');
+      setLoading(false);
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from('boletos')
         .select('*')
-        .eq('user_id', user?.id)
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        throw new Error(`Erro na consulta: ${error.message}`);
+      }
+      
       setInvoices(data || []);
+      console.log('Invoices loaded successfully:', data?.length || 0);
     } catch (error) {
       console.error('Error fetching invoices:', error);
       toast({
-        title: "Erro",
-        description: "Erro ao carregar faturas",
+        title: "Erro ao carregar faturas",
+        description: error instanceof Error ? error.message : "Erro desconhecido ao carregar faturas",
         variant: "destructive",
       });
     } finally {
@@ -73,16 +84,31 @@ const Invoices = () => {
   };
 
   const fetchCustomers = async () => {
+    if (!user?.id) {
+      console.warn('No user ID found, skipping customers fetch');
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from('customers')
         .select('*')
-        .eq('user_id', user?.id);
+        .eq('user_id', user.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error fetching customers:', error);
+        throw new Error(`Erro na consulta de clientes: ${error.message}`);
+      }
+      
       setCustomers(data || []);
+      console.log('Customers loaded successfully:', data?.length || 0);
     } catch (error) {
       console.error('Error fetching customers:', error);
+      toast({
+        title: "Erro ao carregar clientes",
+        description: error instanceof Error ? error.message : "Erro desconhecido ao carregar clientes",
+        variant: "destructive",
+      });
     }
   };
 

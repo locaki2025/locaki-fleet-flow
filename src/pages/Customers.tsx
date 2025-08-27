@@ -7,16 +7,19 @@ import { Plus, Search, Filter, User, Building2, Phone, Mail } from "lucide-react
 import CustomerDialog from "@/components/CustomerDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 
 const Customers = () => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Fetch customers from Supabase
   const fetchCustomers = async () => {
-    if (!user) {
+    if (!user?.id) {
+      console.warn('No user ID found, skipping customers fetch');
       setCustomers([]);
       setLoading(false);
       return;
@@ -29,10 +32,20 @@ const Customers = () => {
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error fetching customers:', error);
+        throw new Error(`Erro ao carregar clientes: ${error.message}`);
+      }
+      
       setCustomers(data || []);
+      console.log('Customers loaded successfully:', data?.length || 0);
     } catch (error) {
       console.error('Error fetching customers:', error);
+      toast({
+        title: "Erro ao carregar clientes",
+        description: error instanceof Error ? error.message : "Erro desconhecido ao carregar clientes",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }

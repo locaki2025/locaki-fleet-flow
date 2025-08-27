@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -16,6 +16,7 @@ interface CustomerDialogProps {
 
 const CustomerDialog: React.FC<CustomerDialogProps> = ({ open, onOpenChange }) => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [customerData, setCustomerData] = useState({
     name: "",
     type: "",
@@ -37,7 +38,11 @@ const CustomerDialog: React.FC<CustomerDialogProps> = ({ open, onOpenChange }) =
     e.preventDefault();
     
     if (!user) {
-      toast.error("Você precisa estar logado para cadastrar clientes");
+      toast({
+        title: "Erro de autenticação",
+        description: "Você precisa estar logado para cadastrar clientes",
+        variant: "destructive"
+      });
       return;
     }
 
@@ -63,9 +68,15 @@ const CustomerDialog: React.FC<CustomerDialogProps> = ({ open, onOpenChange }) =
           }
         ]);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error creating customer:', error);
+        throw new Error(`Erro ao cadastrar cliente: ${error.message}`);
+      }
 
-      toast.success("Cliente cadastrado com sucesso!");
+      toast({
+        title: "Cliente cadastrado",
+        description: "Cliente cadastrado com sucesso!",
+      });
       
       // Reset form and close dialog
       setCustomerData({
@@ -87,7 +98,11 @@ const CustomerDialog: React.FC<CustomerDialogProps> = ({ open, onOpenChange }) =
       onOpenChange(false);
     } catch (error) {
       console.error('Error creating customer:', error);
-      toast.error("Erro ao cadastrar cliente");
+      toast({
+        title: "Erro ao cadastrar cliente",
+        description: error instanceof Error ? error.message : "Erro desconhecido ao cadastrar cliente",
+        variant: "destructive"
+      });
     } finally {
       setIsSubmitting(false);
     }

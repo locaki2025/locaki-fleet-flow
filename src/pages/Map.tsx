@@ -16,9 +16,11 @@ import {
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 
 const Map = () => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -29,6 +31,13 @@ const Map = () => {
   }, [user]);
 
   const fetchVehicles = async () => {
+    if (!user?.id) {
+      console.warn('No user ID found, skipping vehicles fetch');
+      setVehicles([]);
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       const { data, error } = await supabase
@@ -36,10 +45,20 @@ const Map = () => {
         .select('*')
         .eq('user_id', user.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error fetching vehicles:', error);
+        throw new Error(`Erro ao carregar veículos: ${error.message}`);
+      }
+      
       setVehicles(data || []);
+      console.log('Map vehicles loaded successfully:', data?.length || 0);
     } catch (error) {
       console.error('Error fetching vehicles:', error);
+      toast({
+        title: "Erro ao carregar veículos",
+        description: error instanceof Error ? error.message : "Erro desconhecido ao carregar veículos",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }

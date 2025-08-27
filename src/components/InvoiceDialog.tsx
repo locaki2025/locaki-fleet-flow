@@ -21,13 +21,30 @@ const InvoiceDialog = ({ open, onOpenChange, onInvoiceCreated }: InvoiceDialogPr
   const [loading, setLoading] = useState(false);
   
   const [formData, setFormData] = useState({
-    cliente_nome: "",
-    cliente_email: "",
-    cliente_cpf: "",
-    descricao: "",
-    valor: "",
-    vencimento: "",
+    cliente_nome: '',
+    cliente_email: '',
+    cliente_id: '',
+    descricao: '',
+    valor: '',
+    vencimento: '',
+    observacoes: ''
   });
+
+  const handleChange = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const resetForm = () => {
+    setFormData({
+      cliente_nome: '',
+      cliente_email: '',
+      cliente_id: '',
+      descricao: '',
+      valor: '',
+      vencimento: '',
+      observacoes: ''
+    });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,14 +52,22 @@ const InvoiceDialog = ({ open, onOpenChange, onInvoiceCreated }: InvoiceDialogPr
     if (!user) {
       toast({
         title: "Erro de autenticação",
-        description: "Você precisa estar logado para criar uma fatura",
+        description: "Você precisa estar logado para criar faturas",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!formData.cliente_nome || !formData.cliente_email || !formData.valor || !formData.vencimento) {
+      toast({
+        title: "Campos obrigatórios",
+        description: "Preencha todos os campos obrigatórios",
         variant: "destructive",
       });
       return;
     }
 
     setLoading(true);
-
     try {
       const { error } = await supabase
         .from('boletos')
@@ -50,36 +75,31 @@ const InvoiceDialog = ({ open, onOpenChange, onInvoiceCreated }: InvoiceDialogPr
           user_id: user.id,
           cliente_nome: formData.cliente_nome,
           cliente_email: formData.cliente_email,
-          cliente_cpf: formData.cliente_cpf || null,
+          cliente_id: formData.cliente_id || formData.cliente_email,
           descricao: formData.descricao,
           valor: parseFloat(formData.valor),
           vencimento: formData.vencimento,
+          observacoes: formData.observacoes,
           status: 'pendente',
           fatura_id: `FAT-${Date.now()}`,
-          cliente_id: `CLI-${Date.now()}`,
+          tipo_cobranca: 'avulsa'
         });
 
       if (error) {
-        throw error;
+        console.error('Supabase error creating invoice:', error);
+        throw new Error(`Erro ao criar fatura: ${error.message}`);
       }
 
       toast({
-        title: "Fatura criada com sucesso!",
-        description: "A nova fatura foi adicionada ao sistema",
+        title: "Fatura criada",
+        description: "A fatura foi criada com sucesso!",
       });
 
-      // Reset form
-      setFormData({
-        cliente_nome: "",
-        cliente_email: "",
-        cliente_cpf: "",
-        descricao: "",
-        valor: "",
-        vencimento: "",
-      });
-
+      resetForm();
       onOpenChange(false);
-      onInvoiceCreated?.();
+      if (onInvoiceCreated) {
+        onInvoiceCreated();
+      }
     } catch (error) {
       console.error('Error creating invoice:', error);
       toast({
@@ -92,107 +112,119 @@ const InvoiceDialog = ({ open, onOpenChange, onInvoiceCreated }: InvoiceDialogPr
     }
   };
 
-  const handleChange = (field: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+  const handleDialogChange = (newOpen: boolean) => {
+    if (!newOpen) {
+      resetForm();
+    }
+    onOpenChange(newOpen);
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+    <Dialog open={open} onOpenChange={handleDialogChange}>
+      <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Nova Fatura</DialogTitle>
           <DialogDescription>
-            Preencha as informações para criar uma nova fatura
+            Crie uma nova fatura para cobrança de serviços
           </DialogDescription>
         </DialogHeader>
-
+        
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="cliente_nome">Nome do Cliente *</Label>
+              <Input
+                id="cliente_nome"
+                value={formData.cliente_nome}
+                onChange={(e) => handleChange('cliente_nome', e.target.value)}
+                placeholder="Nome completo"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="cliente_email">Email do Cliente *</Label>
+              <Input
+                id="cliente_email"
+                type="email"
+                value={formData.cliente_email}
+                onChange={(e) => handleChange('cliente_email', e.target.value)}
+                placeholder="email@exemplo.com"
+                required
+              />
+            </div>
+          </div>
+
           <div className="space-y-2">
-            <Label htmlFor="cliente_nome">Nome do Cliente</Label>
+            <Label htmlFor="cliente_id">ID/CPF do Cliente</Label>
             <Input
-              id="cliente_nome"
-              value={formData.cliente_nome}
-              onChange={(e) => handleChange("cliente_nome", e.target.value)}
-              placeholder="Digite o nome do cliente"
-              required
+              id="cliente_id"
+              value={formData.cliente_id}
+              onChange={(e) => handleChange('cliente_id', e.target.value)}
+              placeholder="CPF ou ID do cliente (opcional)"
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="cliente_email">Email do Cliente</Label>
-            <Input
-              id="cliente_email"
-              type="email"
-              value={formData.cliente_email}
-              onChange={(e) => handleChange("cliente_email", e.target.value)}
-              placeholder="cliente@exemplo.com"
-              required
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="cliente_cpf">CPF do Cliente (opcional)</Label>
-            <Input
-              id="cliente_cpf"
-              value={formData.cliente_cpf}
-              onChange={(e) => handleChange("cliente_cpf", e.target.value)}
-              placeholder="000.000.000-00"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="descricao">Descrição</Label>
+            <Label htmlFor="descricao">Descrição do Serviço</Label>
             <Textarea
               id="descricao"
               value={formData.descricao}
-              onChange={(e) => handleChange("descricao", e.target.value)}
-              placeholder="Descrição da fatura..."
+              onChange={(e) => handleChange('descricao', e.target.value)}
+              placeholder="Descreva o serviço prestado..."
               rows={3}
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="valor">Valor (R$)</Label>
+              <Label htmlFor="valor">Valor (R$) *</Label>
               <Input
                 id="valor"
                 type="number"
                 step="0.01"
+                min="0"
                 value={formData.valor}
-                onChange={(e) => handleChange("valor", e.target.value)}
+                onChange={(e) => handleChange('valor', e.target.value)}
                 placeholder="0,00"
                 required
               />
             </div>
-
             <div className="space-y-2">
-              <Label htmlFor="vencimento">Vencimento</Label>
+              <Label htmlFor="vencimento">Data de Vencimento *</Label>
               <Input
                 id="vencimento"
                 type="date"
                 value={formData.vencimento}
-                onChange={(e) => handleChange("vencimento", e.target.value)}
+                onChange={(e) => handleChange('vencimento', e.target.value)}
                 required
               />
             </div>
           </div>
 
+          <div className="space-y-2">
+            <Label htmlFor="observacoes">Observações</Label>
+            <Textarea
+              id="observacoes"
+              value={formData.observacoes}
+              onChange={(e) => handleChange('observacoes', e.target.value)}
+              placeholder="Observações adicionais..."
+              rows={2}
+            />
+          </div>
+
           <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
+            <Button 
+              type="button" 
+              variant="outline" 
               onClick={() => onOpenChange(false)}
               disabled={loading}
             >
               Cancelar
             </Button>
-            <Button
-              type="submit"
-              disabled={loading}
+            <Button 
+              type="submit" 
               className="bg-gradient-primary hover:opacity-90"
+              disabled={loading}
             >
               {loading ? "Criando..." : "Criar Fatura"}
             </Button>

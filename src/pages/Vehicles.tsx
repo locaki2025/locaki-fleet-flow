@@ -27,19 +27,31 @@ const Vehicles = () => {
   }, [user]);
 
   const fetchVehicles = async () => {
+    if (!user?.id) {
+      console.warn('No user ID found, skipping vehicles fetch');
+      setLoading(false);
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from('vehicles')
         .select('*')
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error fetching vehicles:', error);
+        throw new Error(`Erro ao carregar veículos: ${error.message}`);
+      }
+      
       setVehicles(data || []);
+      console.log('Vehicles loaded successfully:', data?.length || 0);
     } catch (error) {
       console.error('Erro ao buscar veículos:', error);
       toast({
-        title: "Erro",
-        description: "Não foi possível carregar os veículos.",
+        title: "Erro no carregamento",
+        description: error instanceof Error ? error.message : "Não foi possível carregar os veículos.",
         variant: "destructive",
       });
     } finally {

@@ -36,23 +36,37 @@ const Dashboard = () => {
   }, [user]);
 
   const fetchDashboardData = async () => {
+    if (!user?.id) {
+      console.warn('No user ID found, skipping dashboard data fetch');
+      setLoading(false);
+      return;
+    }
+
     try {
       const [vehiclesData, customersData, contractsData, devicesData] = await Promise.all([
-        supabase.from('vehicles').select('*').eq('user_id', user?.id),
-        supabase.from('customers').select('*').eq('user_id', user?.id),
-        supabase.from('contratos').select('*').eq('user_id', user?.id),
-        supabase.from('devices').select('*').eq('user_id', user?.id)
+        supabase.from('vehicles').select('*').eq('user_id', user.id),
+        supabase.from('customers').select('*').eq('user_id', user.id),
+        supabase.from('contratos').select('*').eq('user_id', user.id),
+        supabase.from('devices').select('*').eq('user_id', user.id)
       ]);
+
+      // Check for errors in each query
+      if (vehiclesData.error) throw new Error(`Erro ao carregar veículos: ${vehiclesData.error.message}`);
+      if (customersData.error) throw new Error(`Erro ao carregar clientes: ${customersData.error.message}`);  
+      if (contractsData.error) throw new Error(`Erro ao carregar contratos: ${contractsData.error.message}`);
+      if (devicesData.error) throw new Error(`Erro ao carregar dispositivos: ${devicesData.error.message}`);
 
       setVehicles(vehiclesData.data || []);
       setCustomers(customersData.data || []);
       setContracts(contractsData.data || []);
       setDevices(devicesData.data || []);
+      
+      console.log('Dashboard data loaded successfully');
     } catch (error) {
       console.error('Erro ao carregar dados do dashboard:', error);
       toast({
-        title: "Erro",
-        description: "Não foi possível carregar os dados do dashboard.",
+        title: "Erro no Dashboard",
+        description: error instanceof Error ? error.message : "Não foi possível carregar os dados do dashboard.",
         variant: "destructive",
       });
     } finally {
