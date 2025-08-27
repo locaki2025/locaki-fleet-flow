@@ -156,7 +156,47 @@ const Devices = () => {
   const handleDeviceAction = async (action: string, deviceId: string) => {
     try {
       if (action === "Ver localização") {
-        window.open(`/map?device=${deviceId}`, '_blank');
+        // Try to get Traccar configuration and open Traccar web interface
+        try {
+          const { data: configData } = await supabase
+            .from('tenant_config')
+            .select('config_value')
+            .eq('user_id', user?.id)
+            .eq('config_key', 'traccar_settings')
+            .single();
+
+          if (configData?.config_value && typeof configData.config_value === 'object') {
+            const traccarConfig = configData.config_value as any;
+            // Open Traccar web interface in new tab
+            if (traccarConfig.api_url) {
+              const traccarWebUrl = traccarConfig.api_url.replace('/api', '');
+              window.open(traccarWebUrl, '_blank');
+              
+              toast({
+                title: "Traccar Aberto",
+                description: "Abrindo monitoramento Traccar em nova aba",
+              });
+            } else {
+              throw new Error('No API URL found');
+            }
+          } else {
+            // Fallback to internal map
+            window.open(`/map?device=${deviceId}`, '_blank');
+            
+            toast({
+              title: "Mapa Interno",
+              description: "Configure Traccar para usar o sistema externo de monitoramento",
+            });
+          }
+        } catch (error) {
+          // Fallback to internal map if Traccar config not found
+          window.open(`/map?device=${deviceId}`, '_blank');
+          
+          toast({
+            title: "Mapa Interno",
+            description: "Configure Traccar para usar o sistema externo de monitoramento",
+          });
+        }
         return;
       }
       
