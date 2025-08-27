@@ -158,6 +158,12 @@ const Devices = () => {
       if (action === "Ver localização") {
         // Always try to open Traccar monitoring system
         try {
+          // First try to sync and create default config if needed
+          const { data: syncData, error: syncError } = await supabase.functions.invoke('traccar-sync', {
+            body: { action: 'sync_devices' }
+          });
+          
+          // Now get the configuration
           const { data: configData } = await supabase
             .from('tenant_config')
             .select('config_value')
@@ -184,7 +190,7 @@ const Devices = () => {
           // If no Traccar configured, show message to configure it
           toast({
             title: "Traccar não configurado",
-            description: "Configure o Traccar nas integrações para acessar o monitoramento em tempo real",
+            description: "Verifique se as configurações da API Traccar estão corretas nas integrações",
             variant: "destructive",
           });
           
@@ -192,7 +198,7 @@ const Devices = () => {
           console.error('Error getting Traccar config:', error);
           toast({
             title: "Erro de configuração",
-            description: "Configure o Traccar nas integrações para acessar o monitoramento",
+            description: "Erro ao acessar configurações do Traccar",
             variant: "destructive",
           });
         }

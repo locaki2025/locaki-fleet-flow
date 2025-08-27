@@ -246,12 +246,12 @@ const handler = async (req: Request): Promise<Response> => {
     const { action, deviceId, command } = body;
 
     // Get Traccar configuration for the user
-    const { data: configData, error: configError } = await supabase
+    let { data: configData, error: configError } = await supabase
       .from('tenant_config')
       .select('config_value')
       .eq('user_id', user.id)
       .eq('config_key', 'traccar_settings')
-      .single();
+      .maybeSingle();
 
     let config: TraccarConfig | null = null;
     
@@ -259,7 +259,37 @@ const handler = async (req: Request): Promise<Response> => {
       config = configData.config_value;
     }
     
-    // If no configuration found, create sample data for demo
+    // If no configuration found, create default config using project secrets
+    if (!config) {
+      const traccarApiUrl = Deno.env.get('TRACCAR_API_URL');
+      const traccarApiToken = Deno.env.get('TRACCAR_API_TOKEN');
+      
+      if (traccarApiUrl && traccarApiToken) {
+        // Create default Traccar configuration
+        const defaultConfig = {
+          api_url: traccarApiUrl,
+          username: 'admin', // Default username
+          password: traccarApiToken,
+          sync_interval: 30
+        };
+        
+        // Save default config for user
+        const { error: insertError } = await supabase
+          .from('tenant_config')
+          .insert({
+            user_id: user.id,
+            config_key: 'traccar_settings',
+            config_value: defaultConfig
+          });
+          
+        if (!insertError) {
+          config = defaultConfig;
+          console.log('Created default Traccar configuration for user:', user.id);
+        }
+      }
+    }
+    
+    // If still no configuration found, create sample data for demo
     if (!config) {
       console.log('No Traccar configuration found, creating sample vehicles for demo');
       
