@@ -154,11 +154,118 @@ const Invoices = () => {
     }
   };
 
-  const handleInvoiceAction = (action: string, invoiceId: string) => {
-    toast({
-      title: `${action} executado`,
-      description: `Ação "${action}" executada na fatura ${invoiceId}`,
-    });
+  const handleInvoiceAction = async (action: string, invoice: any) => {
+    switch (action) {
+      case 'Visualizar':
+        // Open invoice details dialog
+        toast({
+          title: "Visualizar Fatura",
+          description: `Visualizando fatura ${invoice.fatura_id}`,
+        });
+        break;
+      
+      case 'Editar':
+        // Open edit dialog
+        toast({
+          title: "Editar Fatura",
+          description: `Editando fatura ${invoice.fatura_id}`,
+        });
+        break;
+      
+      case 'Enviar':
+        try {
+          const { data, error } = await supabase.functions.invoke('cora-webhook', {
+            body: {
+              action: 'send_invoice',
+              invoice_id: invoice.id,
+              email: invoice.cliente_email
+            }
+          });
+
+          if (error) throw error;
+
+          toast({
+            title: "Email enviado",
+            description: `Fatura ${invoice.fatura_id} enviada por email`,
+          });
+        } catch (error) {
+          toast({
+            title: "Erro ao enviar email",
+            description: "Não foi possível enviar a fatura por email",
+            variant: "destructive",
+          });
+        }
+        break;
+      
+      case 'Baixar':
+        try {
+          const { data, error } = await supabase.functions.invoke('generate-pdf-export', {
+            body: {
+              type: 'invoice',
+              invoice_id: invoice.id,
+              data: [invoice]
+            }
+          });
+
+          if (error) throw error;
+
+          if (data?.pdf_base64) {
+            const byteCharacters = atob(data.pdf_base64);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {
+              byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            const blob = new Blob([byteArray], { type: 'application/pdf' });
+            const url = window.URL.createObjectURL(blob);
+            
+            const element = document.createElement('a');
+            element.href = url;
+            element.download = `fatura_${invoice.fatura_id}.pdf`;
+            document.body.appendChild(element);
+            element.click();
+            document.body.removeChild(element);
+            window.URL.revokeObjectURL(url);
+          }
+
+          toast({
+            title: "PDF gerado",
+            description: `Fatura ${invoice.fatura_id} baixada com sucesso`,
+          });
+        } catch (error) {
+          toast({
+            title: "Erro ao gerar PDF",
+            description: "Não foi possível gerar o PDF da fatura",
+            variant: "destructive",
+          });
+        }
+        break;
+      
+      case 'Excluir':
+        try {
+          const { error } = await supabase
+            .from('boletos')
+            .delete()
+            .eq('id', invoice.id)
+            .eq('user_id', user?.id);
+
+          if (error) throw error;
+
+          toast({
+            title: "Fatura excluída",
+            description: `Fatura ${invoice.fatura_id} excluída com sucesso`,
+          });
+          
+          fetchInvoices(); // Refresh list
+        } catch (error) {
+          toast({
+            title: "Erro ao excluir",
+            description: "Não foi possível excluir a fatura",
+            variant: "destructive",
+          });
+        }
+        break;
+    }
   };
 
   if (!user) {
@@ -380,24 +487,24 @@ const Invoices = () => {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleInvoiceAction("Visualizar", invoice.fatura_id)}>
+                            <DropdownMenuItem onClick={() => handleInvoiceAction("Visualizar", invoice)}>
                               <Eye className="h-4 w-4 mr-2" />
                               Visualizar
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleInvoiceAction("Editar", invoice.fatura_id)}>
+                            <DropdownMenuItem onClick={() => handleInvoiceAction("Editar", invoice)}>
                               <Edit className="h-4 w-4 mr-2" />
                               Editar
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleInvoiceAction("Enviar", invoice.fatura_id)}>
+                            <DropdownMenuItem onClick={() => handleInvoiceAction("Enviar", invoice)}>
                               <Send className="h-4 w-4 mr-2" />
                               Enviar por Email
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleInvoiceAction("Baixar", invoice.fatura_id)}>
+                            <DropdownMenuItem onClick={() => handleInvoiceAction("Baixar", invoice)}>
                               <Download className="h-4 w-4 mr-2" />
                               Baixar PDF
                             </DropdownMenuItem>
                             <DropdownMenuItem 
-                              onClick={() => handleInvoiceAction("Excluir", invoice.fatura_id)}
+                              onClick={() => handleInvoiceAction("Excluir", invoice)}
                               className="text-destructive"
                             >
                               <Trash2 className="h-4 w-4 mr-2" />

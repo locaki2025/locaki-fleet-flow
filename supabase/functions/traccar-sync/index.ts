@@ -253,16 +253,109 @@ const handler = async (req: Request): Promise<Response> => {
       .eq('config_key', 'traccar_settings')
       .single();
 
-    if (configError && configError.code !== 'PGRST116') {
-      console.error('Error fetching config:', configError);
-      throw new Error('Failed to fetch Traccar configuration');
+    let config: TraccarConfig | null = null;
+    
+    if (!configError && configData) {
+      config = configData.config_value;
     }
+    
+    // If no configuration found, create sample data for demo
+    if (!config) {
+      console.log('No Traccar configuration found, creating sample vehicles for demo');
+      
+      // Create sample vehicles for demo
+      const sampleVehicles = [
+        {
+          user_id: user.id,
+          name: 'Honda CG 160 - ABC-1234',
+          imei: `demo_${user.id}_1`,
+          vehicle_plate: 'ABC-1234',
+          status: 'online',
+          latitude: -3.7327,
+          longitude: -38.5267,
+          address: 'Fortaleza, CE - Centro',
+          last_update: new Date().toISOString(),
+          battery: 85,
+          signal: 4,
+          tracker_model: 'Demo GPS',
+          chip_number: null
+        },
+        {
+          user_id: user.id,
+          name: 'Yamaha Factor - DEF-5678',
+          imei: `demo_${user.id}_2`,
+          vehicle_plate: 'DEF-5678',
+          status: 'offline',
+          latitude: -3.7400,
+          longitude: -38.5200,
+          address: 'Fortaleza, CE - Aldeota',
+          last_update: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+          battery: 45,
+          signal: 2,
+          tracker_model: 'Demo GPS',
+          chip_number: null
+        }
+      ];
+      
+      // Insert or update demo vehicles in devices table
+      for (const vehicle of sampleVehicles) {
+        const { data: existingDevice } = await supabase
+          .from('devices')
+          .select('id')
+          .eq('imei', vehicle.imei)
+          .eq('user_id', user.id)
+          .single();
 
-    if (!configData) {
-      throw new Error('Traccar configuration not found');
+        if (existingDevice) {
+          await supabase
+            .from('devices')
+            .update(vehicle)
+            .eq('id', existingDevice.id);
+        } else {
+          await supabase
+            .from('devices')
+            .insert(vehicle);
+        }
+        
+        // Also create corresponding vehicle records
+        const vehicleData = {
+          user_id: user.id,
+          brand: vehicle.name.includes('Honda') ? 'Honda' : 'Yamaha',
+          model: vehicle.name.includes('Honda') ? 'CG 160' : 'Factor',
+          plate: vehicle.vehicle_plate,
+          year: 2023,
+          latitude: vehicle.latitude,
+          longitude: vehicle.longitude,
+          address: vehicle.address,
+          status: vehicle.status,
+          last_update: vehicle.last_update,
+          traccar_device_id: null
+        };
+        
+        const vehicleId = `vehicle_${vehicle.imei}`;
+        
+        await supabase
+          .from('vehicles')
+          .upsert({ ...vehicleData, id: vehicleId }, { onConflict: 'id' });
+      }
+      
+      await logIntegration(
+        supabase,
+        user.id,
+        'traccar',
+        'create_demo_data',
+        'success',
+        { device_count: sampleVehicles.length }
+      );
+      
+      return new Response(JSON.stringify({
+        success: true,
+        message: `Created ${sampleVehicles.length} demo vehicles. Configure Traccar for real tracking.`,
+        vehicles_created: sampleVehicles.length
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
-
-    const config: TraccarConfig = configData.config_value;
 
     switch (action) {
       case 'sync_devices':

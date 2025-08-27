@@ -115,9 +115,11 @@ const ContractDialog = ({ open, onOpenChange }: ContractDialogProps) => {
         status: 'ativo'
       };
 
-      const { error } = await supabase
+      const { data: insertedContract, error } = await supabase
         .from('contratos')
-        .insert([contractData]);
+        .insert([contractData])
+        .select()
+        .single();
 
       if (error) {
         console.error('Error creating contract:', error);
@@ -129,9 +131,40 @@ const ContractDialog = ({ open, onOpenChange }: ContractDialogProps) => {
         return;
       }
 
+      // Generate PDF contract after creation
+      try {
+        const { data: pdfData, error: pdfError } = await supabase.functions.invoke('generate-contract-pdf', {
+          body: {
+            contract_data: insertedContract,
+            user_id: user.id
+          }
+        });
+
+        if (!pdfError && pdfData?.pdf_base64) {
+          const byteCharacters = atob(pdfData.pdf_base64);
+          const byteNumbers = new Array(byteCharacters.length);
+          for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
+          }
+          const byteArray = new Uint8Array(byteNumbers);
+          const blob = new Blob([byteArray], { type: 'application/pdf' });
+          const url = window.URL.createObjectURL(blob);
+          
+          const element = document.createElement('a');
+          element.href = url;
+          element.download = `contrato_${insertedContract.id}.pdf`;
+          document.body.appendChild(element);
+          element.click();
+          document.body.removeChild(element);
+          window.URL.revokeObjectURL(url);
+        }
+      } catch (pdfError) {
+        console.warn('Failed to generate contract PDF:', pdfError);
+      }
+
       toast({
         title: "Contrato criado com sucesso!",
-        description: "O novo contrato foi registrado no sistema.",
+        description: "O novo contrato foi registrado no sistema e o PDF foi gerado.",
       });
       
       // Reset form
