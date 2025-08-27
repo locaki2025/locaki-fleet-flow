@@ -64,6 +64,58 @@ const updateInvoiceStatus = async (coraChargeId: string, status: string, paidAmo
   return invoice;
 };
 
+// Test Cora API connection
+const testCoraConnection = async (config: any) => {
+  try {
+    const { base_url, client_id, client_secret } = config;
+    
+    if (!base_url || !client_id || !client_secret) {
+      throw new Error('Configuração incompleta');
+    }
+
+    // Try to authenticate with Cora API
+    const authResponse = await fetch(`${base_url}/oauth/token`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        grant_type: 'client_credentials',
+        client_id,
+        client_secret,
+      }),
+    });
+
+    if (!authResponse.ok) {
+      throw new Error(`Falha na autenticação: ${authResponse.status} ${authResponse.statusText}`);
+    }
+
+    const authData = await authResponse.json();
+    
+    if (!authData.access_token) {
+      throw new Error('Token de acesso não recebido');
+    }
+
+    // Test API access with the token
+    const testResponse = await fetch(`${base_url}/accounts`, {
+      headers: {
+        'Authorization': `Bearer ${authData.access_token}`,
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!testResponse.ok) {
+      throw new Error(`Erro ao acessar API: ${testResponse.status}`);
+    }
+
+    return { success: true, message: 'Conexão com Cora estabelecida com sucesso' };
+
+  } catch (error) {
+    console.error('Cora connection test failed:', error);
+    throw new Error(`Erro na conexão: ${error.message}`);
+  }
+};
+
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -71,8 +123,20 @@ const handler = async (req: Request): Promise<Response> => {
 
   try {
     const payload = await req.json();
-    console.log('Received Cora webhook:', JSON.stringify(payload, null, 2));
+    console.log('Received Cora request:', JSON.stringify(payload, null, 2));
 
+    // Handle test connection action
+    if (payload.action === 'test_connection') {
+      const result = await testCoraConnection(payload.config);
+      return new Response(JSON.stringify(result), {
+        headers: { 
+          'Content-Type': 'application/json',
+          ...corsHeaders 
+        },
+      });
+    }
+
+    // Handle webhook events
     const { event_type, data } = payload;
     const chargeId = data?.id || data?.charge_id;
     const amount = data?.amount;

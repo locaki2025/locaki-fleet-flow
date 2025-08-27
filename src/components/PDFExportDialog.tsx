@@ -73,7 +73,10 @@ const PDFExportDialog = ({ open, onOpenChange, type, data }: PDFExportDialogProp
   const handleExport = async () => {
     setLoading(true);
     try {
-      const { data: pdfData, error } = await supabase.functions.invoke('generate-contract-pdf', {
+      // Determine the correct edge function based on type
+      const functionName = type === 'contracts' ? 'generate-contract-pdf' : 'generate-pdf-export';
+      
+      const { data: pdfData, error } = await supabase.functions.invoke(functionName, {
         body: {
           type,
           selectedFields,
@@ -84,19 +87,41 @@ const PDFExportDialog = ({ open, onOpenChange, type, data }: PDFExportDialogProp
 
       if (error) throw error;
 
-      if (pdfData && pdfData.pdfUrl) {
-        // Create download link
-        const element = document.createElement('a');
-        element.href = pdfData.pdfUrl;
-        element.download = `${type}_export_${new Date().getTime()}.pdf`;
-        document.body.appendChild(element);
-        element.click();
-        document.body.removeChild(element);
+      if (pdfData && (pdfData.pdfUrl || pdfData.pdf_base64)) {
+        if (pdfData.pdfUrl) {
+          // Create download link from URL
+          const element = document.createElement('a');
+          element.href = pdfData.pdfUrl;
+          element.download = `${type}_export_${new Date().getTime()}.pdf`;
+          document.body.appendChild(element);
+          element.click();
+          document.body.removeChild(element);
+        } else if (pdfData.pdf_base64) {
+          // Create download link from base64
+          const byteCharacters = atob(pdfData.pdf_base64);
+          const byteNumbers = new Array(byteCharacters.length);
+          for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
+          }
+          const byteArray = new Uint8Array(byteNumbers);
+          const blob = new Blob([byteArray], { type: 'application/pdf' });
+          const url = window.URL.createObjectURL(blob);
+          
+          const element = document.createElement('a');
+          element.href = url;
+          element.download = `${type}_export_${new Date().getTime()}.pdf`;
+          document.body.appendChild(element);
+          element.click();
+          document.body.removeChild(element);
+          window.URL.revokeObjectURL(url);
+        }
 
         toast({
           title: "Exportação concluída",
           description: `${type === 'contracts' ? 'Contratos' : type === 'maintenance' ? 'Ordens de manutenção' : type === 'invoices' ? 'Faturas' : 'Relatórios'} exportados em PDF com sucesso`,
         });
+      } else {
+        throw new Error('Resposta inválida do servidor');
       }
       
       onOpenChange(false);
@@ -104,7 +129,7 @@ const PDFExportDialog = ({ open, onOpenChange, type, data }: PDFExportDialogProp
       console.error('Export error:', error);
       toast({
         title: "Erro na exportação",
-        description: "Não foi possível gerar o arquivo PDF",
+        description: error?.message || "Não foi possível gerar o arquivo PDF",
         variant: "destructive",
       });
     } finally {

@@ -40,18 +40,47 @@ const Map = () => {
 
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      
+      // First fetch vehicles from database
+      const { data: vehiclesData, error: vehiclesError } = await supabase
         .from('vehicles')
         .select('*')
         .eq('user_id', user.id);
 
-      if (error) {
-        console.error('Supabase error fetching vehicles:', error);
-        throw new Error(`Erro ao carregar veículos: ${error.message}`);
+      if (vehiclesError) {
+        console.error('Supabase error fetching vehicles:', vehiclesError);
+        throw new Error(`Erro ao carregar veículos: ${vehiclesError.message}`);
       }
       
-      setVehicles(data || []);
-      console.log('Map vehicles loaded successfully:', data?.length || 0);
+      // Try to sync latest data from Traccar
+      try {
+        const { data: syncData, error: syncError } = await supabase.functions.invoke('traccar-sync', {
+          body: { action: 'sync_devices' }
+        });
+        
+        if (syncError) {
+          console.warn('Traccar sync failed, using cached data:', syncError);
+        } else {
+          console.log('Traccar sync successful:', syncData?.message);
+        }
+      } catch (syncError) {
+        console.warn('Traccar sync error, using cached data:', syncError);
+      }
+      
+      // Fetch updated vehicles data after sync attempt
+      const { data: updatedVehicles, error: updatedError } = await supabase
+        .from('vehicles')
+        .select('*')
+        .eq('user_id', user.id);
+        
+      if (!updatedError && updatedVehicles) {
+        setVehicles(updatedVehicles);
+        console.log('Map vehicles loaded successfully:', updatedVehicles.length);
+      } else {
+        setVehicles(vehiclesData || []);
+        console.log('Using fallback vehicles data:', vehiclesData?.length || 0);
+      }
+      
     } catch (error) {
       console.error('Error fetching vehicles:', error);
       toast({
@@ -64,8 +93,8 @@ const Map = () => {
     }
   };
 
-  const vehiclesWithLocation = vehicles.filter(v => v.last_location);
-  const onlineVehicles = vehiclesWithLocation.length;
+  const vehiclesWithLocation = vehicles.filter(v => v.latitude && v.longitude);
+  const onlineVehicles = vehicles.filter(v => v.status === 'online').length;
   const offlineVehicles = vehicles.length - onlineVehicles;
 
   return (
@@ -210,42 +239,56 @@ const Map = () => {
                 />
               </div>
             </CardHeader>
-            <CardContent className="max-h-96 overflow-y-auto space-y-3">
-              {vehiclesWithLocation.map((vehicle) => (
-                <div key={vehicle.id} className="p-3 border rounded-lg hover:bg-muted/50 cursor-pointer">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                        <Car className="h-4 w-4 text-primary" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-sm">{vehicle.brand} {vehicle.model}</p>
-                        <p className="text-xs text-muted-foreground font-mono">{vehicle.plate}</p>
-                      </div>
-                    </div>
-                    <Badge 
-                      variant="outline" 
-                      className="bg-success/10 text-success border-success"
-                    >
-                      Online
-                    </Badge>
-                  </div>
-                  
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <Clock className="h-3 w-3" />
-                      <span>
-                        Atualizado {new Date(vehicle.lastLocation!.updatedAt).toLocaleTimeString('pt-BR')}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <Navigation className="h-3 w-3" />
-                      <span>Coordenadas: {vehicle.lastLocation!.lat.toFixed(4)}, {vehicle.lastLocation!.lng.toFixed(4)}</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </CardContent>
+             <CardContent className="max-h-96 overflow-y-auto space-y-3">
+               {vehicles.filter(v => v.latitude && v.longitude).map((vehicle) => (
+                 <div key={vehicle.id} className="p-3 border rounded-lg hover:bg-muted/50 cursor-pointer">
+                   <div className="flex items-center justify-between mb-2">
+                     <div className="flex items-center gap-2">
+                       <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                         <Car className="h-4 w-4 text-primary" />
+                       </div>
+                       <div>
+                         <p className="font-medium text-sm">{vehicle.brand} {vehicle.model}</p>
+                         <p className="text-xs text-muted-foreground font-mono">{vehicle.plate}</p>
+                       </div>
+                     </div>
+                     <Badge 
+                       variant="outline" 
+                       className={`${vehicle.status === 'online' ? 'bg-success/10 text-success border-success' : 'bg-destructive/10 text-destructive border-destructive'}`}
+                     >
+                       {vehicle.status === 'online' ? 'Online' : 'Offline'}
+                     </Badge>
+                   </div>
+                   
+                   <div className="space-y-1">
+                     <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                       <Clock className="h-3 w-3" />
+                       <span>
+                         Atualizado {vehicle.last_update ? new Date(vehicle.last_update).toLocaleTimeString('pt-BR') : 'N/A'}
+                       </span>
+                     </div>
+                     <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                       <Navigation className="h-3 w-3" />
+                       <span>Coordenadas: {vehicle.latitude?.toFixed(4)}, {vehicle.longitude?.toFixed(4)}</span>
+                     </div>
+                     {vehicle.address && (
+                       <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                         <MapPin className="h-3 w-3" />
+                         <span className="truncate">{vehicle.address}</span>
+                       </div>
+                     )}
+                   </div>
+                 </div>
+               ))}
+               
+               {vehicles.filter(v => v.latitude && v.longitude).length === 0 && (
+                 <div className="text-center py-8">
+                   <Car className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                   <p className="text-sm text-muted-foreground">Nenhum veículo online encontrado</p>
+                   <p className="text-xs text-muted-foreground">Configure o Traccar para ver a localização dos veículos</p>
+                 </div>
+               )}
+             </CardContent>
           </Card>
 
           <Card>

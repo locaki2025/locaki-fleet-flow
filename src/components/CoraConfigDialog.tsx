@@ -104,19 +104,32 @@ const CoraConfigDialog = ({ open, onOpenChange }: CoraConfigDialogProps) => {
   };
 
   const testConnection = async () => {
+    if (!user) return;
+    
     setTesting(true);
     try {
-      // Simulate API test
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      toast({
-        title: "Conexão testada",
-        description: "Conexão com o Cora estabelecida com sucesso",
+      const { data, error } = await supabase.functions.invoke('cora-webhook', {
+        body: {
+          action: 'test_connection',
+          config
+        }
       });
+
+      if (error) throw error;
+
+      if (data?.success) {
+        toast({
+          title: "Conexão testada",
+          description: "Conexão com o Cora estabelecida com sucesso",
+        });
+      } else {
+        throw new Error(data?.message || 'Erro na conexão');
+      }
     } catch (error) {
+      console.error('Cora test connection error:', error);
       toast({
         title: "Erro na conexão",
-        description: "Não foi possível conectar com o Cora. Verifique as credenciais.",
+        description: error.message || "Não foi possível conectar com o Cora. Verifique as credenciais.",
         variant: "destructive",
       });
     } finally {
