@@ -20,9 +20,11 @@ const Vehicles = () => {
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [contracts, setContracts] = useState<any[]>([]);
   useEffect(() => {
     if (user) {
       fetchVehicles();
+      fetchContracts();
     }
   }, [user]);
 
@@ -59,8 +61,39 @@ const Vehicles = () => {
     }
   };
 
+  const fetchContracts = async () => {
+    if (!user?.id) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('contratos')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('status', 'ativo');
+
+      if (error) {
+        console.error('Error fetching contracts:', error);
+        return;
+      }
+      
+      setContracts(data || []);
+    } catch (error) {
+      console.error('Error fetching contracts:', error);
+    }
+  };
+
   const handleVehicleCreated = () => {
     fetchVehicles(); // Atualiza a lista após criar um veículo
+    fetchContracts(); // Atualiza a lista de contratos também
+  };
+
+  const getVehicleStatus = (vehicle: any) => {
+    // Verifica se existe um contrato ativo para esta placa
+    const activeContract = contracts.find(contract => 
+      contract.moto_id === vehicle.id && contract.status === 'ativo'
+    );
+    
+    return activeContract ? 'alugado' : vehicle.status;
   };
 
   const handleViewOnMap = (vehicle: any) => {
@@ -118,7 +151,7 @@ const Vehicles = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Disponíveis</p>
-                <p className="text-2xl font-bold text-success">{vehicles.filter(v => v.status === 'disponivel').length}</p>
+                <p className="text-2xl font-bold text-success">{vehicles.filter(v => getVehicleStatus(v) === 'disponivel').length}</p>
               </div>
               <div className="h-8 w-8 rounded-full bg-success/20 flex items-center justify-center">
                 <Car className="h-4 w-4 text-success" />
@@ -131,7 +164,7 @@ const Vehicles = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Alugadas</p>
-                <p className="text-2xl font-bold text-accent">{vehicles.filter(v => v.status === 'alugado').length}</p>
+                <p className="text-2xl font-bold text-accent">{vehicles.filter(v => getVehicleStatus(v) === 'alugado').length}</p>
               </div>
               <div className="h-8 w-8 rounded-full bg-accent/20 flex items-center justify-center">
                 <Car className="h-4 w-4 text-accent" />
@@ -144,7 +177,7 @@ const Vehicles = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Manutenção</p>
-                <p className="text-2xl font-bold text-warning">{vehicles.filter(v => v.status === 'manutencao').length}</p>
+                <p className="text-2xl font-bold text-warning">{vehicles.filter(v => getVehicleStatus(v) === 'manutencao').length}</p>
               </div>
               <div className="h-8 w-8 rounded-full bg-warning/20 flex items-center justify-center">
                 <Car className="h-4 w-4 text-warning" />
@@ -204,21 +237,21 @@ const Vehicles = () => {
                     <CardDescription className="font-mono text-lg">{vehicle.plate}</CardDescription>
                   </div>
                 </div>
-                <Badge 
+                 <Badge 
                   variant={
-                    vehicle.status === 'disponivel' ? 'default' :
-                    vehicle.status === 'alugado' ? 'secondary' :
-                    vehicle.status === 'manutencao' ? 'destructive' : 'outline'
+                    getVehicleStatus(vehicle) === 'disponivel' ? 'default' :
+                    getVehicleStatus(vehicle) === 'alugado' ? 'secondary' :
+                    getVehicleStatus(vehicle) === 'manutencao' ? 'destructive' : 'outline'
                   }
                   className={
-                    vehicle.status === 'disponivel' ? 'bg-success text-success-foreground' :
-                    vehicle.status === 'alugado' ? 'bg-accent text-accent-foreground' :
-                    vehicle.status === 'manutencao' ? 'bg-warning text-warning-foreground' : ''
+                    getVehicleStatus(vehicle) === 'disponivel' ? 'bg-success text-success-foreground' :
+                    getVehicleStatus(vehicle) === 'alugado' ? 'bg-accent text-accent-foreground' :
+                    getVehicleStatus(vehicle) === 'manutencao' ? 'bg-warning text-warning-foreground' : ''
                   }
                 >
-                  {vehicle.status === 'disponivel' ? 'Disponível' :
-                   vehicle.status === 'alugado' ? 'Alugada' :
-                   vehicle.status === 'manutencao' ? 'Manutenção' : vehicle.status}
+                  {getVehicleStatus(vehicle) === 'disponivel' ? 'Disponível' :
+                   getVehicleStatus(vehicle) === 'alugado' ? 'Alugada' :
+                   getVehicleStatus(vehicle) === 'manutencao' ? 'Manutenção' : getVehicleStatus(vehicle)}
                 </Badge>
               </div>
             </CardHeader>
