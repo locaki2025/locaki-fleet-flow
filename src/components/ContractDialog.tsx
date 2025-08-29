@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +11,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { mockCustomers, mockVehicles } from "@/data/mockData";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { CalendarIcon, User, Car, DollarSign } from "lucide-react";
@@ -28,6 +27,9 @@ const ContractDialog = ({ open, onOpenChange }: ContractDialogProps) => {
   const { toast } = useToast();
   const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [vehicles, setVehicles] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     // Cliente e Veículo
     customerId: "",
@@ -67,8 +69,59 @@ const ContractDialog = ({ open, onOpenChange }: ContractDialogProps) => {
     observations: ""
   });
 
-  const availableVehicles = mockVehicles.filter(v => v.status === 'disponivel');
-  const activeCustomers = mockCustomers.filter(c => c.status === 'ativo');
+  useEffect(() => {
+    if (open && user) {
+      fetchCustomers();
+      fetchVehicles();
+    }
+  }, [open, user]);
+
+  const fetchCustomers = async () => {
+    if (!user?.id) return;
+    
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('status', 'ativo');
+
+      if (error) throw error;
+      setCustomers(data || []);
+    } catch (error) {
+      console.error('Error fetching customers:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar os clientes",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchVehicles = async () => {
+    if (!user?.id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('vehicles')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('status', 'disponivel');
+
+      if (error) throw error;
+      setVehicles(data || []);
+    } catch (error) {
+      console.error('Error fetching vehicles:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar os veículos",
+        variant: "destructive"
+      });
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -104,7 +157,7 @@ const ContractDialog = ({ open, onOpenChange }: ContractDialogProps) => {
         cliente_id: selectedCustomer.id,
         cliente_nome: selectedCustomer.name,
         cliente_email: selectedCustomer.email,
-        cliente_cpf: selectedCustomer.cpfCnpj,
+        cliente_cpf: selectedCustomer.cpf_cnpj,
         moto_id: selectedVehicle.id,
         moto_modelo: `${selectedVehicle.brand} ${selectedVehicle.model}`,
         valor_mensal: parseFloat(formData.valorDiaria) || 0,
@@ -224,11 +277,11 @@ const ContractDialog = ({ open, onOpenChange }: ContractDialogProps) => {
   };
 
   const getSelectedCustomer = () => {
-    return mockCustomers.find(c => c.id === formData.customerId);
+    return customers.find(c => c.id === formData.customerId);
   };
 
   const getSelectedVehicle = () => {
-    return mockVehicles.find(v => v.id === formData.vehicleId);
+    return vehicles.find(v => v.id === formData.vehicleId);
   };
 
   const canProceedStep1 = formData.customerId && formData.vehicleId;
@@ -281,13 +334,13 @@ const ContractDialog = ({ open, onOpenChange }: ContractDialogProps) => {
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione um cliente" />
                       </SelectTrigger>
-                      <SelectContent>
-                        {activeCustomers.map((customer) => (
-                          <SelectItem key={customer.id} value={customer.id}>
-                            {customer.name} - {customer.cpfCnpj}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
+                       <SelectContent>
+                         {customers.map((customer) => (
+                           <SelectItem key={customer.id} value={customer.id}>
+                             {customer.name} - {customer.cpf_cnpj}
+                           </SelectItem>
+                         ))}
+                       </SelectContent>
                     </Select>
 
                     {formData.customerId && (
@@ -313,13 +366,13 @@ const ContractDialog = ({ open, onOpenChange }: ContractDialogProps) => {
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione um veículo" />
                       </SelectTrigger>
-                      <SelectContent>
-                        {availableVehicles.map((vehicle) => (
-                          <SelectItem key={vehicle.id} value={vehicle.id}>
-                            {vehicle.brand} {vehicle.model} - {vehicle.plate}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
+                       <SelectContent>
+                         {vehicles.map((vehicle) => (
+                           <SelectItem key={vehicle.id} value={vehicle.id}>
+                             {vehicle.brand} {vehicle.model} - {vehicle.plate}
+                           </SelectItem>
+                         ))}
+                       </SelectContent>
                     </Select>
 
                     {formData.vehicleId && (
