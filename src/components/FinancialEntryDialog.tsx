@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -20,6 +20,8 @@ const FinancialEntryDialog = ({ open, onOpenChange, onEntryCreated }: FinancialE
   const { user } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [vehicles, setVehicles] = useState<any[]>([]);
+  const [tenants, setTenants] = useState<any[]>([]);
   const [formData, setFormData] = useState({
     type: "",
     plate: "",
@@ -30,6 +32,52 @@ const FinancialEntryDialog = ({ open, onOpenChange, onEntryCreated }: FinancialE
     is_received: false,
     generate_invoice: false
   });
+
+  useEffect(() => {
+    if (open && user) {
+      fetchVehicles();
+    }
+  }, [open, user]);
+
+  const fetchVehicles = async () => {
+    if (!user?.id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('vehicles')
+        .select('plate, model, brand')
+        .eq('user_id', user.id)
+        .eq('status', 'disponivel');
+
+      if (error) throw error;
+      setVehicles(data || []);
+    } catch (error) {
+      console.error('Error fetching vehicles:', error);
+    }
+  };
+
+  const fetchTenantsByPlate = async (plate: string) => {
+    if (!user?.id || !plate) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('contratos')
+        .select('cliente_nome, cliente_id')
+        .eq('user_id', user.id)
+        .eq('moto_id', plate)
+        .eq('status', 'ativo');
+
+      if (error) throw error;
+      setTenants(data || []);
+    } catch (error) {
+      console.error('Error fetching tenants:', error);
+    }
+  };
+
+  const handlePlateChange = (plate: string) => {
+    setFormData(prev => ({ ...prev, plate, location: "" }));
+    fetchTenantsByPlate(plate);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -106,21 +154,34 @@ const FinancialEntryDialog = ({ open, onOpenChange, onEntryCreated }: FinancialE
           
           <div>
             <Label>Placa</Label>
-            <Input 
-              value={formData.plate}
-              onChange={(e) => setFormData(prev => ({ ...prev, plate: e.target.value }))}
-              placeholder="Digite a placa do veículo"
-              required
-            />
+            <Select value={formData.plate} onValueChange={handlePlateChange}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione a placa" />
+              </SelectTrigger>
+              <SelectContent>
+                {vehicles.map((vehicle) => (
+                  <SelectItem key={vehicle.plate} value={vehicle.plate}>
+                    {vehicle.plate} - {vehicle.brand} {vehicle.model}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           
           <div>
             <Label>Locatário</Label>
-            <Input 
-              value={formData.location}
-              onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
-              placeholder="Nome do locatário"
-            />
+            <Select value={formData.location} onValueChange={(value) => setFormData(prev => ({ ...prev, location: value }))}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione o locatário" />
+              </SelectTrigger>
+              <SelectContent>
+                {tenants.map((tenant) => (
+                  <SelectItem key={tenant.cliente_id} value={tenant.cliente_nome}>
+                    {tenant.cliente_nome}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           
           <div className="grid grid-cols-2 gap-4">
