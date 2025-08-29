@@ -171,8 +171,8 @@ const Rentals = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Contratos</h1>
-          <p className="text-muted-foreground">Gerencie contratos de locação e acompanhe prazos</p>
+          <h1 className="text-3xl font-bold text-foreground">Veículos para Locação</h1>
+          <p className="text-muted-foreground">Veículos disponíveis para novas locações</p>
         </div>
         <Button 
           className="bg-gradient-primary hover:opacity-90"
@@ -259,12 +259,12 @@ const Rentals = () => {
         </CardContent>
       </Card>
 
-      {/* Contract List */}
+      {/* Available Vehicles List */}
       <div className="space-y-4">
         {!user ? (
           <div className="text-center py-12">
             <p className="text-muted-foreground mb-4">
-              Faça login para visualizar seus contratos
+              Faça login para visualizar os veículos disponíveis
             </p>
             <Button onClick={() => setShowLoginDialog(true)}>
               Fazer Login
@@ -272,111 +272,179 @@ const Rentals = () => {
           </div>
         ) : loading ? (
           <div className="text-center py-12">
-            <p className="text-muted-foreground">Carregando contratos...</p>
+            <p className="text-muted-foreground">Carregando veículos...</p>
           </div>
-        ) : contracts.length === 0 ? (
+        ) : vehicles.filter(v => v.status === 'disponivel').length === 0 ? (
           <div className="text-center py-12">
             <p className="text-muted-foreground mb-4">
-              Nenhum contrato encontrado
+              Nenhum veículo disponível para locação
             </p>
-            <Button onClick={handleNewContract} className="bg-gradient-primary hover:opacity-90">
-              <Plus className="h-4 w-4 mr-2" />
-              Criar Primeiro Contrato
-            </Button>
           </div>
         ) : (
-          contracts.map((contract) => (
-            <Card key={contract.id} className="hover:shadow-md transition-shadow">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="h-16 w-16 rounded-lg bg-gradient-primary/10 flex items-center justify-center">
-                      <FileText className="h-8 w-8 text-primary" />
-                    </div>
-                    <div className="space-y-1">
-                      <h3 className="font-semibold text-lg">Contrato #{contract.id.slice(-8)}</h3>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <User className="h-4 w-4" />
-                        <span>{contract.cliente_nome}</span>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {vehicles.filter(v => v.status === 'disponivel').map((vehicle) => (
+              <Card key={vehicle.id} className="hover:shadow-md transition-shadow">
+                <CardContent className="p-6">
+                  <div className="flex flex-col space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="h-16 w-16 rounded-lg bg-gradient-primary/10 flex items-center justify-center">
+                        <Car className="h-8 w-8 text-primary" />
                       </div>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Car className="h-4 w-4" />
-                        <span>{contract.moto_modelo}</span>
-                      </div>
-                      {contract.diaria && (
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <DollarSign className="h-4 w-4" />
-                          <span>Diária: R$ {Number(contract.diaria).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                        </div>
-                      )}
-                      {contract.local_entrega && (
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <span>📍 {contract.local_entrega}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-6">
-                    <div className="text-right">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Calendar className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm text-muted-foreground">
-                          {new Date(contract.data_inicio).toLocaleDateString('pt-BR')} - 
-                          {contract.data_fim ? new Date(contract.data_fim).toLocaleDateString('pt-BR') : 'Indefinido'}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <DollarSign className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-semibold">
-                          R$ {Number(contract.valor_mensal || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      <Badge 
-                        variant={
-                          contract.status === 'ativo' ? 'default' :
-                          contract.status === 'finalizado' ? 'secondary' :
-                          contract.status === 'atrasado' ? 'destructive' : 'outline'
-                        }
-                        className={
-                          contract.status === 'ativo' ? 'bg-accent text-accent-foreground' :
-                          contract.status === 'finalizado' ? 'bg-success text-success-foreground' :
-                          contract.status === 'atrasado' ? 'bg-warning text-warning-foreground' : ''
-                        }
-                      >
-                        {contract.status === 'ativo' ? 'Ativo' :
-                         contract.status === 'finalizado' ? 'Finalizado' :
-                         contract.status === 'atrasado' ? 'Atrasado' : contract.status}
+                      <Badge className="bg-success text-success-foreground">
+                        Disponível
                       </Badge>
-
-                      <div className="flex gap-2">
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => handleViewDetails(contract)}
-                        >
-                          Ver Detalhes
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => handleDownloadContract(contract.id)}
-                        >
-                          <Download className="h-4 w-4 mr-1" />
-                          PDF
-                        </Button>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <h3 className="font-semibold text-lg">{vehicle.brand} {vehicle.model}</h3>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <span className="font-medium">Placa:</span>
+                        <span>{vehicle.plate}</span>
                       </div>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <span className="font-medium">Ano:</span>
+                        <span>{vehicle.year}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <span className="font-medium">Cor:</span>
+                        <span>{vehicle.color}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <span className="font-medium">Categoria:</span>
+                        <span>{vehicle.category}</span>
+                      </div>
+                      {vehicle.odometer && (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <span className="font-medium">Odômetro:</span>
+                          <span>{vehicle.odometer.toLocaleString()} km</span>
+                        </div>
+                      )}
+                      {vehicle.observations && (
+                        <div className="text-sm text-muted-foreground">
+                          <span className="font-medium">Observações:</span>
+                          <p className="mt-1">{vehicle.observations}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex gap-2 pt-4">
+                      <Button 
+                        className="flex-1 bg-gradient-primary hover:opacity-90"
+                        onClick={handleNewContract}
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Criar Contrato
+                      </Button>
                     </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         )}
       </div>
+
+      {/* Contracts Section */}
+      {contracts.length > 0 && (
+        <>
+          <div className="border-t pt-6">
+            <h2 className="text-2xl font-bold text-foreground mb-4">Contratos Existentes</h2>
+          </div>
+          
+          <div className="space-y-4">
+            {contracts.map((contract) => (
+              <Card key={contract.id} className="hover:shadow-md transition-shadow">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="h-16 w-16 rounded-lg bg-gradient-primary/10 flex items-center justify-center">
+                        <FileText className="h-8 w-8 text-primary" />
+                      </div>
+                      <div className="space-y-1">
+                        <h3 className="font-semibold text-lg">Contrato #{contract.id.slice(-8)}</h3>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <User className="h-4 w-4" />
+                          <span>{contract.cliente_nome}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Car className="h-4 w-4" />
+                          <span>{contract.moto_modelo}</span>
+                        </div>
+                        {contract.diaria && (
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <DollarSign className="h-4 w-4" />
+                            <span>Diária: R$ {Number(contract.diaria).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                          </div>
+                        )}
+                        {contract.local_entrega && (
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <span>📍 {contract.local_entrega}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-6">
+                      <div className="text-right">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Calendar className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm text-muted-foreground">
+                            {new Date(contract.data_inicio).toLocaleDateString('pt-BR')} - 
+                            {contract.data_fim ? new Date(contract.data_fim).toLocaleDateString('pt-BR') : 'Indefinido'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <DollarSign className="h-4 w-4 text-muted-foreground" />
+                          <span className="font-semibold">
+                            R$ {Number(contract.valor_mensal || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <Badge 
+                          variant={
+                            contract.status === 'ativo' ? 'default' :
+                            contract.status === 'finalizado' ? 'secondary' :
+                            contract.status === 'atrasado' ? 'destructive' : 'outline'
+                          }
+                          className={
+                            contract.status === 'ativo' ? 'bg-accent text-accent-foreground' :
+                            contract.status === 'finalizado' ? 'bg-success text-success-foreground' :
+                            contract.status === 'atrasado' ? 'bg-warning text-warning-foreground' : ''
+                          }
+                        >
+                          {contract.status === 'ativo' ? 'Ativo' :
+                           contract.status === 'finalizado' ? 'Finalizado' :
+                           contract.status === 'atrasado' ? 'Atrasado' : contract.status}
+                        </Badge>
+
+                        <div className="flex gap-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleViewDetails(contract)}
+                          >
+                            Ver Detalhes
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleDownloadContract(contract.id)}
+                          >
+                            <Download className="h-4 w-4 mr-1" />
+                            PDF
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </>
+      )}
 
       {/* Dialogs */}
       <ContractDialog 
