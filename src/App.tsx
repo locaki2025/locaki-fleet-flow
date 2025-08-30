@@ -16,6 +16,7 @@ import Devices from "@/pages/Devices";
 import Settings from "@/pages/Settings";
 import Map from "@/pages/Map";
 import Reports from "@/pages/Reports";
+import TrafficFines from "@/pages/TrafficFines";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -40,6 +41,7 @@ const App = () => (
               <Route path="/settings" element={<Settings />} />
               <Route path="/map" element={<Map />} />
               <Route path="/reports" element={<Reports />} />
+              <Route path="/traffic-fines" element={<TrafficFines />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

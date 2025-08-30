@@ -9,7 +9,8 @@ import {
   BarChart3,
   Settings,
   Cpu,
-  Receipt
+  Receipt,
+  AlertTriangle
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
@@ -64,6 +65,11 @@ const menuItems = [
     title: "Faturas",
     url: "/invoices",
     icon: Receipt,
+  },
+  {
+    title: "Multas de Trânsito",
+    url: "/traffic-fines",
+    icon: AlertTriangle,
   },
   {
     title: "Mapa",

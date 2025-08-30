@@ -475,6 +475,116 @@ export type Database = {
         }
         Relationships: []
       }
+      multas_transito: {
+        Row: {
+          auto_infracao: string | null
+          condutor: string | null
+          created_at: string
+          data_infracao: string
+          data_limite_recurso: string | null
+          documentos: Json | null
+          em_posse_cliente: boolean | null
+          em_recurso: boolean | null
+          endereco: string | null
+          faturado: boolean | null
+          gravidade: string | null
+          habilitado_faturar: boolean | null
+          id: string
+          infracao: string
+          justificativa: string | null
+          motivo: string
+          observacoes: string | null
+          orgao_autuador: string | null
+          origem: string | null
+          placa: string
+          pontuacao: number | null
+          prazo_indicacao_condutor: string | null
+          recebimento_infracao: string | null
+          serpro_id: string | null
+          situacao: string
+          tipo_infracao: string | null
+          updated_at: string
+          user_id: string
+          valor_com_desconto: number | null
+          valor_multa: number
+          veiculo_id: string | null
+        }
+        Insert: {
+          auto_infracao?: string | null
+          condutor?: string | null
+          created_at?: string
+          data_infracao: string
+          data_limite_recurso?: string | null
+          documentos?: Json | null
+          em_posse_cliente?: boolean | null
+          em_recurso?: boolean | null
+          endereco?: string | null
+          faturado?: boolean | null
+          gravidade?: string | null
+          habilitado_faturar?: boolean | null
+          id?: string
+          infracao: string
+          justificativa?: string | null
+          motivo: string
+          observacoes?: string | null
+          orgao_autuador?: string | null
+          origem?: string | null
+          placa: string
+          pontuacao?: number | null
+          prazo_indicacao_condutor?: string | null
+          recebimento_infracao?: string | null
+          serpro_id?: string | null
+          situacao?: string
+          tipo_infracao?: string | null
+          updated_at?: string
+          user_id: string
+          valor_com_desconto?: number | null
+          valor_multa: number
+          veiculo_id?: string | null
+        }
+        Update: {
+          auto_infracao?: string | null
+          condutor?: string | null
+          created_at?: string
+          data_infracao?: string
+          data_limite_recurso?: string | null
+          documentos?: Json | null
+          em_posse_cliente?: boolean | null
+          em_recurso?: boolean | null
+          endereco?: string | null
+          faturado?: boolean | null
+          gravidade?: string | null
+          habilitado_faturar?: boolean | null
+          id?: string
+          infracao?: string
+          justificativa?: string | null
+          motivo?: string
+          observacoes?: string | null
+          orgao_autuador?: string | null
+          origem?: string | null
+          placa?: string
+          pontuacao?: number | null
+          prazo_indicacao_condutor?: string | null
+          recebimento_infracao?: string | null
+          serpro_id?: string | null
+          situacao?: string
+          tipo_infracao?: string | null
+          updated_at?: string
+          user_id?: string
+          valor_com_desconto?: number | null
+          valor_multa?: number
+          veiculo_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "multas_transito_veiculo_id_fkey"
+            columns: ["veiculo_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tenant_config: {
         Row: {
           config_key: string
