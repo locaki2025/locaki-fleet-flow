@@ -117,7 +117,13 @@ const Rentals = () => {
   }, 0);
 
   const handleViewDetails = (contract: any) => {
-    setSelectedRental(contract);
+    // Enrich contract with vehicle plate information
+    const vehicle = vehicles.find(v => v.id === contract.moto_id);
+    const enrichedContract = {
+      ...contract,
+      moto_placa: vehicle?.plate
+    };
+    setSelectedRental(enrichedContract);
     setIsDetailsDialogOpen(true);
   };
 

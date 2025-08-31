@@ -14,6 +14,7 @@ interface Contract {
   cliente_email: string;
   moto_id: string;
   moto_modelo: string;
+  moto_placa?: string;
   status: string;
   data_inicio: string;
   data_fim: string | null;
@@ -95,6 +96,34 @@ const RentalDetailsDialog = ({ open, onOpenChange, rental }: RentalDetailsDialog
       toast({
         title: "Erro",
         description: "Não foi possível finalizar o contrato",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleDeleteContract = async () => {
+    if (!window.confirm('Tem certeza que deseja excluir este contrato? Esta ação não pode ser desfeita.')) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('contratos')
+        .delete()
+        .eq('id', rental.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Contrato excluído",
+        description: `Contrato #${rental.id} foi excluído com sucesso`,
+      });
+      
+      onOpenChange(false);
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Não foi possível excluir o contrato",
         variant: "destructive"
       });
     }
@@ -211,6 +240,9 @@ const RentalDetailsDialog = ({ open, onOpenChange, rental }: RentalDetailsDialog
               </CardHeader>
               <CardContent className="space-y-2">
                 <p className="font-medium">{rental.moto_modelo}</p>
+                {rental.moto_placa && (
+                  <p className="text-sm text-muted-foreground">Placa: {rental.moto_placa}</p>
+                )}
                 <p className="text-sm text-muted-foreground">ID: {rental.moto_id}</p>
                 {rental.descricao && (
                   <p className="text-sm text-muted-foreground">Obs: {rental.descricao}</p>
@@ -257,15 +289,7 @@ const RentalDetailsDialog = ({ open, onOpenChange, rental }: RentalDetailsDialog
             Histórico
           </Button>
           
-          <Button variant="destructive" onClick={() => {
-            if (window.confirm('Tem certeza que deseja excluir este contrato? Esta ação não pode ser desfeita.')) {
-              toast({
-                title: "Contrato excluído",
-                description: "Funcionalidade de exclusão será implementada em breve",
-                variant: "destructive"
-              });
-            }
-          }}>
+          <Button variant="destructive" onClick={handleDeleteContract}>
             Excluir Contrato
           </Button>
         </div>
