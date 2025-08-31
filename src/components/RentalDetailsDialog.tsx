@@ -227,6 +227,16 @@ const RentalDetailsDialog = ({ open, onOpenChange, rental }: RentalDetailsDialog
             Imprimir Contrato
           </Button>
           
+          <Button variant="outline" onClick={() => {
+            toast({
+              title: "Faturamento",
+              description: "Visualizando faturas do contrato",
+            });
+          }}>
+            <FileText className="h-4 w-4 mr-2" />
+            Ver Faturas
+          </Button>
+          
           {rental.status === 'ativo' && (
             <>
               <Button variant="outline" onClick={handleEditContract}>
@@ -245,6 +255,18 @@ const RentalDetailsDialog = ({ open, onOpenChange, rental }: RentalDetailsDialog
             });
           }}>
             Histórico
+          </Button>
+          
+          <Button variant="destructive" onClick={() => {
+            if (window.confirm('Tem certeza que deseja excluir este contrato? Esta ação não pode ser desfeita.')) {
+              toast({
+                title: "Contrato excluído",
+                description: "Funcionalidade de exclusão será implementada em breve",
+                variant: "destructive"
+              });
+            }
+          }}>
+            Excluir Contrato
           </Button>
         </div>
       </DialogContent>
