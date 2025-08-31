@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { 
-  Plus, 
   Search, 
   Filter, 
   FileText, 
@@ -34,10 +33,10 @@ const Rentals = () => {
   const [loading, setLoading] = useState(true);
   const [pdfExportOpen, setPdfExportOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
-  const [isContractDialogOpen, setIsContractDialogOpen] = useState(false);
   const [selectedRental, setSelectedRental] = useState<any>(null);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [showLoginDialog, setShowLoginDialog] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     if (user) {
@@ -49,7 +48,7 @@ const Rentals = () => {
     try {
       setLoading(true);
       const [contractsRes, customersRes, vehiclesRes] = await Promise.all([
-        supabase.from('contratos').select('*').eq('user_id', user.id),
+        supabase.from('contratos').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
         supabase.from('customers').select('*').eq('user_id', user.id),
         supabase.from('vehicles').select('*').eq('user_id', user.id)
       ]);
@@ -65,7 +64,7 @@ const Rentals = () => {
       console.error('Error fetching data:', error);
       toast({
         title: "Erro ao carregar dados",
-        description: "Não foi possível carregar os contratos de locação",
+        description: "Não foi possível carregar os contratos",
         variant: "destructive",
       });
     } finally {
@@ -122,13 +121,16 @@ const Rentals = () => {
     setIsDetailsDialogOpen(true);
   };
 
-  const handleNewContract = () => {
-    if (!user) {
-      setShowLoginDialog(true);
-      return;
-    }
-    setIsContractDialogOpen(true);
-  };
+  // Filter contracts based on search term
+  const filteredContracts = contracts.filter(contract => {
+    if (!searchTerm) return true;
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      contract.cliente_nome?.toLowerCase().includes(searchLower) ||
+      contract.moto_modelo?.toLowerCase().includes(searchLower) ||
+      contract.id?.toLowerCase().includes(searchLower)
+    );
+  });
 
   const handleDownloadContract = async (contractId: string) => {
     try {
@@ -171,16 +173,9 @@ const Rentals = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Veículos para Locação</h1>
-          <p className="text-muted-foreground">Veículos disponíveis para novas locações</p>
+          <h1 className="text-3xl font-bold text-foreground">Contratos de Locação</h1>
+          <p className="text-muted-foreground">Gerenciamento de contratos e locações ativas</p>
         </div>
-        <Button 
-          className="bg-gradient-primary hover:opacity-90"
-          onClick={handleNewContract}
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Novo Contrato
-        </Button>
       </div>
 
       {/* Stats Cards */}
@@ -243,8 +238,10 @@ const Rentals = () => {
             <div className="relative flex-1 max-w-sm">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
               <Input
-                placeholder="Buscar por cliente, placa..."
+                placeholder="Buscar por cliente, modelo, contrato..."
                 className="pl-10"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
             <Button variant="outline" onClick={() => setFilterOpen(true)}>
@@ -259,12 +256,12 @@ const Rentals = () => {
         </CardContent>
       </Card>
 
-      {/* Available Vehicles List */}
+      {/* Contracts List */}
       <div className="space-y-4">
         {!user ? (
           <div className="text-center py-12">
             <p className="text-muted-foreground mb-4">
-              Faça login para visualizar os veículos disponíveis
+              Faça login para visualizar os contratos
             </p>
             <Button onClick={() => setShowLoginDialog(true)}>
               Fazer Login
@@ -272,87 +269,17 @@ const Rentals = () => {
           </div>
         ) : loading ? (
           <div className="text-center py-12">
-            <p className="text-muted-foreground">Carregando veículos...</p>
+            <p className="text-muted-foreground">Carregando contratos...</p>
           </div>
-        ) : vehicles.filter(v => v.status === 'disponivel').length === 0 ? (
+        ) : filteredContracts.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-muted-foreground mb-4">
-              Nenhum veículo disponível para locação
+              {searchTerm ? 'Nenhum contrato encontrado para a pesquisa' : 'Nenhum contrato encontrado'}
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {vehicles.filter(v => v.status === 'disponivel').map((vehicle) => (
-              <Card key={vehicle.id} className="hover:shadow-md transition-shadow">
-                <CardContent className="p-6">
-                  <div className="flex flex-col space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="h-16 w-16 rounded-lg bg-gradient-primary/10 flex items-center justify-center">
-                        <Car className="h-8 w-8 text-primary" />
-                      </div>
-                      <Badge className="bg-success text-success-foreground">
-                        Disponível
-                      </Badge>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <h3 className="font-semibold text-lg">{vehicle.brand} {vehicle.model}</h3>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <span className="font-medium">Placa:</span>
-                        <span>{vehicle.plate}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <span className="font-medium">Ano:</span>
-                        <span>{vehicle.year}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <span className="font-medium">Cor:</span>
-                        <span>{vehicle.color}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <span className="font-medium">Categoria:</span>
-                        <span>{vehicle.category}</span>
-                      </div>
-                      {vehicle.odometer && (
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <span className="font-medium">Odômetro:</span>
-                          <span>{vehicle.odometer.toLocaleString()} km</span>
-                        </div>
-                      )}
-                      {vehicle.observations && (
-                        <div className="text-sm text-muted-foreground">
-                          <span className="font-medium">Observações:</span>
-                          <p className="mt-1">{vehicle.observations}</p>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex gap-2 pt-4">
-                      <Button 
-                        className="flex-1 bg-gradient-primary hover:opacity-90"
-                        onClick={handleNewContract}
-                      >
-                        <Plus className="h-4 w-4 mr-2" />
-                        Criar Contrato
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Contracts Section */}
-      {contracts.length > 0 && (
-        <>
-          <div className="border-t pt-6">
-            <h2 className="text-2xl font-bold text-foreground mb-4">Contratos Existentes</h2>
-          </div>
-          
           <div className="space-y-4">
-            {contracts.map((contract) => (
+            {filteredContracts.map((contract) => (
               <Card key={contract.id} className="hover:shadow-md transition-shadow">
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
@@ -443,16 +370,11 @@ const Rentals = () => {
               </Card>
             ))}
           </div>
-        </>
-      )}
+        )}
+      </div>
 
       {/* Dialogs */}
-      <ContractDialog 
-        open={isContractDialogOpen} 
-        onOpenChange={setIsContractDialogOpen} 
-      />
-
-      <RentalDetailsDialog 
+      <RentalDetailsDialog
         open={isDetailsDialogOpen} 
         onOpenChange={setIsDetailsDialogOpen}
         rental={selectedRental}
