@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,6 +21,10 @@ const InvoiceDialog = ({ open, onOpenChange, onInvoiceCreated }: InvoiceDialogPr
   const { toast } = useToast();
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [vehicles, setVehicles] = useState<any[]>([]);
+  const [selectedPlate, setSelectedPlate] = useState('');
+  const [currentRenter, setCurrentRenter] = useState<any>(null);
+  const [rentalHistory, setRentalHistory] = useState<any[]>([]);
   
   const [formData, setFormData] = useState({
     cliente_nome: '',
@@ -27,7 +33,8 @@ const InvoiceDialog = ({ open, onOpenChange, onInvoiceCreated }: InvoiceDialogPr
     descricao: '',
     valor: '',
     vencimento: '',
-    observacoes: ''
+    observacoes: '',
+    placa: ''
   });
 
   const handleChange = (field: string, value: string) => {
@@ -42,8 +49,92 @@ const InvoiceDialog = ({ open, onOpenChange, onInvoiceCreated }: InvoiceDialogPr
       descricao: '',
       valor: '',
       vencimento: '',
-      observacoes: ''
+      observacoes: '',
+      placa: ''
     });
+    setSelectedPlate('');
+    setCurrentRenter(null);
+    setRentalHistory([]);
+  };
+
+  // Buscar veículos quando o dialog abrir
+  useEffect(() => {
+    if (open && user) {
+      fetchVehicles();
+    }
+  }, [open, user]);
+
+  // Buscar dados de locação quando uma placa for selecionada
+  useEffect(() => {
+    if (selectedPlate && user) {
+      fetchRentalData(selectedPlate);
+    }
+  }, [selectedPlate, user]);
+
+  const fetchVehicles = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('vehicles')
+        .select('id, plate, brand, model, status')
+        .eq('user_id', user!.id)
+        .order('plate');
+
+      if (error) throw error;
+      setVehicles(data || []);
+    } catch (error) {
+      console.error('Error fetching vehicles:', error);
+    }
+  };
+
+  const fetchRentalData = async (plate: string) => {
+    try {
+      // Buscar contrato ativo atual
+      const { data: activeContract, error: activeError } = await supabase
+        .from('contratos')
+        .select('*')
+        .eq('user_id', user!.id)
+        .eq('moto_id', plate)
+        .eq('status', 'ativo')
+        .maybeSingle();
+
+      if (activeError && activeError.code !== 'PGRST116') {
+        throw activeError;
+      }
+
+      setCurrentRenter(activeContract);
+
+      // Buscar histórico de contratos para esta placa
+      const { data: history, error: historyError } = await supabase
+        .from('contratos')
+        .select('cliente_nome, cliente_email, data_inicio, data_fim, status')
+        .eq('user_id', user!.id)
+        .eq('moto_id', plate)
+        .order('data_inicio', { ascending: false })
+        .limit(5);
+
+      if (historyError) throw historyError;
+      setRentalHistory(history || []);
+
+      // Auto-preencher dados do locatário atual se houver
+      if (activeContract) {
+        setFormData(prev => ({
+          ...prev,
+          cliente_nome: activeContract.cliente_nome,
+          cliente_email: activeContract.cliente_email,
+          cliente_id: activeContract.cliente_cpf || '',
+          placa: plate
+        }));
+      } else {
+        setFormData(prev => ({ ...prev, placa: plate }));
+      }
+    } catch (error) {
+      console.error('Error fetching rental data:', error);
+    }
+  };
+
+  const handlePlateSelect = (plate: string) => {
+    setSelectedPlate(plate);
+    handleChange('placa', plate);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -130,6 +221,84 @@ const InvoiceDialog = ({ open, onOpenChange, onInvoiceCreated }: InvoiceDialogPr
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Seleção de Placa do Veículo */}
+          <div className="space-y-2">
+            <Label htmlFor="placa">Placa do Veículo</Label>
+            <Select value={selectedPlate} onValueChange={handlePlateSelect}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione uma placa..." />
+              </SelectTrigger>
+              <SelectContent>
+                {vehicles.map((vehicle) => (
+                  <SelectItem key={vehicle.id} value={vehicle.plate}>
+                    {vehicle.plate} - {vehicle.brand} {vehicle.model} ({vehicle.status})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Informações do Locatário Atual */}
+          {currentRenter && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm">Locatário Atual</CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-sm font-medium">Nome:</span>
+                    <span className="text-sm">{currentRenter.cliente_nome}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm font-medium">Email:</span>
+                    <span className="text-sm">{currentRenter.cliente_email}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm font-medium">Período:</span>
+                    <span className="text-sm">
+                      {new Date(currentRenter.data_inicio).toLocaleDateString()} - 
+                      {currentRenter.data_fim ? new Date(currentRenter.data_fim).toLocaleDateString() : 'Em andamento'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm font-medium">Status:</span>
+                    <Badge variant={currentRenter.status === 'ativo' ? 'default' : 'secondary'}>
+                      {currentRenter.status}
+                    </Badge>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Histórico de Locatários */}
+          {rentalHistory.length > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm">Histórico de Locatários</CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="space-y-2 max-h-32 overflow-y-auto">
+                  {rentalHistory.map((rental, index) => (
+                    <div key={index} className="flex justify-between items-center border-b pb-2 last:border-b-0">
+                      <div>
+                        <span className="text-sm font-medium">{rental.cliente_nome}</span>
+                        <div className="text-xs text-muted-foreground">
+                          {new Date(rental.data_inicio).toLocaleDateString()} - 
+                          {rental.data_fim ? new Date(rental.data_fim).toLocaleDateString() : 'Atual'}
+                        </div>
+                      </div>
+                      <Badge variant={rental.status === 'ativo' ? 'default' : 'secondary'} className="text-xs">
+                        {rental.status}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="cliente_nome">Nome do Cliente *</Label>
