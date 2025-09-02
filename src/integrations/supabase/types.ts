@@ -214,6 +214,9 @@ export type Database = {
       customers: {
         Row: {
           city: string
+          cnh_attachment_url: string | null
+          cnh_category: string | null
+          cnh_expiry_date: string | null
           cpf_cnpj: string
           created_at: string
           email: string
@@ -232,6 +235,9 @@ export type Database = {
         }
         Insert: {
           city: string
+          cnh_attachment_url?: string | null
+          cnh_category?: string | null
+          cnh_expiry_date?: string | null
           cpf_cnpj: string
           created_at?: string
           email: string
@@ -250,6 +256,9 @@ export type Database = {
         }
         Update: {
           city?: string
+          cnh_attachment_url?: string | null
+          cnh_category?: string | null
+          cnh_expiry_date?: string | null
           cpf_cnpj?: string
           created_at?: string
           email?: string

@@ -3,7 +3,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, Filter, User, Building2, Phone, Mail } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Plus, Search, Filter, User, Building2, Phone, Mail, Eye, Calendar, CreditCard } from "lucide-react";
 import CustomerDialog from "@/components/CustomerDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -13,6 +14,8 @@ const Customers = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -173,7 +176,15 @@ const Customers = () => {
                 <span className="text-xs text-muted-foreground">
                   Cliente desde {new Date(customer.created_at).toLocaleDateString('pt-BR')}
                 </span>
-                <Button variant="outline" size="sm">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => {
+                    setSelectedCustomer(customer);
+                    setIsDetailsOpen(true);
+                  }}
+                >
+                  <Eye className="h-4 w-4 mr-1" />
                   Ver Detalhes
                 </Button>
               </div>
@@ -224,6 +235,121 @@ const Customers = () => {
         open={isDialogOpen} 
         onOpenChange={setIsDialogOpen} 
       />
+
+      {/* Customer Details Dialog */}
+      <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Detalhes do Cliente</DialogTitle>
+            <DialogDescription>
+              Informações completas do cliente
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedCustomer && (
+            <div className="space-y-6">
+              {/* Basic Info */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <h4 className="font-semibold mb-2">Informações Básicas</h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Nome:</span>
+                      <span>{selectedCustomer.name}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Tipo:</span>
+                      <Badge variant="outline">
+                        {selectedCustomer.type === 'PF' ? 'Pessoa Física' : 'Pessoa Jurídica'}
+                      </Badge>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">CPF/CNPJ:</span>
+                      <span>{selectedCustomer.cpf_cnpj}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Status:</span>
+                      <Badge variant={selectedCustomer.status === 'ativo' ? 'default' : 'destructive'}>
+                        {selectedCustomer.status}
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+                
+                <div>
+                  <h4 className="font-semibold mb-2">Contato</h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-center gap-2">
+                      <Mail className="h-4 w-4 text-muted-foreground" />
+                      <span>{selectedCustomer.email}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Phone className="h-4 w-4 text-muted-foreground" />
+                      <span>{selectedCustomer.phone}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Address */}
+              <div>
+                <h4 className="font-semibold mb-2">Endereço</h4>
+                <p className="text-sm text-muted-foreground">
+                  {selectedCustomer.street}, {selectedCustomer.number}<br/>
+                  {selectedCustomer.city}, {selectedCustomer.state}<br/>
+                  CEP: {selectedCustomer.zip_code}
+                </p>
+              </div>
+
+              {/* CNH Info */}
+              {(selectedCustomer.cnh_category || selectedCustomer.cnh_expiry_date) && (
+                <div>
+                  <h4 className="font-semibold mb-2">Informações da CNH</h4>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    {selectedCustomer.cnh_category && (
+                      <div className="flex items-center gap-2">
+                        <CreditCard className="h-4 w-4 text-muted-foreground" />
+                        <span>Categoria: {selectedCustomer.cnh_category}</span>
+                      </div>
+                    )}
+                    {selectedCustomer.cnh_expiry_date && (
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4 text-muted-foreground" />
+                        <span>Vencimento: {new Date(selectedCustomer.cnh_expiry_date).toLocaleDateString()}</span>
+                      </div>
+                    )}
+                  </div>
+                  {selectedCustomer.cnh_attachment_url && (
+                    <div className="mt-2">
+                      <Button variant="outline" size="sm" asChild>
+                        <a href={selectedCustomer.cnh_attachment_url} target="_blank" rel="noopener noreferrer">
+                          Ver CNH Anexada
+                        </a>
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Observations */}
+              {selectedCustomer.observations && (
+                <div>
+                  <h4 className="font-semibold mb-2">Observações</h4>
+                  <p className="text-sm text-muted-foreground">{selectedCustomer.observations}</p>
+                </div>
+              )}
+
+              {/* Dates */}
+              <div className="text-xs text-muted-foreground border-t pt-4">
+                Cliente desde {new Date(selectedCustomer.created_at).toLocaleDateString('pt-BR')}
+                {selectedCustomer.updated_at !== selectedCustomer.created_at && (
+                  <span> • Última atualização: {new Date(selectedCustomer.updated_at).toLocaleDateString('pt-BR')}</span>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

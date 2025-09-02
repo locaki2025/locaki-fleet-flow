@@ -34,7 +34,8 @@ const InvoiceDialog = ({ open, onOpenChange, onInvoiceCreated }: InvoiceDialogPr
     valor: '',
     vencimento: '',
     observacoes: '',
-    placa: ''
+    placa: '',
+    dataCriacao: new Date().toISOString().split('T')[0] // Data atual
   });
 
   const handleChange = (field: string, value: string) => {
@@ -50,7 +51,8 @@ const InvoiceDialog = ({ open, onOpenChange, onInvoiceCreated }: InvoiceDialogPr
       valor: '',
       vencimento: '',
       observacoes: '',
-      placa: ''
+      placa: '',
+      dataCriacao: new Date().toISOString().split('T')[0]
     });
     setSelectedPlate('');
     setCurrentRenter(null);
@@ -344,7 +346,7 @@ const InvoiceDialog = ({ open, onOpenChange, onInvoiceCreated }: InvoiceDialogPr
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="valor">Valor (R$) *</Label>
               <Input
@@ -366,6 +368,15 @@ const InvoiceDialog = ({ open, onOpenChange, onInvoiceCreated }: InvoiceDialogPr
                 value={formData.vencimento}
                 onChange={(e) => handleChange('vencimento', e.target.value)}
                 required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="dataCriacao">Data de Criação</Label>
+              <Input
+                id="dataCriacao"
+                type="date"
+                value={formData.dataCriacao}
+                onChange={(e) => handleChange('dataCriacao', e.target.value)}
               />
             </div>
           </div>

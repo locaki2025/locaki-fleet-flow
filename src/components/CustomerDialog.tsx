@@ -30,7 +30,10 @@ const CustomerDialog: React.FC<CustomerDialogProps> = ({ open, onOpenChange }) =
       state: "",
       zipCode: ""
     },
-    observations: ""
+    observations: "",
+    cnhExpiryDate: "",
+    cnhCategory: "",
+    cnhAttachmentUrl: ""
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -64,7 +67,10 @@ const CustomerDialog: React.FC<CustomerDialogProps> = ({ open, onOpenChange }) =
             city: customerData.address.city,
             state: customerData.address.state,
             zip_code: customerData.address.zipCode,
-            observations: customerData.observations
+            observations: customerData.observations,
+            cnh_expiry_date: customerData.cnhExpiryDate || null,
+            cnh_category: customerData.cnhCategory || null,
+            cnh_attachment_url: customerData.cnhAttachmentUrl || null
           }
         ]);
 
@@ -92,7 +98,10 @@ const CustomerDialog: React.FC<CustomerDialogProps> = ({ open, onOpenChange }) =
           state: "",
           zipCode: ""
         },
-        observations: ""
+        observations: "",
+        cnhExpiryDate: "",
+        cnhCategory: "",
+        cnhAttachmentUrl: ""
       });
       
       onOpenChange(false);
@@ -254,6 +263,60 @@ const CustomerDialog: React.FC<CustomerDialogProps> = ({ open, onOpenChange }) =
                   placeholder="SP"
                 />
               </div>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <h4 className="font-medium">Documentação CNH</h4>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="cnhExpiryDate">Data Vencimento CNH</Label>
+                <Input
+                  id="cnhExpiryDate"
+                  type="date"
+                  value={customerData.cnhExpiryDate}
+                  onChange={(e) => handleInputChange('cnhExpiryDate', e.target.value)}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="cnhCategory">Categoria CNH</Label>
+                <Select value={customerData.cnhCategory} onValueChange={(value) => handleInputChange('cnhCategory', value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione a categoria" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="A">A - Motocicleta</SelectItem>
+                    <SelectItem value="B">B - Automóvel</SelectItem>
+                    <SelectItem value="C">C - Veículo de carga</SelectItem>
+                    <SelectItem value="D">D - Ônibus</SelectItem>
+                    <SelectItem value="E">E - Caminhão com reboque</SelectItem>
+                    <SelectItem value="AB">AB - A + B</SelectItem>
+                    <SelectItem value="AC">AC - A + C</SelectItem>
+                    <SelectItem value="AD">AD - A + D</SelectItem>
+                    <SelectItem value="AE">AE - A + E</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="cnhAttachment">Anexar CNH</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="cnhAttachment"
+                  value={customerData.cnhAttachmentUrl}
+                  onChange={(e) => handleInputChange('cnhAttachmentUrl', e.target.value)}
+                  placeholder="URL ou caminho do arquivo CNH"
+                />
+                <Button type="button" variant="outline" size="sm">
+                  Selecionar Arquivo
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Anexe uma cópia da CNH do cliente
+              </p>
             </div>
           </div>
 
