@@ -36,6 +36,7 @@ const Rentals = () => {
   const [selectedRental, setSelectedRental] = useState<any>(null);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [showLoginDialog, setShowLoginDialog] = useState(false);
+  const [contractDialogOpen, setContractDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
@@ -182,6 +183,12 @@ const Rentals = () => {
           <h1 className="text-3xl font-bold text-foreground">Contratos de Locação</h1>
           <p className="text-muted-foreground">Gerenciamento de contratos e locações ativas</p>
         </div>
+        <Button 
+          className="bg-gradient-primary hover:opacity-90" 
+          onClick={() => setContractDialogOpen(true)}
+        >
+          + Criar Contrato
+        </Button>
       </div>
 
       {/* Stats Cards */}
@@ -400,6 +407,17 @@ const Rentals = () => {
         onApplyFilters={(filters) => {
           console.log('Applied filters:', filters);
           toast({ title: "Filtros aplicados", description: "Os contratos foram filtrados com sucesso" });
+        }}
+      />
+
+      <ContractDialog 
+        open={contractDialogOpen}
+        onOpenChange={(open) => {
+          setContractDialogOpen(open);
+          if (!open) {
+            // Refresh data when dialog is closed to show new contracts
+            fetchData();
+          }
         }}
       />
 
