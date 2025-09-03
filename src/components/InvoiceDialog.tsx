@@ -173,6 +173,7 @@ const InvoiceDialog = ({ open, onOpenChange, onInvoiceCreated }: InvoiceDialogPr
           valor: parseFloat(formData.valor),
           vencimento: formData.vencimento,
           observacoes: formData.observacoes,
+          placa: formData.placa,
           status: 'pendente',
           fatura_id: `FAT-${Date.now()}`,
           tipo_cobranca: 'avulsa'

@@ -31,6 +31,7 @@ export type Database = {
           id: string
           metodo_pagamento: string | null
           observacoes: string | null
+          placa: string | null
           qr_code_pix: string | null
           status: string
           tentativas_cobranca: number | null
@@ -58,6 +59,7 @@ export type Database = {
           id?: string
           metodo_pagamento?: string | null
           observacoes?: string | null
+          placa?: string | null
           qr_code_pix?: string | null
           status?: string
           tentativas_cobranca?: number | null
@@ -85,6 +87,7 @@ export type Database = {
           id?: string
           metodo_pagamento?: string | null
           observacoes?: string | null
+          placa?: string | null
           qr_code_pix?: string | null
           status?: string
           tentativas_cobranca?: number | null

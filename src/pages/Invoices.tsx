@@ -453,6 +453,9 @@ const Invoices = () => {
                           </div>
                           <p className="text-sm font-medium">{invoice.cliente_nome}</p>
                           <p className="text-sm text-muted-foreground">{invoice.descricao}</p>
+                          {invoice.placa && (
+                            <p className="text-sm font-medium text-primary">Placa: {invoice.placa}</p>
+                          )}
                           <div className="flex items-center gap-4 text-xs text-muted-foreground">
                             <div className="flex items-center gap-1">
                               <Calendar className="h-3 w-3" />
@@ -543,6 +546,9 @@ const Invoices = () => {
                         <div>
                           <p className="font-medium">{invoice.fatura_id}</p>
                           <p className="text-sm text-muted-foreground">{invoice.cliente_nome}</p>
+                          {invoice.placa && (
+                            <p className="text-xs font-medium text-primary">Placa: {invoice.placa}</p>
+                          )}
                           <p className="text-xs text-warning">
                             Vence em {Math.ceil((new Date(invoice.vencimento).getTime() - Date.now()) / (1000 * 60 * 60 * 24))} dias
                           </p>
@@ -588,6 +594,9 @@ const Invoices = () => {
                         <div>
                           <p className="font-medium">{invoice.fatura_id}</p>
                           <p className="text-sm text-muted-foreground">{invoice.cliente_nome}</p>
+                          {invoice.placa && (
+                            <p className="text-xs font-medium text-primary">Placa: {invoice.placa}</p>
+                          )}
                           <p className="text-xs text-success">
                             Pago em {new Date(invoice.data_pagamento || invoice.vencimento).toLocaleDateString('pt-BR')}
                           </p>
@@ -636,6 +645,9 @@ const Invoices = () => {
                         <div>
                           <p className="font-medium">{invoice.fatura_id}</p>
                           <p className="text-sm text-muted-foreground">{invoice.cliente_nome}</p>
+                          {invoice.placa && (
+                            <p className="text-xs font-medium text-primary">Placa: {invoice.placa}</p>
+                          )}
                           <p className="text-xs text-destructive">
                             Venceu há {Math.floor((Date.now() - new Date(invoice.vencimento).getTime()) / (1000 * 60 * 60 * 24))} dias
                           </p>
