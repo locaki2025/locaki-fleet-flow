@@ -184,7 +184,7 @@ const ExtratoConta = () => {
           identificador: `Cora ID: ${transaction.cora_transaction_id}${transaction.conciliated_boleto_id ? ' | Conciliado' : ' | Pendente'}`,
           situacao: transaction.status === 'settled' ? 'pago' : 'pendente' as 'pago' | 'pendente',
           valor: Number(transaction.amount) || 0,
-          tipo: transaction.type === 'credit' ? 'entrada' : 'saida' as const
+          tipo: transaction.type === 'credit' ? 'entrada' : 'saida' as 'entrada' | 'saida'
         }))
       ].sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
 
