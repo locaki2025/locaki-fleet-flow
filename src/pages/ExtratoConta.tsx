@@ -62,6 +62,57 @@ const ExtratoConta = () => {
     }
   }, [user, dataInicio, dataFim]);
 
+  // Auto sync with Cora every time page loads
+  useEffect(() => {
+    if (user) {
+      syncCoraTransactions();
+    }
+  }, [user]);
+
+  const syncCoraTransactions = async () => {
+    if (!user?.id) return;
+    
+    try {
+      // Get Cora configuration
+      const { data: config, error: configError } = await supabase
+        .from('tenant_config')
+        .select('config_value')
+        .eq('user_id', user.id)
+        .eq('config_key', 'cora_settings')
+        .single();
+
+      if (configError || !config?.config_value) {
+        console.log('Cora configuration not found');
+        return;
+      }
+
+      // Sync transactions for the current date range
+      const { data, error } = await supabase.functions.invoke('cora-webhook', {
+        body: {
+          action: 'sync_transactions',
+          user_id: user.id,
+          config: config.config_value,
+          start_date: dataInicio,
+          end_date: dataFim
+        }
+      });
+
+      if (error) {
+        console.error('Cora sync error:', error);
+        return;
+      }
+
+      if (data?.success) {
+        console.log('Cora sync completed:', data);
+        // Refresh data after sync
+        fetchLancamentos();
+      }
+
+    } catch (error) {
+      console.error('Error syncing Cora transactions:', error);
+    }
+  };
+
   const fetchLancamentos = async () => {
     if (!user?.id) return;
     
@@ -89,8 +140,20 @@ const ExtratoConta = () => {
 
       if (despesaError) throw despesaError;
 
+      // Buscar transações do Cora
+      const { data: coraTransactions, error: coraError } = await supabase
+        .from('cora_transactions')
+        .select('*')
+        .eq('user_id', user.id)
+        .gte('transaction_date', dataInicio + 'T00:00:00')
+        .lte('transaction_date', dataFim + 'T23:59:59')
+        .order('transaction_date', { ascending: false });
+
+      if (coraError) throw coraError;
+
       // Combinar e formatar dados
       const lancamentosFormatados: FinancialEntry[] = [
+        // Faturas internas
         ...(faturas || []).map(fatura => ({
           id: fatura.id,
           data: fatura.vencimento,
@@ -102,6 +165,7 @@ const ExtratoConta = () => {
           cliente: fatura.cliente_nome,
           placa: fatura.placa
         })),
+        // Despesas internas
         ...(despesas || []).map(despesa => ({
           id: despesa.id,
           data: despesa.due_date || despesa.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
@@ -111,6 +175,16 @@ const ExtratoConta = () => {
           valor: Number(despesa.amount) || 0,
           tipo: 'saida' as const,
           placa: despesa.plate
+        })),
+        // Transações do Banco Cora
+        ...(coraTransactions || []).map(transaction => ({
+          id: transaction.id,
+          data: transaction.transaction_date.split('T')[0],
+          descricao: `${transaction.description} ${transaction.conciliated ? '(Conciliado)' : '(Banco Cora)'}`,
+          identificador: `Cora ID: ${transaction.cora_transaction_id}${transaction.conciliated_boleto_id ? ' | Conciliado' : ' | Pendente'}`,
+          situacao: transaction.status === 'settled' ? 'pago' : 'pendente' as 'pago' | 'pendente',
+          valor: Number(transaction.amount) || 0,
+          tipo: transaction.type === 'credit' ? 'entrada' : 'saida' as const
         }))
       ].sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
 
@@ -225,6 +299,14 @@ const ExtratoConta = () => {
           </div>
         </div>
         <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            onClick={syncCoraTransactions}
+            disabled={loading}
+          >
+            <DollarSign className="h-4 w-4 mr-2" />
+            Sincronizar Cora
+          </Button>
           <Button variant="outline" onClick={handleExportExcel}>
             <FileSpreadsheet className="h-4 w-4 mr-2" />
             Exportar Excel

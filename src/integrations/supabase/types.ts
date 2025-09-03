@@ -214,6 +214,107 @@ export type Database = {
         }
         Relationships: []
       }
+      cora_sync_logs: {
+        Row: {
+          created_at: string
+          end_date: string
+          error_message: string | null
+          execution_time_ms: number | null
+          id: string
+          start_date: string
+          status: string
+          sync_date: string
+          transactions_conciliated: number | null
+          transactions_imported: number | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          end_date: string
+          error_message?: string | null
+          execution_time_ms?: number | null
+          id?: string
+          start_date: string
+          status: string
+          sync_date?: string
+          transactions_conciliated?: number | null
+          transactions_imported?: number | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          end_date?: string
+          error_message?: string | null
+          execution_time_ms?: number | null
+          id?: string
+          start_date?: string
+          status?: string
+          sync_date?: string
+          transactions_conciliated?: number | null
+          transactions_imported?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      cora_transactions: {
+        Row: {
+          amount: number
+          conciliated: boolean | null
+          conciliated_boleto_id: string | null
+          cora_transaction_id: string
+          created_at: string
+          currency: string
+          description: string | null
+          id: string
+          raw_data: Json | null
+          status: string
+          transaction_date: string
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          conciliated?: boolean | null
+          conciliated_boleto_id?: string | null
+          cora_transaction_id: string
+          created_at?: string
+          currency?: string
+          description?: string | null
+          id?: string
+          raw_data?: Json | null
+          status: string
+          transaction_date: string
+          type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          conciliated?: boolean | null
+          conciliated_boleto_id?: string | null
+          cora_transaction_id?: string
+          created_at?: string
+          currency?: string
+          description?: string | null
+          id?: string
+          raw_data?: Json | null
+          status?: string
+          transaction_date?: string
+          type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_cora_transactions_boleto"
+            columns: ["conciliated_boleto_id"]
+            isOneToOne: false
+            referencedRelation: "boletos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customers: {
         Row: {
           city: string

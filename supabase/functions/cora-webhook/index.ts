@@ -6,6 +6,23 @@ const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+interface CoraTransaction {
+  id: string;
+  amount: number;
+  currency: string;
+  type: 'credit' | 'debit';
+  status: 'settled' | 'pending' | 'failed';
+  description: string;
+  created_at: string;
+}
+
+interface CoraConfig {
+  account_id: string;
+  client_id: string;
+  client_secret: string;
+  base_url: string;
+}
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -64,6 +81,208 @@ const updateInvoiceStatus = async (coraChargeId: string, status: string, paidAmo
   return invoice;
 };
 
+// Get Cora access token
+const getCoraAccessToken = async (config: CoraConfig) => {
+  const { base_url, client_id, client_secret } = config;
+  
+  const authResponse = await fetch(`${base_url}/oauth/token`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      grant_type: 'client_credentials',
+      client_id,
+      client_secret,
+    }),
+  });
+
+  if (!authResponse.ok) {
+    throw new Error(`Falha na autenticação: ${authResponse.status} ${authResponse.statusText}`);
+  }
+
+  const authData = await authResponse.json();
+  
+  if (!authData.access_token) {
+    throw new Error('Token de acesso não recebido');
+  }
+
+  return authData.access_token;
+};
+
+// Sync transactions from Cora API
+const syncCoraTransactions = async (userId: string, config: CoraConfig, startDate: string, endDate: string) => {
+  const startTime = Date.now();
+  let importedCount = 0;
+  let conciliatedCount = 0;
+  let errorMessage = '';
+
+  try {
+    console.log(`Starting Cora sync for user ${userId} from ${startDate} to ${endDate}`);
+    
+    const accessToken = await getCoraAccessToken(config);
+    
+    // Fetch transactions from Cora API
+    const transactionsResponse = await fetch(
+      `${config.base_url}/v2/transactions?start_date=${startDate}&end_date=${endDate}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Accept': 'application/json',
+        },
+      }
+    );
+
+    if (!transactionsResponse.ok) {
+      throw new Error(`Erro ao buscar transações: ${transactionsResponse.status}`);
+    }
+
+    const transactions: CoraTransaction[] = await transactionsResponse.json();
+    console.log(`Found ${transactions.length} transactions from Cora API`);
+
+    // Process each transaction
+    for (const transaction of transactions) {
+      try {
+        // Convert amount from cents to reais
+        const amountInReais = transaction.amount / 100;
+        
+        // Insert or update transaction
+        const { error: insertError } = await supabase
+          .from('cora_transactions')
+          .upsert({
+            user_id: userId,
+            cora_transaction_id: transaction.id,
+            amount: amountInReais,
+            currency: transaction.currency,
+            type: transaction.type,
+            status: transaction.status,
+            description: transaction.description,
+            transaction_date: transaction.created_at,
+            raw_data: transaction,
+          }, {
+            onConflict: 'user_id,cora_transaction_id',
+            ignoreDuplicates: false
+          });
+
+        if (insertError) {
+          console.error('Error inserting transaction:', insertError);
+          continue;
+        }
+
+        importedCount++;
+
+        // Try to auto-conciliate with boletos
+        if (transaction.type === 'credit' && transaction.status === 'settled') {
+          const conciliated = await autoReconcileTransaction(userId, transaction, amountInReais);
+          if (conciliated) {
+            conciliatedCount++;
+          }
+        }
+
+      } catch (transactionError) {
+        console.error(`Error processing transaction ${transaction.id}:`, transactionError);
+      }
+    }
+
+    // Log sync result
+    await supabase.from('cora_sync_logs').insert({
+      user_id: userId,
+      start_date: startDate,
+      end_date: endDate,
+      status: 'success',
+      transactions_imported: importedCount,
+      transactions_conciliated: conciliatedCount,
+      execution_time_ms: Date.now() - startTime,
+    });
+
+    return {
+      success: true,
+      imported: importedCount,
+      conciliated: conciliatedCount,
+      message: `Sincronizados ${importedCount} lançamentos, ${conciliatedCount} conciliados automaticamente`
+    };
+
+  } catch (error) {
+    errorMessage = error.message;
+    console.error('Cora sync error:', error);
+
+    // Log error
+    await supabase.from('cora_sync_logs').insert({
+      user_id: userId,
+      start_date: startDate,
+      end_date: endDate,
+      status: 'error',
+      transactions_imported: importedCount,
+      transactions_conciliated: conciliatedCount,
+      error_message: errorMessage,
+      execution_time_ms: Date.now() - startTime,
+    });
+
+    throw error;
+  }
+};
+
+// Auto reconcile transaction with boletos
+const autoReconcileTransaction = async (userId: string, transaction: CoraTransaction, amount: number) => {
+  try {
+    // Look for matching boleto by amount and approximate date
+    const transactionDate = new Date(transaction.created_at);
+    const dateRange = 7; // Search within 7 days
+    const dateStart = new Date(transactionDate);
+    dateStart.setDate(dateStart.getDate() - dateRange);
+    const dateEnd = new Date(transactionDate);
+    dateEnd.setDate(dateEnd.getDate() + dateRange);
+
+    const { data: matchingBoletos, error } = await supabase
+      .from('boletos')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('valor', amount)
+      .eq('status', 'pendente')
+      .gte('vencimento', dateStart.toISOString().split('T')[0])
+      .lte('vencimento', dateEnd.toISOString().split('T')[0])
+      .order('vencimento', { ascending: true });
+
+    if (error || !matchingBoletos || matchingBoletos.length === 0) {
+      return false;
+    }
+
+    // Take the first match (closest date)
+    const boleto = matchingBoletos[0];
+
+    // Update both records
+    await Promise.all([
+      // Mark boleto as paid
+      supabase
+        .from('boletos')
+        .update({
+          status: 'pago',
+          data_pagamento: transaction.created_at,
+          valor_pago: amount,
+          metodo_pagamento: 'cora_automatico'
+        })
+        .eq('id', boleto.id),
+      
+      // Mark transaction as conciliated
+      supabase
+        .from('cora_transactions')
+        .update({
+          conciliated: true,
+          conciliated_boleto_id: boleto.id
+        })
+        .eq('user_id', userId)
+        .eq('cora_transaction_id', transaction.id)
+    ]);
+
+    console.log(`Auto-conciliated transaction ${transaction.id} with boleto ${boleto.id}`);
+    return true;
+
+  } catch (error) {
+    console.error('Auto reconciliation error:', error);
+    return false;
+  }
+};
+
 // Test Cora API connection
 const testCoraConnection = async (config: any) => {
   try {
@@ -73,33 +292,12 @@ const testCoraConnection = async (config: any) => {
       throw new Error('Configuração incompleta');
     }
 
-    // Try to authenticate with Cora API
-    const authResponse = await fetch(`${base_url}/oauth/token`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        grant_type: 'client_credentials',
-        client_id,
-        client_secret,
-      }),
-    });
-
-    if (!authResponse.ok) {
-      throw new Error(`Falha na autenticação: ${authResponse.status} ${authResponse.statusText}`);
-    }
-
-    const authData = await authResponse.json();
-    
-    if (!authData.access_token) {
-      throw new Error('Token de acesso não recebido');
-    }
+    const accessToken = await getCoraAccessToken(config);
 
     // Test API access with the token
     const testResponse = await fetch(`${base_url}/accounts`, {
       headers: {
-        'Authorization': `Bearer ${authData.access_token}`,
+        'Authorization': `Bearer ${accessToken}`,
         'Accept': 'application/json',
       },
     });
@@ -125,7 +323,7 @@ const handler = async (req: Request): Promise<Response> => {
     const payload = await req.json();
     console.log('Received Cora request:', JSON.stringify(payload, null, 2));
 
-    // Handle test connection action
+    // Handle different actions
     if (payload.action === 'test_connection') {
       const result = await testCoraConnection(payload.config);
       return new Response(JSON.stringify(result), {
@@ -133,6 +331,71 @@ const handler = async (req: Request): Promise<Response> => {
           'Content-Type': 'application/json',
           ...corsHeaders 
         },
+      });
+    }
+
+    if (payload.action === 'sync_transactions') {
+      const { user_id, config, start_date, end_date } = payload;
+      
+      if (!user_id || !config || !start_date || !end_date) {
+        return new Response(JSON.stringify({
+          error: 'Missing required parameters: user_id, config, start_date, end_date'
+        }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders }
+        });
+      }
+
+      const result = await syncCoraTransactions(user_id, config, start_date, end_date);
+      return new Response(JSON.stringify(result), {
+        headers: { 
+          'Content-Type': 'application/json',
+          ...corsHeaders 
+        },
+      });
+    }
+
+    if (payload.action === 'auto_sync') {
+      // Auto sync for all users (used by cron)
+      const { data: configs, error: configError } = await supabase
+        .from('tenant_config')
+        .select('user_id, config_value')
+        .eq('config_key', 'cora_settings');
+
+      if (configError || !configs) {
+        throw new Error('Error fetching Cora configurations');
+      }
+
+      const results = [];
+      const today = new Date();
+      const thirtyDaysAgo = new Date(today);
+      thirtyDaysAgo.setDate(today.getDate() - 30);
+
+      for (const configRow of configs) {
+        try {
+          const result = await syncCoraTransactions(
+            configRow.user_id,
+            configRow.config_value,
+            thirtyDaysAgo.toISOString().split('T')[0],
+            today.toISOString().split('T')[0]
+          );
+          results.push({ user_id: configRow.user_id, ...result });
+        } catch (error) {
+          console.error(`Auto sync failed for user ${configRow.user_id}:`, error);
+          results.push({ 
+            user_id: configRow.user_id, 
+            success: false, 
+            error: error.message 
+          });
+        }
+      }
+
+      return new Response(JSON.stringify({
+        success: true,
+        message: `Auto sync completed for ${configs.length} users`,
+        results
+      }), {
+        headers: { 'Content-Type': 'application/json', ...corsHeaders }
       });
     }
 
