@@ -67,6 +67,11 @@ const menuItems = [
     icon: Receipt,
   },
   {
+    title: "Extrato de Conta",
+    url: "/extrato-conta",
+    icon: FileText,
+  },
+  {
     title: "Multas de Trânsito",
     url: "/traffic-fines",
     icon: AlertTriangle,
