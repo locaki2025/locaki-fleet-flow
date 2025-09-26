@@ -725,6 +725,53 @@ export type Database = {
         }
         Relationships: []
       }
+      vehicle_positions: {
+        Row: {
+          created_at: string
+          device_id: string
+          id: string
+          latitude: number
+          longitude: number
+          odometer: number | null
+          speed: number | null
+          timestamp: string
+          user_id: string
+          vehicle_plate: string
+        }
+        Insert: {
+          created_at?: string
+          device_id: string
+          id?: string
+          latitude: number
+          longitude: number
+          odometer?: number | null
+          speed?: number | null
+          timestamp?: string
+          user_id: string
+          vehicle_plate: string
+        }
+        Update: {
+          created_at?: string
+          device_id?: string
+          id?: string
+          latitude?: number
+          longitude?: number
+          odometer?: number | null
+          speed?: number | null
+          timestamp?: string
+          user_id?: string
+          vehicle_plate?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_positions_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vehicles: {
         Row: {
           brand: string
@@ -817,7 +864,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      calculate_distance: {
+        Args: { lat1: number; lat2: number; lon1: number; lon2: number }
+        Returns: number
+      }
+      get_device_total_km: {
+        Args: { device_uuid: string; end_date: string; start_date: string }
+        Returns: number
+      }
     }
     Enums: {
       [_ in never]: never
