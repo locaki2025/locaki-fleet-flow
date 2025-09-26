@@ -17,6 +17,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import KmRanking from "@/components/KmRanking";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -192,6 +193,11 @@ const Dashboard = () => {
             </p>
           </CardContent>
         </Card>
+      </div>
+
+      {/* KM Ranking Section */}
+      <div className="grid grid-cols-1 gap-6">
+        <KmRanking />
       </div>
 
       {/* Quick Actions & Status */}
