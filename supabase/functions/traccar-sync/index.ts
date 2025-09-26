@@ -166,7 +166,7 @@ async function syncDevicesFromTraccar(supabase: any, user_id: string, config: Tr
       'error',
       {},
       {},
-      error.message
+      error instanceof Error ? error.message : String(error)
     );
 
     throw error;
@@ -433,7 +433,7 @@ const handler = async (req: Request): Promise<Response> => {
   } catch (error) {
     console.error('Error in traccar-sync function:', error);
     return new Response(JSON.stringify({ 
-      error: error.message || 'Unknown error occurred' 
+      error: error instanceof Error ? error.message : 'Unknown error occurred' 
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

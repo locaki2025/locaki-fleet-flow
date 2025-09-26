@@ -160,7 +160,7 @@ const syncDevicesFromRastrosystem = async (userId: string, config: RastrosystemC
       { user_id: userId },
       null,
       'error',
-      error.message
+      error instanceof Error ? error.message : String(error)
     );
 
     throw error;
@@ -268,7 +268,7 @@ const handler = async (req: Request): Promise<Response> => {
     
     return new Response(
       JSON.stringify({ 
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
         timestamp: new Date().toISOString(),
       }),
       {

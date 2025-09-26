@@ -246,7 +246,7 @@ const handler = async (req: Request): Promise<Response> => {
     console.error('Error generating PDF export:', error);
     
     return new Response(JSON.stringify({ 
-      error: error.message || 'Unknown error occurred' 
+      error: error instanceof Error ? error.message : 'Unknown error occurred' 
     }), {
       status: 500,
       headers: { 

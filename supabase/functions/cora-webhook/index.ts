@@ -203,7 +203,7 @@ const syncCoraTransactions = async (userId: string, config: CoraConfig, startDat
     };
 
   } catch (error) {
-    errorMessage = error.message;
+    errorMessage = error instanceof Error ? error.message : String(error);
     console.error('Cora sync error:', error);
 
     // Log error
@@ -310,7 +310,7 @@ const testCoraConnection = async (config: any) => {
 
   } catch (error) {
     console.error('Cora connection test failed:', error);
-    throw new Error(`Erro na conexão: ${error.message}`);
+    throw new Error(`Erro na conexão: ${error instanceof Error ? error.message : String(error)}`);
   }
 };
 
@@ -385,7 +385,7 @@ const handler = async (req: Request): Promise<Response> => {
           results.push({ 
             user_id: configRow.user_id, 
             success: false, 
-            error: error.message 
+            error: error instanceof Error ? error.message : String(error) 
           });
         }
       }
@@ -490,7 +490,7 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(
       JSON.stringify({ 
         error: 'Internal server error',
-        message: error.message 
+        message: error instanceof Error ? error.message : String(error) 
       }),
       {
         status: 500,

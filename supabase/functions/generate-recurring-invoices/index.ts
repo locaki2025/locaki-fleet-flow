@@ -193,7 +193,7 @@ const generateInvoicesForUser = async (userId: string) => {
           invoiceData,
           null,
           'error',
-          coraError.message
+          coraError instanceof Error ? coraError.message : String(coraError)
         );
 
         // Update invoice with error status
@@ -201,7 +201,7 @@ const generateInvoicesForUser = async (userId: string) => {
           .from('boletos')
           .update({ 
             status: 'erro',
-            observacoes: `Erro na integração Cora: ${coraError.message}`
+            observacoes: `Erro na integração Cora: ${coraError instanceof Error ? coraError.message : String(coraError)}`
           })
           .eq('id', createdInvoice.id);
 
@@ -236,7 +236,7 @@ const generateInvoicesForUser = async (userId: string) => {
         { contract_id: contract.id },
         null,
         'error',
-        error.message
+        error instanceof Error ? error.message : String(error)
       );
     }
   }
@@ -291,7 +291,7 @@ const handler = async (req: Request): Promise<Response> => {
     
     return new Response(
       JSON.stringify({ 
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
         timestamp: new Date().toISOString(),
       }),
       {

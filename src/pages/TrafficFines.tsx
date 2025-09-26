@@ -126,14 +126,29 @@ const TrafficFines = () => {
   const exportToPDF = async () => {
     try {
       const { data, error } = await supabase.functions.invoke('generate-fines-report', {
-        body: { fines: fines }
+        body: { fines }
       });
 
       if (error) throw error;
 
+      // Create download link for the PDF
+      if (data.pdf) {
+        const pdfBlob = new Blob([Uint8Array.from(atob(data.pdf), c => c.charCodeAt(0))], {
+          type: 'application/pdf'
+        });
+        const url = URL.createObjectURL(pdfBlob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `multas-transito-${new Date().toISOString().split('T')[0]}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }
+
       toast({
         title: "Relatório gerado",
-        description: "O relatório de multas foi gerado com sucesso.",
+        description: "O relatório de multas foi gerado e baixado com sucesso.",
       });
     } catch (error) {
       console.error('Error generating report:', error);
