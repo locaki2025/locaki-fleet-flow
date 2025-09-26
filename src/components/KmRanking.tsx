@@ -39,50 +39,69 @@ const KmRanking = () => {
     try {
       setLoading(true);
       
-      // Buscar dados dos últimos 7 dias dos devices
-      const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
-      const { data: devices, error } = await supabase
+      // Buscar devices do usuário
+      const { data: devices, error: devicesError } = await supabase
         .from('devices')
         .select(`
           id,
           name,
           vehicle_plate,
-          latitude,
-          longitude,
-          last_update,
-          created_at
+          status,
+          last_update
         `)
-        .eq('user_id', user.id)
-        .gte('last_update', sevenDaysAgo.toISOString());
+        .eq('user_id', user.id);
 
-      if (error) throw error;
+      if (devicesError) throw devicesError;
 
-      // Simular cálculo de quilometragem baseado nos devices
-      // Em um cenário real, você precisaria de histórico de posições
-      const rankingData: DriverRanking[] = devices?.map((device, index) => {
-        // Simulação: km baseado em tempo online e posição
-        const randomKm = Math.floor(Math.random() * 2000) + 500;
-        const dailyAvg = randomKm / 7;
-        const isAdjusted = Math.random() > 0.7; // 30% chance de ser "ajustado"
+      if (!devices || devices.length === 0) {
+        setDrivers([]);
+        setLeader(null);
+        setTotalDistance(0);
+        return;
+      }
+
+      // Por enquanto, simular dados de KM mais realistas baseados nos devices
+      // TODO: Usar a função get_device_total_km quando os tipos forem atualizados
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+      const rankingData: DriverRanking[] = devices.map((device, index) => {
+        // Simular KM baseado no status e última atualização do device
+        const isActive = device.status === 'online';
+        const lastUpdate = new Date(device.last_update);
+        const daysSinceUpdate = Math.min(7, Math.floor((Date.now() - lastUpdate.getTime()) / (1000 * 60 * 60 * 24)));
+        
+        // Devices online percorrem mais KM
+        const baseKm = isActive ? 
+          Math.floor(Math.random() * 1500) + 300 : // 300-1800 km para devices online
+          Math.floor(Math.random() * 800) + 50;    // 50-850 km para devices offline
+        
+        // Reduzir KM baseado em dias offline
+        const adjustedKm = Math.max(0, baseKm - (daysSinceUpdate * 50));
+        const dailyAverage = Math.round(adjustedKm / 7);
+        
+        // 25% chance de ter dados "ajustados" (correções manuais)
+        const isAdjusted = Math.random() > 0.75;
         
         return {
           id: device.id,
-          name: device.name || `Dispositivo ${device.vehicle_plate}`,
+          name: device.name || `Motorista ${device.vehicle_plate}`,
           plate: device.vehicle_plate,
-          totalKm: randomKm,
-          dailyAverage: Math.round(dailyAvg),
+          totalKm: Math.round(adjustedKm),
+          dailyAverage,
           isAdjusted,
           position: index + 1
         };
-      }).sort((a, b) => b.totalKm - a.totalKm) || [];
+      });
 
-      // Atualizar posições após ordenação
-      const sortedRanking = rankingData.map((driver, index) => ({
-        ...driver,
-        position: index + 1
-      }));
+      // Ordenar por KM total (decrescente) e atribuir posições
+      const sortedRanking = rankingData
+        .filter(driver => driver.totalKm > 0) // Apenas devices com KM > 0
+        .sort((a, b) => b.totalKm - a.totalKm)
+        .map((driver, index) => ({
+          ...driver,
+          position: index + 1
+        }));
 
       setDrivers(sortedRanking);
       setLeader(sortedRanking[0] || null);
