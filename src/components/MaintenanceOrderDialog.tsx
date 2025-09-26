@@ -30,7 +30,8 @@ const MaintenanceOrderDialog = ({ open, onOpenChange, onOrderCreated }: Maintena
     description: "",
     estimatedCost: "",
     mechanic: "",
-    location: ""
+    location: "",
+    currentKm: ""
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -53,6 +54,7 @@ const MaintenanceOrderDialog = ({ open, onOpenChange, onOrderCreated }: Maintena
       priority: formData.priority || 'media',
       description: formData.description,
       cost: parseFloat(formData.estimatedCost) || 0,
+      currentKm: parseInt(formData.currentKm) || 0,
       status: 'aberta',
       scheduledDate: scheduledDate.toISOString(),
       mechanic: formData.mechanic,
@@ -73,7 +75,8 @@ const MaintenanceOrderDialog = ({ open, onOpenChange, onOrderCreated }: Maintena
       description: "",
       estimatedCost: "",
       mechanic: "",
-      location: ""
+      location: "",
+      currentKm: ""
     });
     setScheduledDate(undefined);
     onOpenChange(false);
@@ -215,14 +218,26 @@ const MaintenanceOrderDialog = ({ open, onOpenChange, onOrderCreated }: Maintena
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="mechanic">Mecânico Responsável</Label>
+              <Label htmlFor="currentKm">Km Atual do Veículo</Label>
               <Input
-                id="mechanic"
-                value={formData.mechanic}
-                onChange={(e) => handleInputChange('mechanic', e.target.value)}
-                placeholder="Nome do mecânico"
+                id="currentKm"
+                type="number"
+                min="0"
+                value={formData.currentKm}
+                onChange={(e) => handleInputChange('currentKm', e.target.value)}
+                placeholder="Digite a quilometragem atual"
               />
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="mechanic">Mecânico Responsável</Label>
+            <Input
+              id="mechanic"
+              value={formData.mechanic}
+              onChange={(e) => handleInputChange('mechanic', e.target.value)}
+              placeholder="Nome do mecânico"
+            />
           </div>
 
           <div className="space-y-2">
