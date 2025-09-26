@@ -163,28 +163,63 @@ const TrafficFines = () => {
           continue;
         }
 
-        // Create download link for the PDF
+        // Create download link for the PDF and trigger download
         if (data.pdf) {
-          const pdfBlob = new Blob([Uint8Array.from(atob(data.pdf), c => c.charCodeAt(0))], {
-            type: 'application/pdf'
-          });
-          const url = URL.createObjectURL(pdfBlob);
-          const link = document.createElement('a');
-          link.href = url;
-          link.download = `multas-${plate}-${new Date().toISOString().split('T')[0]}.pdf`;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          URL.revokeObjectURL(url);
+          try {
+            // Convert base64 to blob
+            const binaryString = atob(data.pdf);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+              bytes[i] = binaryString.charCodeAt(i);
+            }
+            
+            const pdfBlob = new Blob([bytes], { type: 'application/pdf' });
+            
+            // Try modern Web Share API first (for mobile devices)
+            if (navigator.share && navigator.canShare?.({ files: [new File([pdfBlob], `multas-${plate}.pdf`, { type: 'application/pdf' })] })) {
+              const file = new File([pdfBlob], `multas-${plate}-${new Date().toISOString().split('T')[0]}.pdf`, { type: 'application/pdf' });
+              await navigator.share({
+                title: `Relatório de Multas - ${plate}`,
+                text: `Relatório de multas do veículo ${plate}`,
+                files: [file]
+              });
+            } else {
+              // Fallback to traditional download
+              const url = URL.createObjectURL(pdfBlob);
+              const link = document.createElement('a');
+              link.href = url;
+              link.download = `multas-${plate}-${new Date().toISOString().split('T')[0]}.pdf`;
+              link.style.display = 'none';
+              
+              // Add to document, click, and remove
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+              
+              // Clean up the URL
+              setTimeout(() => URL.revokeObjectURL(url), 100);
+            }
+          } catch (shareError) {
+            console.error(`Error sharing/downloading PDF for ${plate}:`, shareError);
+            // Fallback download method
+            const url = URL.createObjectURL(new Blob([Uint8Array.from(atob(data.pdf), c => c.charCodeAt(0))], { type: 'application/pdf' }));
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `multas-${plate}-${new Date().toISOString().split('T')[0]}.pdf`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+          }
           
           // Small delay between downloads to avoid browser blocking
-          await new Promise(resolve => setTimeout(resolve, 500));
+          await new Promise(resolve => setTimeout(resolve, 800));
         }
       }
 
       toast({
-        title: "Relatórios gerados",
-        description: `${vehiclePlates.length} relatórios foram gerados e baixados com sucesso.`,
+        title: "Relatórios exportados",
+        description: `${vehiclePlates.length} relatórios foram exportados para seu dispositivo com sucesso.`,
       });
     } catch (error) {
       console.error('Error generating reports:', error);
