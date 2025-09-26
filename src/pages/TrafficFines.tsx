@@ -125,37 +125,73 @@ const TrafficFines = () => {
 
   const exportToPDF = async () => {
     try {
-      const { data, error } = await supabase.functions.invoke('generate-fines-report', {
-        body: { fines }
-      });
+      // Group fines by vehicle plate
+      const finesByVehicle = fines.reduce((acc, fine) => {
+        if (!acc[fine.placa]) {
+          acc[fine.placa] = [];
+        }
+        acc[fine.placa].push(fine);
+        return acc;
+      }, {} as Record<string, TrafficFine[]>);
 
-      if (error) throw error;
-
-      // Create download link for the PDF
-      if (data.pdf) {
-        const pdfBlob = new Blob([Uint8Array.from(atob(data.pdf), c => c.charCodeAt(0))], {
-          type: 'application/pdf'
+      const vehiclePlates = Object.keys(finesByVehicle);
+      
+      if (vehiclePlates.length === 0) {
+        toast({
+          variant: "destructive",
+          title: "Erro",
+          description: "Não há multas para exportar.",
         });
-        const url = URL.createObjectURL(pdfBlob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `multas-transito-${new Date().toISOString().split('T')[0]}.pdf`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
+        return;
       }
 
       toast({
-        title: "Relatório gerado",
-        description: "O relatório de multas foi gerado e baixado com sucesso.",
+        title: "Gerando relatórios",
+        description: `Gerando ${vehiclePlates.length} relatórios por veículo...`,
+      });
+
+      // Generate PDF for each vehicle
+      for (const plate of vehiclePlates) {
+        const vehicleFines = finesByVehicle[plate];
+        
+        const { data, error } = await supabase.functions.invoke('generate-fines-report', {
+          body: { fines: vehicleFines }
+        });
+
+        if (error) {
+          console.error(`Error generating report for vehicle ${plate}:`, error);
+          continue;
+        }
+
+        // Create download link for the PDF
+        if (data.pdf) {
+          const pdfBlob = new Blob([Uint8Array.from(atob(data.pdf), c => c.charCodeAt(0))], {
+            type: 'application/pdf'
+          });
+          const url = URL.createObjectURL(pdfBlob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `multas-${plate}-${new Date().toISOString().split('T')[0]}.pdf`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+          
+          // Small delay between downloads to avoid browser blocking
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      }
+
+      toast({
+        title: "Relatórios gerados",
+        description: `${vehiclePlates.length} relatórios foram gerados e baixados com sucesso.`,
       });
     } catch (error) {
-      console.error('Error generating report:', error);
+      console.error('Error generating reports:', error);
       toast({
         variant: "destructive",
         title: "Erro",
-        description: "Não foi possível gerar o relatório.",
+        description: "Não foi possível gerar os relatórios.",
       });
     }
   };
