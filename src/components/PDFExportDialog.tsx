@@ -73,16 +73,32 @@ const PDFExportDialog = ({ open, onOpenChange, type, data }: PDFExportDialogProp
   const handleExport = async () => {
     setLoading(true);
     try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('Usuário não autenticado');
+      }
+
       // Determine the correct edge function based on type
       const functionName = type === 'contracts' ? 'generate-contract-pdf' : 'generate-pdf-export';
       
+      // For contracts, we need to send contract_data and user_id
+      const requestBody = type === 'contracts' 
+        ? {
+            user_id: user.id,
+            contract_data: data[0], // Get first contract for now
+            selectedFields,
+            format
+          }
+        : {
+            type,
+            selectedFields,
+            format,
+            data: data.slice(0, 100) // Limit to first 100 records for performance
+          };
+      
       const { data: pdfData, error } = await supabase.functions.invoke(functionName, {
-        body: {
-          type,
-          selectedFields,
-          format,
-          data: data.slice(0, 100) // Limit to first 100 records for performance
-        }
+        body: requestBody
       });
 
       if (error) throw error;

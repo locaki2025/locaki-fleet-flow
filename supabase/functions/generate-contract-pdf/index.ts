@@ -171,7 +171,9 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { contract_id, user_id, contract_data } = await req.json();
+    const { contract_id, user_id, contract_data, selectedFields, format } = await req.json();
+    
+    console.log('Generating contract PDF with:', { contract_id, user_id, has_contract_data: !!contract_data, selectedFields, format });
 
     // Allow passing contract data directly for new contracts
     if (!contract_id && !contract_data) {
