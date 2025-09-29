@@ -19,6 +19,20 @@ const formatCurrency = (value: number) => {
   }).format(value);
 };
 
+// Convert Uint8Array to base64 using browser-compatible method
+const arrayBufferToBase64 = (buffer: Uint8Array): string => {
+  const chunks: string[] = [];
+  const chunkSize = 0x8000; // Process in chunks to avoid call stack size limit
+  
+  for (let i = 0; i < buffer.length; i += chunkSize) {
+    const chunk = buffer.subarray(i, Math.min(i + chunkSize, buffer.length));
+    chunks.push(String.fromCharCode.apply(null, Array.from(chunk)));
+  }
+  
+  // Use globalThis.btoa which is available in Deno
+  return globalThis.btoa(chunks.join(''));
+};
+
 const formatDate = (date: string) => {
   return new Date(date).toLocaleDateString('pt-BR');
 };
@@ -409,7 +423,7 @@ const generatePDF = async (
   });
   
   const pdfBytes = await pdfDoc.save();
-  const base64 = btoa(String.fromCharCode(...new Uint8Array(pdfBytes)));
+  const base64 = arrayBufferToBase64(pdfBytes);
   return base64;
 };
 
