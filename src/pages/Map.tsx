@@ -42,44 +42,73 @@ const Map = () => {
     try {
       setLoading(true);
       
-      // First fetch vehicles from database
-      const { data: vehiclesData, error: vehiclesError } = await supabase
-        .from('vehicles')
+      // First fetch devices from database (Rastrosystem data is stored here)
+      const { data: devicesData, error: devicesError } = await supabase
+        .from('devices')
         .select('*')
         .eq('user_id', user.id);
 
-      if (vehiclesError) {
-        console.error('Supabase error fetching vehicles:', vehiclesError);
-        throw new Error(`Erro ao carregar veículos: ${vehiclesError.message}`);
+      if (devicesError) {
+        console.error('Supabase error fetching devices:', devicesError);
+        throw new Error(`Erro ao carregar veículos: ${devicesError.message}`);
       }
       
-      // Try to sync latest data from Traccar
+      // Try to sync latest data from Rastrosystem
       try {
-        const { data: syncData, error: syncError } = await supabase.functions.invoke('traccar-sync', {
-          body: { action: 'sync_devices' }
+        const { data: syncData, error: syncError } = await supabase.functions.invoke('rastrosystem-sync', {
+          body: { 
+            action: 'sync_devices',
+            user_id: user.id
+          }
         });
         
         if (syncError) {
-          console.warn('Traccar sync failed, using cached data:', syncError);
+          console.warn('Rastrosystem sync failed, using cached data:', syncError);
         } else {
-          console.log('Traccar sync successful:', syncData?.message);
+          console.log('Rastrosystem sync successful:', syncData);
         }
       } catch (syncError) {
-        console.warn('Traccar sync error, using cached data:', syncError);
+        console.warn('Rastrosystem sync error, using cached data:', syncError);
       }
       
-      // Fetch updated vehicles data after sync attempt
-      const { data: updatedVehicles, error: updatedError } = await supabase
-        .from('vehicles')
+      // Fetch updated devices data after sync attempt
+      const { data: updatedDevices, error: updatedError } = await supabase
+        .from('devices')
         .select('*')
         .eq('user_id', user.id);
         
-      if (!updatedError && updatedVehicles) {
-        setVehicles(updatedVehicles);
-        console.log('Map vehicles loaded successfully:', updatedVehicles.length);
+      if (!updatedError && updatedDevices) {
+        // Map devices to vehicle format expected by GoogleMapComponent
+        const mappedVehicles = updatedDevices.map(device => ({
+          id: device.id,
+          plate: device.vehicle_plate,
+          brand: device.name.split(' ')[0] || 'Veículo',
+          model: device.name,
+          latitude: device.latitude,
+          longitude: device.longitude,
+          status: device.status,
+          last_update: device.last_update,
+          address: device.address
+        }));
+        
+        setVehicles(mappedVehicles);
+        console.log('Map vehicles loaded successfully:', mappedVehicles.length);
       } else {
-        setVehicles(vehiclesData || []);
-        console.log('Using fallback vehicles data:', vehiclesData?.length || 0);
+        // Use fallback data
+        const mappedDevices = (devicesData || []).map(device => ({
+          id: device.id,
+          plate: device.vehicle_plate,
+          brand: device.name.split(' ')[0] || 'Veículo',
+          model: device.name,
+          latitude: device.latitude,
+          longitude: device.longitude,
+          status: device.status,
+          last_update: device.last_update,
+          address: device.address
+        }));
+        
+        setVehicles(mappedDevices);
+        console.log('Using fallback vehicles data:', mappedDevices.length);
       }
       
     } catch (error) {
@@ -276,11 +305,11 @@ const Map = () => {
                ))}
                
                {vehicles.filter(v => v.latitude && v.longitude).length === 0 && (
-                 <div className="text-center py-8">
-                   <Car className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                   <p className="text-sm text-muted-foreground">Nenhum veículo online encontrado</p>
-                   <p className="text-xs text-muted-foreground">Configure o Traccar para ver a localização dos veículos</p>
-                 </div>
+                  <div className="text-center py-8">
+                    <Car className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                    <p className="text-sm text-muted-foreground">Nenhum veículo online encontrado</p>
+                    <p className="text-xs text-muted-foreground">Configure a Rastrosystem para ver a localização dos veículos</p>
+                  </div>
                )}
              </CardContent>
           </Card>
