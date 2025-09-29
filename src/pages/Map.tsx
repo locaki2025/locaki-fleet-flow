@@ -17,6 +17,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import GoogleMapComponent from "@/components/GoogleMap";
 
 const Map = () => {
   const { user } = useAuth();
@@ -199,28 +200,21 @@ const Map = () => {
             </div>
           </CardHeader>
           <CardContent>
-            {/* Mock Map */}
-            <div className="h-96 bg-muted/30 rounded-lg border-2 border-dashed border-muted-foreground/20 flex items-center justify-center">
-              <div className="text-center space-y-2">
-                <MapPin className="h-12 w-12 text-muted-foreground mx-auto" />
-                <p className="text-lg font-medium text-muted-foreground">Mapa Interativo</p>
-                <p className="text-sm text-muted-foreground">
-                  Aqui seria exibido o mapa com a localização dos veículos em tempo real
-                </p>
-                <div className="flex items-center justify-center gap-2 mt-4">
-                  <div className="flex items-center gap-1">
-                    <div className="h-3 w-3 rounded-full bg-success"></div>
-                    <span className="text-xs">Online</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <div className="h-3 w-3 rounded-full bg-accent"></div>
-                    <span className="text-xs">Em movimento</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <div className="h-3 w-3 rounded-full bg-destructive"></div>
-                    <span className="text-xs">Offline</span>
-                  </div>
-                </div>
+            <div className="h-96 rounded-lg overflow-hidden">
+              <GoogleMapComponent vehicles={vehicles} />
+            </div>
+            <div className="flex items-center justify-center gap-4 mt-4 pt-4 border-t">
+              <div className="flex items-center gap-1">
+                <div className="h-3 w-3 rounded-full bg-success"></div>
+                <span className="text-xs">Online</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="h-3 w-3 rounded-full bg-accent"></div>
+                <span className="text-xs">Em movimento</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="h-3 w-3 rounded-full bg-destructive"></div>
+                <span className="text-xs">Offline</span>
               </div>
             </div>
           </CardContent>
