@@ -150,21 +150,30 @@ const Rentals = () => {
 
       if (error) throw error;
 
-      // Create a blob and download
-      const blob = new Blob([data], { type: 'text/html' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `contrato-${contractId}.html`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
+      if (data?.pdf_base64) {
+        // Decode base64 and create PDF blob
+        const byteCharacters = atob(data.pdf_base64);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: 'application/pdf' });
+        const url = window.URL.createObjectURL(blob);
+        
+        const element = document.createElement('a');
+        element.href = url;
+        element.download = `contrato-${contractId}.pdf`;
+        document.body.appendChild(element);
+        element.click();
+        document.body.removeChild(element);
+        window.URL.revokeObjectURL(url);
 
-      toast({
-        title: "Contrato gerado!",
-        description: "O arquivo foi baixado com sucesso",
-      });
+        toast({
+          title: "Contrato gerado!",
+          description: "O arquivo PDF foi baixado com sucesso",
+        });
+      }
     } catch (error) {
       console.error('Error downloading contract:', error);
       toast({
