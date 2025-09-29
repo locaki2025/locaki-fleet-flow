@@ -189,7 +189,7 @@ const PDFExportDialog = ({ open, onOpenChange, type, data }: PDFExportDialogProp
           {/* Field Selection */}
           <div>
             <Label className="text-sm font-medium">
-              Campos a incluir ({data.length} registros)
+              Campos a incluir {data.length > 0 ? `(${data.length} registros)` : '(Template vazio)'}
             </Label>
             <div className="mt-2 space-y-2 max-h-48 overflow-y-auto">
               {fields.map((field) => (
@@ -217,7 +217,7 @@ const PDFExportDialog = ({ open, onOpenChange, type, data }: PDFExportDialogProp
           </Button>
           <Button 
             onClick={handleExport} 
-            disabled={loading || selectedFields.length === 0}
+            disabled={loading}
             className="bg-gradient-primary hover:opacity-90"
           >
             {loading ? (
