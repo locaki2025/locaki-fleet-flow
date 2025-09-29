@@ -11,19 +11,22 @@ import {
   Clock,
   Zap,
   AlertTriangle,
-  RefreshCw
+  RefreshCw,
+  Settings
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import GoogleMapComponent from "@/components/GoogleMap";
+import RastrosystemConfigDialog from "@/components/RastrosystemConfigDialog";
 
 const Map = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showConfigDialog, setShowConfigDialog] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -135,15 +138,30 @@ const Map = () => {
           <h1 className="text-3xl font-bold text-foreground">Mapa & Rastreamento</h1>
           <p className="text-muted-foreground">Acompanhe a localização da sua frota em tempo real</p>
         </div>
-            <Button 
-              variant="outline" 
-              onClick={fetchVehicles}
-              disabled={loading}
-            >
-              <RefreshCw className="h-4 w-4 mr-2" />
-              {loading ? 'Atualizando...' : 'Atualizar'}
-            </Button>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            onClick={() => setShowConfigDialog(true)}
+          >
+            <Settings className="h-4 w-4 mr-2" />
+            Configurar Rastrosystem
+          </Button>
+          <Button 
+            variant="outline" 
+            onClick={fetchVehicles}
+            disabled={loading}
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            {loading ? 'Atualizando...' : 'Atualizar'}
+          </Button>
+        </div>
       </div>
+
+      <RastrosystemConfigDialog 
+        open={showConfigDialog} 
+        onOpenChange={setShowConfigDialog}
+        onConfigSaved={fetchVehicles}
+      />
 
       {/* Status Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
