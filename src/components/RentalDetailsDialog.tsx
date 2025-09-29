@@ -42,22 +42,32 @@ const RentalDetailsDialog = ({ open, onOpenChange, rental }: RentalDetailsDialog
 
       if (error) throw error;
 
-      // Create download
-      const blob = new Blob([data], { type: 'application/pdf' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `contrato-${rental.id}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
+      if (data?.pdf_base64) {
+        // Decode base64 and create PDF blob
+        const byteCharacters = atob(data.pdf_base64);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: 'application/pdf' });
+        const url = window.URL.createObjectURL(blob);
+        
+        const element = document.createElement('a');
+        element.href = url;
+        element.download = `contrato-${rental.id}.pdf`;
+        document.body.appendChild(element);
+        element.click();
+        document.body.removeChild(element);
+        window.URL.revokeObjectURL(url);
 
-      toast({
-        title: "Contrato gerado",
-        description: `PDF do contrato #${rental.id} foi baixado com sucesso`,
-      });
+        toast({
+          title: "Contrato gerado",
+          description: `PDF do contrato foi baixado com sucesso`,
+        });
+      }
     } catch (error) {
+      console.error('Error generating contract PDF:', error);
       toast({
         title: "Erro",
         description: "Não foi possível gerar o PDF do contrato",
