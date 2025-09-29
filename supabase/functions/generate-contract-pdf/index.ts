@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { PDFDocument, rgb, StandardFonts } from "https://esm.sh/pdf-lib@1.17.1";
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -208,12 +209,208 @@ const generateContractHTML = (contract: any, customer: any, vehicle: any, select
   `;
 };
 
-// Simple HTML to PDF generation using built-in Deno capabilities
-const generatePDF = async (html: string): Promise<string> => {
-  // For now, return a simple base64 PDF placeholder
-  // In production, you would use a proper PDF generation library
-  const mockPDFContent = btoa(`PDF Contract Content: ${html.slice(0, 200)}`);
-  return mockPDFContent;
+
+// Generate a real PDF using pdf-lib
+const generatePDF = async (
+  contract: any, 
+  customer: any, 
+  vehicle: any, 
+  selectedFields: string[] = [], 
+  format: string = 'detailed'
+): Promise<string> => {
+  const pdfDoc = await PDFDocument.create();
+  const timesRomanFont = await pdfDoc.embedFont(StandardFonts.TimesRoman);
+  const timesRomanBoldFont = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
+  
+  // Helper to check if field should be included
+  const includeField = (fieldName: string) => {
+    if (selectedFields.length === 0) return true;
+    return selectedFields.includes(fieldName);
+  };
+  
+  // Font sizes based on format
+  const fontSize = format === 'compact' ? 10 : format === 'summary' ? 11 : 12;
+  const titleSize = fontSize + 2;
+  const headerSize = fontSize + 4;
+  
+  const page = pdfDoc.addPage([595.28, 841.89]); // A4 size
+  const { width, height } = page.getSize();
+  const margin = 50;
+  let yPosition = height - margin;
+  
+  // Helper function to add text
+  const addText = (text: string, options: any = {}) => {
+    const {
+      x = margin,
+      size = fontSize,
+      font = timesRomanFont,
+      color = rgb(0, 0, 0),
+      maxWidth = width - (2 * margin),
+      lineHeight = size * 1.5
+    } = options;
+    
+    const lines = text.split('\n');
+    for (const line of lines) {
+      if (yPosition < margin + 50) {
+        // Add new page if needed
+        const newPage = pdfDoc.addPage([595.28, 841.89]);
+        yPosition = newPage.getHeight() - margin;
+      }
+      
+      page.drawText(line, {
+        x,
+        y: yPosition,
+        size,
+        font,
+        color,
+        maxWidth
+      });
+      yPosition -= lineHeight;
+    }
+  };
+  
+  // Header
+  addText('CONTRATO PARTICULAR DE LOCAÇÃO DE VEÍCULO PJ-PF', {
+    x: width / 2 - 200,
+    size: headerSize,
+    font: timesRomanBoldFont
+  });
+  yPosition -= 20;
+  
+  // Parties section
+  if (includeField('cliente')) {
+    addText('Pelo presente instrumento particular, de um lado:');
+    yPosition -= 10;
+    addText('[NOME DA EMPRESA], pessoa jurídica de direito privado, CNPJ [CNPJ DA EMPRESA],');
+    addText('email: [EMAIL DA EMPRESA], telefone [TELEFONE DA EMPRESA],');
+    addText('estabelecida na [ENDEREÇO DA EMPRESA], doravante denominada LOCADORA;', {
+      font: timesRomanBoldFont
+    });
+    yPosition -= 10;
+    addText('e de outro lado,');
+    yPosition -= 10;
+    
+    const clientName = contract?.cliente_nome || '[NOME DO CLIENTE]';
+    const clientCPF = contract?.cliente_cpf || '[CPF]';
+    const clientEmail = contract?.cliente_email || '[EMAIL]';
+    const clientPhone = customer?.phone || '[TELEFONE]';
+    const clientAddress = `${customer?.street || '[ENDEREÇO]'}, nº ${customer?.number || '[NÚMERO]'}`;
+    const clientCity = `${customer?.city || '[CIDADE]'}, CEP ${customer?.zip_code || '[CEP]'}`;
+    
+    addText(`${clientName}, brasileiro, inscrito no CPF nº ${clientCPF},`, {
+      font: timesRomanBoldFont
+    });
+    addText(`CNH [CNH], email ${clientEmail}, telefone ${clientPhone},`);
+    addText(`residente e domiciliado na ${clientAddress},`);
+    addText(`bairro ${customer?.city || '[BAIRRO]'}, cidade ${clientCity},`);
+    addText('doravante denominado LOCATÁRIO, têm entre si como justo e contratado o que segue:', {
+      font: timesRomanBoldFont
+    });
+    yPosition -= 20;
+  }
+  
+  // Vehicle clause
+  if (includeField('veiculo')) {
+    addText('CLÁUSULA 1ª – DO OBJETO DO CONTRATO', {
+      font: timesRomanBoldFont,
+      size: titleSize
+    });
+    yPosition -= 5;
+    addText('1.1. Por meio deste contrato regula-se a locação do veículo:');
+    yPosition -= 5;
+    
+    addText(`Marca: ${vehicle?.brand || '[MARCA]'}  |  Modelo: ${contract?.moto_modelo || '[MODELO]'}`);
+    addText(`Placa: ${vehicle?.plate || '[PLACA]'}  |  Ano: ${vehicle?.year || '[ANO]'}`);
+    if (format !== 'compact') {
+      addText(`Quilometragem: ${vehicle?.odometer || 0} Km`);
+    }
+    yPosition -= 10;
+  }
+  
+  // Period clause
+  if (includeField('periodo')) {
+    addText('CLÁUSULA 2ª – DO PERÍODO DE LOCAÇÃO', {
+      font: timesRomanBoldFont,
+      size: titleSize
+    });
+    yPosition -= 5;
+    
+    const startDate = contract?.data_inicio ? new Date(contract.data_inicio).toLocaleDateString('pt-BR') : '[DATA INÍCIO]';
+    const endDate = contract?.data_fim ? new Date(contract.data_fim).toLocaleDateString('pt-BR') : '[DATA FIM]';
+    
+    addText(`2.1. Período: ${startDate} até ${endDate}`);
+    
+    if (format !== 'compact' && contract?.proxima_cobranca) {
+      const nextBilling = new Date(contract.proxima_cobranca).toLocaleDateString('pt-BR');
+      addText(`2.2. Próxima cobrança: ${nextBilling}`);
+    }
+    yPosition -= 10;
+  }
+  
+  // Value clause
+  if (includeField('valor')) {
+    addText('CLÁUSULA 3ª – DO VALOR', {
+      font: timesRomanBoldFont,
+      size: titleSize
+    });
+    yPosition -= 5;
+    
+    const monthlyValue = contract?.valor_mensal ? formatCurrency(contract.valor_mensal) : '[VALOR]';
+    addText(`3.1. Valor mensal: ${monthlyValue}`);
+    
+    if (format === 'detailed' && contract?.diaria) {
+      addText(`3.2. Valor da diária: ${formatCurrency(contract.diaria)}`);
+    }
+    yPosition -= 10;
+  }
+  
+  // Obligations
+  addText('CLÁUSULA 4ª – DAS OBRIGAÇÕES', {
+    font: timesRomanBoldFont,
+    size: titleSize
+  });
+  yPosition -= 5;
+  addText('4.1. O LOCATÁRIO se compromete a utilizar o veículo adequadamente.');
+  addText('4.2. O LOCATÁRIO é responsável pelo pagamento pontual.');
+  addText('4.3. A LOCADORA fornecerá o veículo em perfeitas condições.');
+  yPosition -= 30;
+  
+  // Signatures
+  const signatureY = Math.max(yPosition, 100);
+  addText('_____________________________', {
+    x: margin,
+    size: fontSize
+  });
+  yPosition = signatureY - 20;
+  addText('LOCADORA', {
+    x: margin + 30,
+    size: fontSize - 1
+  });
+  
+  yPosition = signatureY;
+  addText('_____________________________', {
+    x: width - margin - 150,
+    size: fontSize
+  });
+  yPosition = signatureY - 20;
+  addText('LOCATÁRIO', {
+    x: width - margin - 120,
+    size: fontSize - 1
+  });
+  
+  // Footer
+  const today = new Date().toLocaleDateString('pt-BR');
+  page.drawText(`Documento gerado em ${today}`, {
+    x: width / 2 - 80,
+    y: 30,
+    size: 9,
+    font: timesRomanFont,
+    color: rgb(0.5, 0.5, 0.5)
+  });
+  
+  const pdfBytes = await pdfDoc.save();
+  const base64 = btoa(String.fromCharCode(...new Uint8Array(pdfBytes)));
+  return base64;
 };
 
 const handler = async (req: Request): Promise<Response> => {
@@ -280,8 +477,7 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    const html = generateContractHTML(contractData, customerData, vehicleData, selectedFields, format);
-    const pdf_base64 = await generatePDF(html);
+    const pdf_base64 = await generatePDF(contractData, customerData, vehicleData, selectedFields, format);
     
     return new Response(JSON.stringify({ pdf_base64 }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
