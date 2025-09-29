@@ -87,12 +87,24 @@ const GoogleMapComponent = ({ vehicles }: GoogleMapComponentProps) => {
     }
 
     try {
+      // Get the current user first
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError || !user) {
+        toast({
+          title: "Erro",
+          description: "Você precisa estar autenticado para salvar a configuração",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const { error } = await supabase
         .from('tenant_config')
         .upsert({
           config_key: CONFIG_KEY,
           config_value: inputKey,
-          user_id: (await supabase.auth.getUser()).data.user?.id
+          user_id: user.id
         });
 
       if (error) throw error;
