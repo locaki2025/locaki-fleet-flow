@@ -491,20 +491,25 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
+    console.log('Starting PDF generation...');
     const pdf_base64 = await generatePDF(contractData, customerData, vehicleData, selectedFields, format);
+    console.log('PDF generated successfully, base64 length:', pdf_base64.length);
     
     return new Response(JSON.stringify({ pdf_base64 }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 200
     });
 
   } catch (error) {
     console.error('Error generating contract PDF:', error);
+    console.error('Error details:', error instanceof Error ? error.stack : 'Unknown error');
     return new Response(
       JSON.stringify({ 
-        error: error instanceof Error ? error.message : 'Unknown error occurred' 
+        error: error instanceof Error ? error.message : 'Unknown error occurred',
+        stack: error instanceof Error ? error.stack : undefined
       }),
       { 
-        status: 400, 
+        status: 500, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
       }
     );

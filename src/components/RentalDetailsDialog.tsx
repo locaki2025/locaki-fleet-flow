@@ -36,41 +36,60 @@ const RentalDetailsDialog = ({ open, onOpenChange, rental }: RentalDetailsDialog
 
   const handlePrintContract = async () => {
     try {
+      console.log('Printing contract:', { rental_id: rental.id, user_id: rental.user_id });
+      
       const { data, error } = await supabase.functions.invoke('generate-contract-pdf', {
         body: { contract_id: rental.id, user_id: rental.user_id }
       });
 
-      if (error) throw error;
+      console.log('Print contract response:', { data, error });
 
-      if (data?.pdf_base64) {
-        // Decode base64 and create PDF blob
-        const byteCharacters = atob(data.pdf_base64);
-        const byteNumbers = new Array(byteCharacters.length);
-        for (let i = 0; i < byteCharacters.length; i++) {
-          byteNumbers[i] = byteCharacters.charCodeAt(i);
-        }
-        const byteArray = new Uint8Array(byteNumbers);
-        const blob = new Blob([byteArray], { type: 'application/pdf' });
-        const url = window.URL.createObjectURL(blob);
-        
-        const element = document.createElement('a');
-        element.href = url;
-        element.download = `contrato-${rental.id}.pdf`;
-        document.body.appendChild(element);
-        element.click();
-        document.body.removeChild(element);
-        window.URL.revokeObjectURL(url);
-
-        toast({
-          title: "Contrato gerado",
-          description: `PDF do contrato foi baixado com sucesso`,
-        });
+      if (error) {
+        console.error('Edge function error:', error);
+        throw error;
       }
+
+      if (!data) {
+        throw new Error('No data returned from edge function');
+      }
+
+      if (!data.pdf_base64) {
+        console.error('Response data:', data);
+        throw new Error('pdf_base64 not found in response');
+      }
+
+      console.log('pdf_base64 length:', data.pdf_base64.length);
+
+      // Decode base64 and create PDF blob
+      const byteCharacters = atob(data.pdf_base64);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: 'application/pdf' });
+      
+      console.log('Blob created, size:', blob.size);
+      
+      const url = window.URL.createObjectURL(blob);
+      
+      const element = document.createElement('a');
+      element.href = url;
+      element.download = `contrato-${rental.id}.pdf`;
+      document.body.appendChild(element);
+      element.click();
+      document.body.removeChild(element);
+      window.URL.revokeObjectURL(url);
+
+      toast({
+        title: "Contrato gerado",
+        description: `PDF do contrato foi baixado com sucesso`,
+      });
     } catch (error) {
       console.error('Error generating contract PDF:', error);
       toast({
         title: "Erro",
-        description: "Não foi possível gerar o PDF do contrato",
+        description: error instanceof Error ? error.message : "Não foi possível gerar o PDF do contrato",
         variant: "destructive",
       });
     }
