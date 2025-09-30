@@ -128,13 +128,26 @@ const Customers = () => {
           <h1 className="text-3xl font-bold text-foreground">Clientes</h1>
           <p className="text-muted-foreground">Gerencie seus clientes pessoa física e jurídica</p>
         </div>
-        <Button 
-          className="bg-gradient-primary hover:opacity-90"
-          onClick={() => setIsDialogOpen(true)}
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Novo Cliente
-        </Button>
+        <div className="flex items-center gap-3">
+          <Button 
+            variant="outline"
+            onClick={async () => {
+              setLoading(true);
+              const ok = await syncCustomersFromRastrosystem();
+              await fetchCustomers();
+              setLoading(false);
+            }}
+          >
+            Sincronizar
+          </Button>
+          <Button 
+            className="bg-gradient-primary hover:opacity-90"
+            onClick={() => setIsDialogOpen(true)}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Novo Cliente
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -237,13 +250,26 @@ const Customers = () => {
             <p className="text-muted-foreground mb-4">
               Cadastre seu primeiro cliente para começar
             </p>
-            <Button 
-              className="bg-gradient-primary hover:opacity-90"
-              onClick={() => setIsDialogOpen(true)}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Cadastrar Cliente
-            </Button>
+            <div className="flex items-center justify-center gap-3">
+              <Button 
+                variant="outline"
+                onClick={async () => {
+                  setLoading(true);
+                  const ok = await syncCustomersFromRastrosystem();
+                  await fetchCustomers();
+                  setLoading(false);
+                }}
+              >
+                Sincronizar Clientes
+              </Button>
+              <Button 
+                className="bg-gradient-primary hover:opacity-90"
+                onClick={() => setIsDialogOpen(true)}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Cadastrar Cliente
+              </Button>
+            </div>
           </CardContent>
         </Card>
       )}
