@@ -72,18 +72,12 @@ const Customers = () => {
     try {
       if (!user?.id) return;
       toast({ title: 'Sincronizando clientes...', description: 'Importando clientes do Rastrosystem', duration: 2000 });
-      const res = await fetch('https://pfkiedrazodgsssohwzp.functions.supabase.co/rastrosystem-customers-sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: user.id })
+      const { data, error } = await supabase.functions.invoke('rastrosystem-customers-sync', {
+        body: { user_id: user.id },
       });
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text);
-      }
-      const json = await res.json();
-      console.log('Clientes sincronizados (edge):', json);
-      toast({ title: 'Clientes sincronizados', description: `${json.inserted} clientes importados`, duration: 2000 });
+      if (error) throw error;
+      console.log('Clientes sincronizados (edge):', data);
+      toast({ title: 'Clientes sincronizados', description: `${data?.inserted ?? 0} clientes importados`, duration: 2000 });
     } catch (err) {
       console.error('Falha ao sincronizar clientes (edge):', err);
       toast({ title: 'Erro ao sincronizar clientes', description: err instanceof Error ? err.message : 'Erro desconhecido', variant: 'destructive' });
