@@ -61,6 +61,7 @@ serve(async (req: Request) => {
     const customers: any[] = Array.isArray(customersData) ? customersData : (customersData.data || customersData.results || []);
     
     console.log(`Fetched ${customers.length} customers from Rastrosystem`);
+    console.log('Sample customer data:', JSON.stringify(customers[0], null, 2));
 
     let inserted = 0;
     let skipped_no_id = 0;
@@ -96,19 +97,25 @@ serve(async (req: Request) => {
       const cpfCnpjRaw = rawCpf || rawCnpj;
       const cpfCnpj = cpfCnpjRaw ? normalizeDoc(cpfCnpjRaw) : '';
 
+      // Log para debug dos campos disponíveis
+      if (inserted === 0) {
+        console.log('Customer fields available:', Object.keys(customer));
+        console.log('Customer data sample:', JSON.stringify(customer, null, 2));
+      }
+
       const payload = {
         user_id,
         rastrosystem_id: rastrosystemId,
-        name: customer.nome || customer.razao_social || customer.nome_fantasia || customer.razao || 'Não informado',
+        name: customer.nome || customer.NOME || customer.razao_social || customer.RAZAO_SOCIAL || customer.nome_fantasia || customer.NOME_FANTASIA || customer.razao || customer.RAZAO || customer.name || customer.NAME || 'Não informado',
         type: rawCpf ? 'PF' : 'PJ',
         cpf_cnpj: cpfCnpj || 'nao-informado',
-        email: customer.email || customer.email_principal || 'nao-informado@email.com',
-        phone: customer.telefone || customer.celular || customer.fone || '(00) 00000-0000',
-        street: customer.endereco || customer.logradouro || 'Não informado',
-        number: String(customer.numero || customer.num || 'S/N'),
-        city: customer.cidade || 'Não informado',
-        state: customer.estado || customer.uf || 'XX',
-        zip_code: (customer.cep || '').toString(),
+        email: customer.email || customer.EMAIL || customer.email_principal || customer.EMAIL_PRINCIPAL || 'nao-informado@email.com',
+        phone: customer.telefone || customer.TELEFONE || customer.celular || customer.CELULAR || customer.fone || customer.FONE || '(00) 00000-0000',
+        street: customer.endereco || customer.ENDERECO || customer.logradouro || customer.LOGRADOURO || 'Não informado',
+        number: String(customer.numero || customer.NUMERO || customer.num || customer.NUM || 'S/N'),
+        city: customer.cidade || customer.CIDADE || 'Não informado',
+        state: customer.estado || customer.ESTADO || customer.uf || customer.UF || 'XX',
+        zip_code: (customer.cep || customer.CEP || '').toString(),
         status: 'ativo',
         observations: `Importado do Rastrosystem - ID: ${rastrosystemId}`,
       } as const;
