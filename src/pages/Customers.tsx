@@ -45,9 +45,14 @@ const Customers = () => {
 
       // Auto-trigger backend sync if empty and not attempted yet (bypass CORS via Edge Function)
       if ((data?.length || 0) === 0 && user?.id && !sessionStorage.getItem('customers_sync_attempted')) {
-        sessionStorage.setItem('customers_sync_attempted', '1');
-        await syncCustomersFromRastrosystem();
-        // Recarrega após sync
+        const ok = await syncCustomersFromRastrosystem();
+        if (ok) {
+          sessionStorage.setItem('customers_sync_attempted', '1');
+        } else {
+          // Permite tentar novamente caso tenha falhado
+          sessionStorage.removeItem('customers_sync_attempted');
+        }
+        // Recarrega após tentativa de sync
         const { data: dataAfter } = await supabase
           .from('customers')
           .select('*')
@@ -68,9 +73,9 @@ const Customers = () => {
   };
 
   // Edge function call to sync customers server-side (avoids CORS)
-  const syncCustomersFromRastrosystem = async () => {
+  const syncCustomersFromRastrosystem = async (): Promise<boolean> => {
     try {
-      if (!user?.id) return;
+      if (!user?.id) return false;
       toast({ title: 'Sincronizando clientes...', description: 'Importando clientes do Rastrosystem', duration: 2000 });
       const { data, error } = await supabase.functions.invoke('rastrosystem-customers-sync', {
         body: { user_id: user.id },
@@ -78,9 +83,11 @@ const Customers = () => {
       if (error) throw error;
       console.log('Clientes sincronizados (edge):', data);
       toast({ title: 'Clientes sincronizados', description: `${data?.inserted ?? 0} clientes importados`, duration: 2000 });
+      return true;
     } catch (err) {
       console.error('Falha ao sincronizar clientes (edge):', err);
       toast({ title: 'Erro ao sincronizar clientes', description: err instanceof Error ? err.message : 'Erro desconhecido', variant: 'destructive' });
+      return false;
     }
   };
 
