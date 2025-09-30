@@ -808,6 +808,7 @@ export type Database = {
           observations: string | null
           odometer: number | null
           plate: string
+          rastrosystem_id: string | null
           renavam: string | null
           status: string
           tracker_id: string | null
@@ -826,6 +827,7 @@ export type Database = {
           observations?: string | null
           odometer?: number | null
           plate: string
+          rastrosystem_id?: string | null
           renavam?: string | null
           status?: string
           tracker_id?: string | null
@@ -844,6 +846,7 @@ export type Database = {
           observations?: string | null
           odometer?: number | null
           plate?: string
+          rastrosystem_id?: string | null
           renavam?: string | null
           status?: string
           tracker_id?: string | null

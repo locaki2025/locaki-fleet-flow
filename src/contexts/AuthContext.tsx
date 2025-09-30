@@ -143,18 +143,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log(`Sincronizando ${vehicles.length} veículos do Rastrosystem...`);
         
         for (const vehicle of vehicles) {
-          if (!vehicle.placa) continue;
+          if (!vehicle.placa || !vehicle.id) continue;
           
+          // Verifica se o veículo já existe usando o ID do Rastrosystem
           const { data: existing } = await supabase
             .from('vehicles')
             .select('id')
             .eq('user_id', currentUser.id)
-            .eq('plate', vehicle.placa)
+            .eq('rastrosystem_id', vehicle.id.toString())
             .maybeSingle();
 
           if (!existing) {
             const { error } = await supabase.from('vehicles').insert({
               user_id: currentUser.id,
+              rastrosystem_id: vehicle.id.toString(),
               plate: vehicle.placa,
               brand: 'Não informado',
               model: vehicle.name || vehicle.placa,
@@ -171,6 +173,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             } else {
               console.log('Veículo sincronizado:', vehicle.placa);
             }
+          } else {
+            console.log('Veículo já existe no banco:', vehicle.placa);
           }
         }
       }
