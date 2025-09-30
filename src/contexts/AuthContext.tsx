@@ -228,9 +228,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       sessionStorage.setItem('rastrosystem_last_sync', new Date().toISOString());
-      console.log('Sincronização Rastrosystem concluída');
+      console.log('✅ Sincronização Rastrosystem concluída com sucesso');
+      console.log('📊 Verifique as páginas de Veículos e Clientes para ver os dados importados');
     } catch (error) {
-      console.error('Erro na sincronização Rastrosystem:', error);
+      console.error('❌ Erro na sincronização Rastrosystem:', error);
     } finally {
       setRastrosystemSyncing(false);
     }

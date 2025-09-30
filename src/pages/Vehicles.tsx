@@ -28,6 +28,32 @@ const Vehicles = () => {
     }
   }, [user]);
 
+  // Subscribe to realtime changes
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel('vehicles-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'vehicles',
+          filter: `user_id=eq.${user.id}`
+        },
+        () => {
+          console.log('Veículo atualizado, recarregando lista...');
+          fetchVehicles();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
+
   const fetchVehicles = async () => {
     if (!user?.id) {
       console.warn('No user ID found, skipping vehicles fetch');
