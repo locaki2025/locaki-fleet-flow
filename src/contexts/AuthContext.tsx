@@ -9,6 +9,7 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signUp: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
+  rastrosystemSyncing: boolean;
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
@@ -25,6 +26,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [rastrosystemSyncing, setRastrosystemSyncing] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -76,6 +78,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSession(session);
       setUser(session?.user ?? null);
       
+      // Trigger Rastrosystem sync when user signs in
+      if (event === 'SIGNED_IN' && session?.user) {
+        performRastrosystemSync(session.user);
+      }
+      
       if (!loading) {
         setLoading(false);
       }
@@ -86,6 +93,131 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       subscription.unsubscribe();
     };
   }, []);
+
+  // Rastrosystem sync function
+  const performRastrosystemSync = async (currentUser: User) => {
+    // Check if sync was already done in this session
+    const lastSync = sessionStorage.getItem('rastrosystem_last_sync');
+    if (lastSync) {
+      console.log('Sincronização Rastrosystem já realizada nesta sessão');
+      return;
+    }
+
+    setRastrosystemSyncing(true);
+
+    try {
+      console.log('Iniciando sincronização com Rastrosystem...');
+      
+      // Step 1: Authenticate
+      const authResponse = await fetch('https://locaki.rastrosystem.com.br/api_v2/login/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          login: '54858795000100',
+          senha: '123456',
+          app: 9,
+        }),
+      });
+
+      if (!authResponse.ok) throw new Error('Falha na autenticação Rastrosystem');
+      
+      const authData = await authResponse.json();
+      sessionStorage.setItem('rastrosystem_token', authData.token);
+      sessionStorage.setItem('rastrosystem_cliente_id', authData.cliente_id);
+
+      // Step 2: Sync vehicles
+      const vehiclesResponse = await fetch(
+        `https://locaki.rastrosystem.com.br/api_v2/veiculos/${authData.cliente_id}/`,
+        {
+          headers: {
+            'Authorization': `token ${authData.token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      if (vehiclesResponse.ok) {
+        const vehicles = await vehiclesResponse.json();
+        
+        for (const vehicle of vehicles) {
+          const { data: existing } = await supabase
+            .from('vehicles')
+            .select('id')
+            .eq('user_id', currentUser.id)
+            .eq('plate', vehicle.placa)
+            .maybeSingle();
+
+          if (!existing && vehicle.placa) {
+            await supabase.from('vehicles').insert({
+              user_id: currentUser.id,
+              plate: vehicle.placa,
+              brand: vehicle.marca || 'Não informado',
+              model: vehicle.modelo || 'Não informado',
+              color: vehicle.cor || 'Não informado',
+              year: vehicle.ano || new Date().getFullYear(),
+              category: 'carro',
+              status: 'disponivel',
+              renavam: vehicle.renavam || null,
+              chassis: vehicle.chassi || null,
+              observations: `Importado do Rastrosystem - ID: ${vehicle.id}`,
+            });
+          }
+        }
+      }
+
+      // Step 3: Sync customers
+      const customersResponse = await fetch(
+        'https://locaki.rastrosystem.com.br/api_v2/list-pessoas',
+        {
+          headers: {
+            'Authorization': `token ${authData.token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      if (customersResponse.ok) {
+        const customers = await customersResponse.json();
+        
+        for (const customer of customers) {
+          const cpfCnpj = customer.cpf || customer.cnpj || '';
+          if (!cpfCnpj) continue;
+
+          const { data: existing } = await supabase
+            .from('customers')
+            .select('id')
+            .eq('user_id', currentUser.id)
+            .eq('cpf_cnpj', cpfCnpj)
+            .maybeSingle();
+
+          if (!existing) {
+            await supabase.from('customers').insert({
+              user_id: currentUser.id,
+              name: customer.nome || customer.razao_social || 'Não informado',
+              type: customer.cpf ? 'PF' : 'PJ',
+              cpf_cnpj: cpfCnpj,
+              email: customer.email || 'nao-informado@email.com',
+              phone: customer.telefone || customer.celular || '(00) 00000-0000',
+              street: customer.endereco || 'Não informado',
+              number: customer.numero || 'S/N',
+              city: customer.cidade || 'Não informado',
+              state: customer.estado || 'XX',
+              zip_code: customer.cep || '00000-000',
+              status: 'ativo',
+              observations: `Importado do Rastrosystem - ID: ${customer.id}`,
+            });
+          }
+        }
+      }
+
+      sessionStorage.setItem('rastrosystem_last_sync', new Date().toISOString());
+      console.log('Sincronização Rastrosystem concluída');
+    } catch (error) {
+      console.error('Erro na sincronização Rastrosystem:', error);
+    } finally {
+      setRastrosystemSyncing(false);
+    }
+  };
 
   const signIn = async (email: string, password: string) => {
     try {
@@ -128,6 +260,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signIn,
     signUp,
     signOut,
+    rastrosystemSyncing,
   };
 
   return (
