@@ -69,25 +69,39 @@ serve(async (req: Request) => {
     const normalizeDoc = (doc: any) => (typeof doc === 'string' ? doc.replace(/\D/g, '') : String(doc ?? '').replace(/\D/g, ''));
 
     for (const customer of customers) {
-      const rawCpf = customer.cpf ?? customer.CPF ?? customer.cpf_cnpj ?? customer.documento ?? null;
-      const rawCnpj = customer.cnpj ?? customer.CNPJ ?? null;
-      const cpfCnpjRaw = rawCpf || rawCnpj;
-      const cpfCnpj = cpfCnpjRaw ? normalizeDoc(cpfCnpjRaw) : '';
-      if (!cpfCnpj) { skipped_no_id++; continue; }
+      // Usar o ID do Rastrosystem como chave única
+      const rastrosystemId = customer.id ? String(customer.id) : null;
+      if (!rastrosystemId) { 
+        skipped_no_id++; 
+        console.log('Cliente sem ID do Rastrosystem:', customer);
+        continue; 
+      }
 
-      // Check if already exists (by normalized CPF/CNPJ)
+      // Verificar se já existe pelo rastrosystem_id
       const { data: existing } = await supabase
         .from('customers')
         .select('id')
         .eq('user_id', user_id)
-        .eq('cpf_cnpj', cpfCnpj)
+        .eq('rastrosystem_id', rastrosystemId)
         .maybeSingle();
+
+      if (existing) {
+        duplicates++;
+        continue;
+      }
+
+      // Preparar CPF/CNPJ normalizado
+      const rawCpf = customer.cpf ?? customer.CPF ?? customer.cpf_cnpj ?? customer.documento ?? null;
+      const rawCnpj = customer.cnpj ?? customer.CNPJ ?? null;
+      const cpfCnpjRaw = rawCpf || rawCnpj;
+      const cpfCnpj = cpfCnpjRaw ? normalizeDoc(cpfCnpjRaw) : '';
 
       const payload = {
         user_id,
+        rastrosystem_id: rastrosystemId,
         name: customer.nome || customer.razao_social || customer.nome_fantasia || customer.razao || 'Não informado',
         type: rawCpf ? 'PF' : 'PJ',
-        cpf_cnpj: cpfCnpj,
+        cpf_cnpj: cpfCnpj || 'nao-informado',
         email: customer.email || customer.email_principal || 'nao-informado@email.com',
         phone: customer.telefone || customer.celular || customer.fone || '(00) 00000-0000',
         street: customer.endereco || customer.logradouro || 'Não informado',
@@ -96,14 +110,14 @@ serve(async (req: Request) => {
         state: customer.estado || customer.uf || 'XX',
         zip_code: (customer.cep || '').toString(),
         status: 'ativo',
-        observations: `Importado do Rastrosystem - ID: ${customer.id ?? 'desconhecido'}`,
+        observations: `Importado do Rastrosystem - ID: ${rastrosystemId}`,
       } as const;
 
-      if (!existing) {
-        const { error } = await supabase.from('customers').insert(payload as any);
-        if (!error) inserted++; else console.error('Insert error for customer', customer?.id, error);
+      const { error } = await supabase.from('customers').insert(payload as any);
+      if (!error) {
+        inserted++;
       } else {
-        duplicates++;
+        console.error('Erro ao inserir cliente', rastrosystemId, error);
       }
     }
 

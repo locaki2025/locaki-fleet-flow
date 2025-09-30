@@ -329,6 +329,7 @@ export type Database = {
           number: string
           observations: string | null
           phone: string
+          rastrosystem_id: string | null
           state: string
           status: string
           street: string
@@ -350,6 +351,7 @@ export type Database = {
           number: string
           observations?: string | null
           phone: string
+          rastrosystem_id?: string | null
           state: string
           status?: string
           street: string
@@ -371,6 +373,7 @@ export type Database = {
           number?: string
           observations?: string | null
           phone?: string
+          rastrosystem_id?: string | null
           state?: string
           status?: string
           street?: string
