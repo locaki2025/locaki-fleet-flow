@@ -233,25 +233,32 @@ const Vehicles = () => {
       </Card>
 
       {/* Vehicle Grid */}
-      <div className="flex gap-6 overflow-x-auto pb-4">
-        {loading ? (
-          <div className="col-span-full text-center py-8">
-            <p className="text-muted-foreground">Carregando veículos...</p>
-          </div>
-        ) : vehicles.length === 0 ? (
-          <div className="col-span-full text-center py-8">
-            <p className="text-muted-foreground">Nenhum veículo cadastrado.</p>
+      {loading ? (
+        <div className="text-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-2 text-muted-foreground">Carregando veículos...</p>
+        </div>
+      ) : vehicles.length === 0 ? (
+        <Card className="border-dashed">
+          <CardContent className="py-12 text-center">
+            <Car className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Nenhum veículo cadastrado</h3>
+            <p className="text-muted-foreground mb-4">
+              Cadastre seu primeiro veículo para começar
+            </p>
             <Button 
-              variant="outline" 
-              className="mt-4"
+              className="bg-gradient-primary hover:opacity-90"
               onClick={() => setIsVehicleDialogOpen(true)}
             >
-              Cadastrar primeiro veículo
+              <Plus className="h-4 w-4 mr-2" />
+              Cadastrar Veículo
             </Button>
-          </div>
-        ) : (
-          vehicles.map((vehicle) => (
-          <Card key={vehicle.id} className="min-w-[300px] hover:shadow-lg transition-all hover:scale-[1.02]">
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {vehicles.map((vehicle) => (
+          <Card key={vehicle.id} className="hover:shadow-md transition-shadow">
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
@@ -335,8 +342,9 @@ const Vehicles = () => {
             </CardContent>
           </Card>
           ))
-        )}
-      </div>
+          }
+        </div>
+      )}
 
       <VehicleDialog 
         open={isVehicleDialogOpen} 
