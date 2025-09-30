@@ -55,7 +55,12 @@ serve(async (req: Request) => {
       throw new Error(`Fetch customers failed: ${customersRes.status} ${txt}`);
     }
 
-    const customers: any[] = await customersRes.json();
+    const customersData = await customersRes.json();
+    
+    // A API pode retornar um objeto com a propriedade 'data' ou diretamente um array
+    const customers: any[] = Array.isArray(customersData) ? customersData : (customersData.data || customersData.results || []);
+    
+    console.log(`Fetched ${customers.length} customers from Rastrosystem`);
 
     let inserted = 0;
     for (const customer of customers) {
