@@ -63,11 +63,19 @@ serve(async (req: Request) => {
     console.log(`Fetched ${customers.length} customers from Rastrosystem`);
 
     let inserted = 0;
-    for (const customer of customers) {
-      const cpfCnpj = customer.cpf || customer.cnpj || '';
-      if (!cpfCnpj) continue;
+    let skipped_no_id = 0;
+    let duplicates = 0;
 
-      // Check if already exists
+    const normalizeDoc = (doc: any) => (typeof doc === 'string' ? doc.replace(/\D/g, '') : String(doc ?? '').replace(/\D/g, ''));
+
+    for (const customer of customers) {
+      const rawCpf = customer.cpf ?? customer.CPF ?? customer.cpf_cnpj ?? customer.documento ?? null;
+      const rawCnpj = customer.cnpj ?? customer.CNPJ ?? null;
+      const cpfCnpjRaw = rawCpf || rawCnpj;
+      const cpfCnpj = cpfCnpjRaw ? normalizeDoc(cpfCnpjRaw) : '';
+      if (!cpfCnpj) { skipped_no_id++; continue; }
+
+      // Check if already exists (by normalized CPF/CNPJ)
       const { data: existing } = await supabase
         .from('customers')
         .select('id')
@@ -75,25 +83,31 @@ serve(async (req: Request) => {
         .eq('cpf_cnpj', cpfCnpj)
         .maybeSingle();
 
+      const payload = {
+        user_id,
+        name: customer.nome || customer.razao_social || customer.nome_fantasia || customer.razao || 'Não informado',
+        type: rawCpf ? 'PF' : 'PJ',
+        cpf_cnpj: cpfCnpj,
+        email: customer.email || customer.email_principal || 'nao-informado@email.com',
+        phone: customer.telefone || customer.celular || customer.fone || '(00) 00000-0000',
+        street: customer.endereco || customer.logradouro || 'Não informado',
+        number: String(customer.numero || customer.num || 'S/N'),
+        city: customer.cidade || 'Não informado',
+        state: customer.estado || customer.uf || 'XX',
+        zip_code: (customer.cep || '').toString(),
+        status: 'ativo',
+        observations: `Importado do Rastrosystem - ID: ${customer.id ?? 'desconhecido'}`,
+      } as const;
+
       if (!existing) {
-        const { error } = await supabase.from('customers').insert({
-          user_id,
-          name: customer.nome || customer.razao_social || 'Não informado',
-          type: customer.cpf ? 'PF' : 'PJ',
-          cpf_cnpj: cpfCnpj,
-          email: customer.email || 'nao-informado@email.com',
-          phone: customer.telefone || customer.celular || '(00) 00000-0000',
-          street: customer.endereco || 'Não informado',
-          number: customer.numero || 'S/N',
-          city: customer.cidade || 'Não informado',
-          state: customer.estado || 'XX',
-          zip_code: customer.cep || '00000-000',
-          status: 'ativo',
-          observations: `Importado do Rastrosystem - ID: ${customer.id}`,
-        });
-        if (!error) inserted++;
+        const { error } = await supabase.from('customers').insert(payload as any);
+        if (!error) inserted++; else console.error('Insert error for customer', customer?.id, error);
+      } else {
+        duplicates++;
       }
     }
+
+    console.log(`Inserted: ${inserted}, Duplicates: ${duplicates}, Skipped (no cpf/cnpj): ${skipped_no_id}`);
 
     return new Response(JSON.stringify({ success: true, inserted, total: customers.length }), {
       status: 200,
