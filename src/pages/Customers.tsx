@@ -42,6 +42,19 @@ const Customers = () => {
       
       setCustomers(data || []);
       console.log('Customers loaded successfully:', data?.length || 0);
+
+      // Auto-trigger backend sync if empty and not attempted yet (bypass CORS via Edge Function)
+      if ((data?.length || 0) === 0 && user?.id && !sessionStorage.getItem('customers_sync_attempted')) {
+        sessionStorage.setItem('customers_sync_attempted', '1');
+        await syncCustomersFromRastrosystem();
+        // Recarrega após sync
+        const { data: dataAfter } = await supabase
+          .from('customers')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+        setCustomers(dataAfter || []);
+      }
     } catch (error) {
       console.error('Error fetching customers:', error);
       toast({
@@ -51,6 +64,29 @@ const Customers = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Edge function call to sync customers server-side (avoids CORS)
+  const syncCustomersFromRastrosystem = async () => {
+    try {
+      if (!user?.id) return;
+      toast({ title: 'Sincronizando clientes...', description: 'Importando clientes do Rastrosystem', duration: 2000 });
+      const res = await fetch('https://pfkiedrazodgsssohwzp.functions.supabase.co/rastrosystem-customers-sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: user.id })
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text);
+      }
+      const json = await res.json();
+      console.log('Clientes sincronizados (edge):', json);
+      toast({ title: 'Clientes sincronizados', description: `${json.inserted} clientes importados`, duration: 2000 });
+    } catch (err) {
+      console.error('Falha ao sincronizar clientes (edge):', err);
+      toast({ title: 'Erro ao sincronizar clientes', description: err instanceof Error ? err.message : 'Erro desconhecido', variant: 'destructive' });
     }
   };
 
