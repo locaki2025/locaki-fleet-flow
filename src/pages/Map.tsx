@@ -36,7 +36,7 @@ const Map = () => {
     }
   }, [user]);
 
-  // Atualização em tempo real das posições
+  // Atualização em tempo real das posições usando Rastrosystem
   const hasVehiclesRef = useRef(false);
   
   useEffect(() => {
@@ -46,49 +46,87 @@ const Map = () => {
   useEffect(() => {
     if (!user) return;
 
-    const updatePositions = async () => {
+    const updatePositionsFromRastrosystem = async () => {
       if (!hasVehiclesRef.current) return;
       
       try {
-        const positions = await fetchLocation();
-        console.log('Posições recebidas do Traccar:', positions);
+        console.log('Atualizando posições via Rastrosystem...');
         
-        if (positions.length > 0) {
-          setVehicles(prevVehicles => 
-            prevVehicles.map(vehicle => {
-              // Tenta encontrar posição pelo IMEI ou ID do dispositivo
-              const position = positions.find(p => 
-                p.deviceId.toString() === vehicle.imei || 
-                p.deviceId.toString() === vehicle.id
-              );
-              
-              if (position) {
-                console.log('Atualizando veículo:', vehicle.plate, position);
-                return {
-                  ...vehicle,
-                  latitude: position.latitude,
-                  longitude: position.longitude,
-                  status: 'online',
-                  speed: position.speed || vehicle.speed || 0,
-                  velocidade: position.speed || vehicle.velocidade || 0,
-                  last_update: position.fixTime,
-                  address: position.address || vehicle.address
-                };
-              }
-              return vehicle;
-            })
-          );
+        // Login no Rastrosystem
+        const loginRes = await fetch('https://locaki.rastrosystem.com.br/api_v2/login/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ login: '54858795000100', senha: '123456', app: 9 })
+        });
+        
+        if (!loginRes.ok) {
+          console.error('Falha no login Rastrosystem');
+          return;
         }
+        
+        const login = await loginRes.json();
+        const token = login.token;
+        const cliente_id = login.cliente_id;
+
+        // Buscar veículos
+        const vRes = await fetch(`https://locaki.rastrosystem.com.br/api_v2/veiculos/${cliente_id}/`, {
+          method: 'GET',
+          headers: { 
+            'Authorization': `token ${token}`, 
+            'Content-Type': 'application/json' 
+          }
+        });
+        
+        if (!vRes.ok) {
+          console.error('Falha ao buscar veículos no Rastrosystem');
+          return;
+        }
+        
+        const vJson = await vRes.json();
+        const dispositivos = vJson.dispositivos || vJson || [];
+        
+        console.log(`Atualizando ${dispositivos.length} veículos do Rastrosystem`);
+        
+        setVehicles(prevVehicles => 
+          prevVehicles.map(vehicle => {
+            // Encontra o dispositivo correspondente pela placa ou IMEI
+            const device = dispositivos.find((d: any) => 
+              d.placa === vehicle.plate || 
+              d.imei === vehicle.imei ||
+              d.unique_id === vehicle.imei
+            );
+            
+            if (device && device.latitude && device.longitude) {
+              console.log(`Atualizando ${vehicle.plate}:`, {
+                lat: device.latitude,
+                lng: device.longitude,
+                speed: device.speed || device.velocidade || 0
+              });
+              
+              return {
+                ...vehicle,
+                latitude: typeof device.latitude === 'number' ? device.latitude : Number(device.latitude),
+                longitude: typeof device.longitude === 'number' ? device.longitude : Number(device.longitude),
+                status: device.status ? 'online' : 'offline',
+                speed: device.speed || device.velocidade || 0,
+                velocidade: device.velocidade || device.speed || 0,
+                last_update: device.server_time || device.time,
+                address: device.address || vehicle.address
+              };
+            }
+            return vehicle;
+          })
+        );
       } catch (error) {
-        console.error('Erro ao atualizar posições:', error);
+        console.error('Erro ao atualizar posições do Rastrosystem:', error);
       }
     };
 
     // Atualiza a cada 30 segundos
-    const interval = setInterval(updatePositions, 30000);
+    const interval = setInterval(updatePositionsFromRastrosystem, 30000);
 
     return () => clearInterval(interval);
-  }, [user, fetchLocation]);
+  }, [user]);
 
   const fetchVehicles = async () => {
     if (!user?.id) {
