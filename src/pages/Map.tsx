@@ -122,8 +122,8 @@ const Map = () => {
       }
     };
 
-    // Atualiza a cada 30 segundos
-    const interval = setInterval(updatePositionsFromRastrosystem, 30000);
+    // Atualiza a cada 15 segundos
+    const interval = setInterval(updatePositionsFromRastrosystem, 15000);
 
     return () => clearInterval(interval);
   }, [user]);
