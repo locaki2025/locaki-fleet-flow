@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { GoogleMap, LoadScript, Marker, InfoWindow } from '@react-google-maps/api';
 import { supabase } from '@/integrations/supabase/client';
 import { Car } from 'lucide-react';
@@ -41,7 +41,8 @@ const GoogleMapComponent = ({ vehicles }: GoogleMapComponentProps) => {
   const [inputKey, setInputKey] = useState<string>('');
   const [isConfiguring, setIsConfiguring] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
-  const [mapCenter, setMapCenter] = useState(defaultCenter);
+const [mapCenter, setMapCenter] = useState(defaultCenter);
+const mapRef = useRef<google.maps.Map | null>(null);
 
 
   useEffect(() => {
@@ -127,26 +128,43 @@ const GoogleMapComponent = ({ vehicles }: GoogleMapComponentProps) => {
     }
   };
 
-  useEffect(() => {
-    // Encontra o primeiro veículo com coordenadas válidas
-    const vehicleWithLocation = vehicles.find(v => 
-      v.latitude != null && 
-      v.longitude != null && 
-      !isNaN(v.latitude) && 
-      !isNaN(v.longitude)
-    );
-    
-    if (vehicleWithLocation) {
-      console.log('Centralizando mapa no veículo:', vehicleWithLocation.plate, {
-        lat: vehicleWithLocation.latitude,
-        lng: vehicleWithLocation.longitude
-      });
-      setMapCenter({
-        lat: Number(vehicleWithLocation.latitude),
-        lng: Number(vehicleWithLocation.longitude),
-      });
-    }
+  // Normaliza coordenadas (suporta vírgula decimal) e pré-filtra veículos válidos
+  const parseCoord = (val: any): number | null => {
+    if (val == null) return null;
+    const str = typeof val === 'string' ? val.replace(',', '.') : val;
+    const num = Number(str);
+    return Number.isFinite(num) ? num : null;
+  };
+
+  const validVehicles = useMemo(() => {
+    const mapped = vehicles.map((v: any) => ({
+      ...v,
+      latitude: parseCoord(v.latitude),
+      longitude: parseCoord(v.longitude),
+    }));
+    return mapped.filter((v: any) => v.latitude != null && v.longitude != null);
   }, [vehicles]);
+
+  // Centraliza no primeiro veículo válido
+  useEffect(() => {
+    const first = validVehicles[0];
+    if (first) {
+      console.log('Centralizando mapa no veículo:', first.plate, { lat: first.latitude, lng: first.longitude });
+      setMapCenter({ lat: Number(first.latitude), lng: Number(first.longitude) });
+    }
+  }, [validVehicles]);
+
+  // Ajusta bounds para mostrar todos os veículos válidos
+  useEffect(() => {
+    if (!mapRef.current || validVehicles.length === 0) return;
+    const bounds = new google.maps.LatLngBounds();
+    validVehicles.forEach((v: any) => bounds.extend({ lat: Number(v.latitude), lng: Number(v.longitude) }));
+    try {
+      mapRef.current.fitBounds(bounds, 64);
+    } catch (e) {
+      console.warn('Não foi possível ajustar bounds do mapa:', e);
+    }
+  }, [validVehicles]);
 
   const getMarkerIcon = (status: string) => {
     const color = status === 'online' ? '#22c55e' : '#ef4444';
@@ -220,7 +238,7 @@ const GoogleMapComponent = ({ vehicles }: GoogleMapComponentProps) => {
         mapContainerStyle={containerStyle}
         center={mapCenter}
         zoom={13}
-        onLoad={() => console.log('Mapa carregado, centro:', mapCenter, 'veículos:', vehicles.length)}
+        onLoad={(map) => { mapRef.current = map; console.log('Mapa carregado, centro:', mapCenter, 'veículos válidos:', validVehicles.length); }}
         options={{
           zoomControl: true,
           streetViewControl: false,
@@ -228,18 +246,7 @@ const GoogleMapComponent = ({ vehicles }: GoogleMapComponentProps) => {
           fullscreenControl: true,
         }}
       >
-        {vehicles.map((vehicle) => {
-          const hasValidCoordinates = 
-            vehicle.latitude != null && 
-            vehicle.longitude != null && 
-            !isNaN(Number(vehicle.latitude)) && 
-            !isNaN(Number(vehicle.longitude));
-          
-          if (!hasValidCoordinates) {
-            console.log('Veículo sem coordenadas válidas:', vehicle.plate, vehicle);
-            return null;
-          }
-
+        {validVehicles.map((vehicle: any) => {
           console.log('Renderizando marcador para:', vehicle.plate, {
             lat: Number(vehicle.latitude),
             lng: Number(vehicle.longitude)
