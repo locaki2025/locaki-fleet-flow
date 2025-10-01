@@ -66,6 +66,7 @@ const GoogleMapComponent = ({ vehicles }: GoogleMapComponentProps) => {
   const [inputKey, setInputKey] = useState<string>('');
   const [isConfiguring, setIsConfiguring] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
+  const [mapCenter, setMapCenter] = useState(defaultCenter);
   const mapRef = useRef<google.maps.Map | null>(null);
   const markersRef = useRef<Map<string, google.maps.Marker>>(new Map());
   const hasFittedBoundsRef = useRef(false);
@@ -247,8 +248,17 @@ const GoogleMapComponent = ({ vehicles }: GoogleMapComponentProps) => {
         mapContainerStyle={containerStyle}
         onLoad={(map) => {
           mapRef.current = map;
-          map.setCenter(defaultCenter);
+          map.setCenter(mapCenter);
           map.setZoom(13);
+          
+          // Atualiza o centro quando o usuário move o mapa
+          map.addListener('center_changed', () => {
+            const center = map.getCenter();
+            if (center) {
+              setMapCenter({ lat: center.lat(), lng: center.lng() });
+            }
+          });
+          
           console.log('Mapa carregado');
         }}
         options={{
