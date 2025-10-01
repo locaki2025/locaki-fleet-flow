@@ -259,7 +259,7 @@ const mapRef = useRef<google.maps.Map | null>(null);
                 lat: Number(vehicle.latitude),
                 lng: Number(vehicle.longitude),
               }}
-              icon={getMarkerIcon(vehicle.status)}
+              
               onClick={() => setSelectedVehicle(vehicle)}
               title={`${vehicle.brand} ${vehicle.model} - ${vehicle.plate}`}
             />

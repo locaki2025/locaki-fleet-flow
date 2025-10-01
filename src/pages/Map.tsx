@@ -204,7 +204,7 @@ const Map = () => {
       if (!user?.id) return;
 
       const validCount = vehicles.filter(v => v.latitude != null && v.longitude != null && !isNaN(Number(v.latitude)) && !isNaN(Number(v.longitude))).length;
-      if (vehicles.length > 0 && validCount === 0) {
+      if (validCount === 0) {
         fallbackTriedRef.current = true;
         try {
           console.log('Tentando fallback Rastrosystem para obter posições...');
