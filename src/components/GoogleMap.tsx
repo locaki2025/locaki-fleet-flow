@@ -105,6 +105,8 @@ const GoogleMapComponent = ({ vehicles }: GoogleMapComponentProps) => {
           config_key: CONFIG_KEY,
           config_value: inputKey,
           user_id: user.id
+        }, {
+          onConflict: 'user_id,config_key'
         });
 
       if (error) throw error;
