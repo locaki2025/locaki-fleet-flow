@@ -29,8 +29,8 @@ const containerStyle = {
 };
 
 const defaultCenter = {
-  lat: -15.7939,
-  lng: -47.8828, // Brasília - Brasil
+  lat: -23.5505,
+  lng: -46.6333, // São Paulo - Brasil
 };
 
 const CONFIG_KEY = 'google_maps_api_key';
@@ -128,10 +128,22 @@ const GoogleMapComponent = ({ vehicles }: GoogleMapComponentProps) => {
   };
 
   useEffect(() => {
-    if (vehicles.length > 0 && vehicles[0].latitude && vehicles[0].longitude) {
+    // Encontra o primeiro veículo com coordenadas válidas
+    const vehicleWithLocation = vehicles.find(v => 
+      v.latitude != null && 
+      v.longitude != null && 
+      !isNaN(v.latitude) && 
+      !isNaN(v.longitude)
+    );
+    
+    if (vehicleWithLocation) {
+      console.log('Centralizando mapa no veículo:', vehicleWithLocation.plate, {
+        lat: vehicleWithLocation.latitude,
+        lng: vehicleWithLocation.longitude
+      });
       setMapCenter({
-        lat: vehicles[0].latitude,
-        lng: vehicles[0].longitude,
+        lat: Number(vehicleWithLocation.latitude),
+        lng: Number(vehicleWithLocation.longitude),
       });
     }
   }, [vehicles]);
@@ -215,20 +227,36 @@ const GoogleMapComponent = ({ vehicles }: GoogleMapComponentProps) => {
           fullscreenControl: true,
         }}
       >
-        {vehicles.map((vehicle) => (
-          vehicle.latitude && vehicle.longitude && (
+        {vehicles.map((vehicle) => {
+          const hasValidCoordinates = 
+            vehicle.latitude != null && 
+            vehicle.longitude != null && 
+            !isNaN(Number(vehicle.latitude)) && 
+            !isNaN(Number(vehicle.longitude));
+          
+          if (!hasValidCoordinates) {
+            console.log('Veículo sem coordenadas válidas:', vehicle.plate, vehicle);
+            return null;
+          }
+
+          console.log('Renderizando marcador para:', vehicle.plate, {
+            lat: Number(vehicle.latitude),
+            lng: Number(vehicle.longitude)
+          });
+
+          return (
             <Marker
               key={vehicle.id}
               position={{
-                lat: vehicle.latitude,
-                lng: vehicle.longitude,
+                lat: Number(vehicle.latitude),
+                lng: Number(vehicle.longitude),
               }}
               icon={getMarkerIcon(vehicle.status)}
               onClick={() => setSelectedVehicle(vehicle)}
               title={`${vehicle.brand} ${vehicle.model} - ${vehicle.plate}`}
             />
-          )
-        ))}
+          );
+        })}
 
         {selectedVehicle && (
           <InfoWindow

@@ -43,12 +43,19 @@ const Map = () => {
     const updatePositions = async () => {
       try {
         const positions = await fetchLocation();
+        console.log('Posições recebidas do Traccar:', positions);
         
         if (positions.length > 0) {
           setVehicles(prevVehicles => 
             prevVehicles.map(vehicle => {
-              const position = positions.find(p => p.deviceId.toString() === vehicle.id);
+              // Tenta encontrar posição pelo IMEI ou ID do dispositivo
+              const position = positions.find(p => 
+                p.deviceId.toString() === vehicle.imei || 
+                p.deviceId.toString() === vehicle.id
+              );
+              
               if (position) {
+                console.log('Atualizando veículo:', vehicle.plate, position);
                 return {
                   ...vehicle,
                   latitude: position.latitude,
@@ -126,34 +133,36 @@ const Map = () => {
         // Map devices to vehicle format expected by GoogleMapComponent
         const mappedVehicles = updatedDevices.map(device => ({
           id: device.id,
+          imei: device.imei,
           plate: device.vehicle_plate,
           brand: device.name.split(' ')[0] || 'Veículo',
           model: device.name,
-          latitude: device.latitude,
-          longitude: device.longitude,
-          status: device.status,
+          latitude: device.latitude ? Number(device.latitude) : null,
+          longitude: device.longitude ? Number(device.longitude) : null,
+          status: device.status === 'online' ? 'online' : 'offline',
           last_update: device.last_update,
           address: device.address
         }));
         
         setVehicles(mappedVehicles);
-        console.log('Map vehicles loaded successfully:', mappedVehicles.length);
+        console.log('Map vehicles loaded successfully:', mappedVehicles.length, mappedVehicles);
       } else {
         // Use fallback data
         const mappedDevices = (devicesData || []).map(device => ({
           id: device.id,
+          imei: device.imei,
           plate: device.vehicle_plate,
           brand: device.name.split(' ')[0] || 'Veículo',
           model: device.name,
-          latitude: device.latitude,
-          longitude: device.longitude,
-          status: device.status,
+          latitude: device.latitude ? Number(device.latitude) : null,
+          longitude: device.longitude ? Number(device.longitude) : null,
+          status: device.status === 'online' ? 'online' : 'offline',
           last_update: device.last_update,
           address: device.address
         }));
         
         setVehicles(mappedDevices);
-        console.log('Using fallback vehicles data:', mappedDevices.length);
+        console.log('Using fallback vehicles data:', mappedDevices.length, mappedDevices);
       }
       
     } catch (error) {
