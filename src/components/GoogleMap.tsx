@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useMemo } from 'react';
+import { useEffect, useState, useRef, useMemo, memo } from 'react';
 import { GoogleMap, LoadScript, Marker, InfoWindow } from '@react-google-maps/api';
 import { supabase } from '@/integrations/supabase/client';
 import { Car } from 'lucide-react';
@@ -154,13 +154,15 @@ const mapRef = useRef<google.maps.Map | null>(null);
     }
   }, [validVehicles]);
 
-  // Ajusta bounds para mostrar todos os veículos válidos
+  // Ajusta bounds para mostrar todos os veículos válidos apenas na primeira vez
+  const boundsAdjustedRef = useRef(false);
   useEffect(() => {
-    if (!mapRef.current || validVehicles.length === 0) return;
+    if (!mapRef.current || validVehicles.length === 0 || boundsAdjustedRef.current) return;
     const bounds = new google.maps.LatLngBounds();
     validVehicles.forEach((v: any) => bounds.extend({ lat: Number(v.latitude), lng: Number(v.longitude) }));
     try {
       mapRef.current.fitBounds(bounds, 64);
+      boundsAdjustedRef.current = true;
     } catch (e) {
       console.warn('Não foi possível ajustar bounds do mapa:', e);
     }
@@ -287,4 +289,18 @@ const mapRef = useRef<google.maps.Map | null>(null);
   );
 };
 
-export default GoogleMapComponent;
+// Memoiza o componente para evitar re-renders desnecessários
+export default memo(GoogleMapComponent, (prevProps, nextProps) => {
+  // Só re-renderiza se os veículos mudaram de verdade (posição, status, etc)
+  if (prevProps.vehicles.length !== nextProps.vehicles.length) return false;
+  
+  return prevProps.vehicles.every((prevVehicle, index) => {
+    const nextVehicle = nextProps.vehicles[index];
+    return (
+      prevVehicle.id === nextVehicle.id &&
+      prevVehicle.latitude === nextVehicle.latitude &&
+      prevVehicle.longitude === nextVehicle.longitude &&
+      prevVehicle.status === nextVehicle.status
+    );
+  });
+});
