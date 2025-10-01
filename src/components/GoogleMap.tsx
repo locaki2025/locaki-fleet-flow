@@ -220,6 +220,7 @@ const GoogleMapComponent = ({ vehicles }: GoogleMapComponentProps) => {
         mapContainerStyle={containerStyle}
         center={mapCenter}
         zoom={13}
+        onLoad={() => console.log('Mapa carregado, centro:', mapCenter, 'veículos:', vehicles.length)}
         options={{
           zoomControl: true,
           streetViewControl: false,

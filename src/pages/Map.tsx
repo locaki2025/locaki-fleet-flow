@@ -130,23 +130,37 @@ const Map = () => {
         .eq('user_id', user.id);
         
       if (!updatedError && updatedDevices) {
+        console.log('Dispositivos recebidos do banco:', updatedDevices);
+        
         // Map devices to vehicle format expected by GoogleMapComponent
-        const mappedVehicles = updatedDevices.map(device => ({
-          id: device.id,
-          imei: device.imei,
-          plate: device.vehicle_plate,
-          brand: device.name.split(' ')[0] || 'Veículo',
-          model: device.name,
-          latitude: device.latitude ? Number(device.latitude) : null,
-          longitude: device.longitude ? Number(device.longitude) : null,
-          status: device.status === 'online' ? 'online' : 'offline',
-          last_update: device.last_update,
-          address: device.address
-        }));
+        const mappedVehicles = updatedDevices.map(device => {
+          console.log('Processando device:', {
+            plate: device.vehicle_plate,
+            lat: device.latitude,
+            lng: device.longitude,
+            status: device.status
+          });
+          
+          return {
+            id: device.id,
+            imei: device.imei,
+            plate: device.vehicle_plate,
+            brand: device.name.split(' ')[0] || 'Veículo',
+            model: device.name,
+            latitude: device.latitude ? Number(device.latitude) : null,
+            longitude: device.longitude ? Number(device.longitude) : null,
+            status: device.status === 'online' ? 'online' : 'offline',
+            last_update: device.last_update,
+            address: device.address
+          };
+        });
+        
+        console.log('Veículos mapeados para o mapa:', mappedVehicles);
+        console.log('Veículos com coordenadas válidas:', mappedVehicles.filter(v => v.latitude && v.longitude).length);
         
         setVehicles(mappedVehicles);
-        console.log('Map vehicles loaded successfully:', mappedVehicles.length, mappedVehicles);
       } else {
+        console.log('Usando dados de fallback, dispositivos:', devicesData);
         // Use fallback data
         const mappedDevices = (devicesData || []).map(device => ({
           id: device.id,
@@ -162,7 +176,7 @@ const Map = () => {
         }));
         
         setVehicles(mappedDevices);
-        console.log('Using fallback vehicles data:', mappedDevices.length, mappedDevices);
+        console.log('Veículos de fallback:', mappedDevices);
       }
       
     } catch (error) {
