@@ -37,10 +37,18 @@ const Map = () => {
   }, [user]);
 
   // Atualização em tempo real das posições
+  const hasVehiclesRef = useRef(false);
+  
   useEffect(() => {
-    if (!user || vehicles.length === 0) return;
+    hasVehiclesRef.current = vehicles.length > 0;
+  }, [vehicles.length]);
+
+  useEffect(() => {
+    if (!user) return;
 
     const updatePositions = async () => {
+      if (!hasVehiclesRef.current) return;
+      
       try {
         const positions = await fetchLocation();
         console.log('Posições recebidas do Traccar:', positions);
@@ -61,6 +69,8 @@ const Map = () => {
                   latitude: position.latitude,
                   longitude: position.longitude,
                   status: 'online',
+                  speed: position.speed || vehicle.speed || 0,
+                  velocidade: position.speed || vehicle.velocidade || 0,
                   last_update: position.fixTime,
                   address: position.address || vehicle.address
                 };
@@ -74,14 +84,11 @@ const Map = () => {
       }
     };
 
-    // Atualiza imediatamente
-    updatePositions();
-
     // Atualiza a cada 30 segundos
     const interval = setInterval(updatePositions, 30000);
 
     return () => clearInterval(interval);
-  }, [user, vehicles.length, fetchLocation]);
+  }, [user, fetchLocation]);
 
   const fetchVehicles = async () => {
     if (!user?.id) {
