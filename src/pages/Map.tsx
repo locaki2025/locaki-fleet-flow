@@ -14,7 +14,7 @@ import {
   RefreshCw,
   Settings
 } from "lucide-react";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -194,6 +194,62 @@ const Map = () => {
   const vehiclesWithLocation = vehicles.filter(v => v.latitude && v.longitude);
   const onlineVehicles = vehicles.filter(v => v.status === 'online').length;
   const offlineVehicles = vehicles.length - onlineVehicles;
+
+  // Fallback: se não houver coordenadas no banco, busca diretamente no Rastrosystem
+  const fallbackTriedRef = useRef(false);
+  useEffect(() => {
+    const tryFallback = async () => {
+      if (fallbackTriedRef.current) return;
+      if (loading) return;
+      if (!user?.id) return;
+
+      const validCount = vehicles.filter(v => v.latitude != null && v.longitude != null && !isNaN(Number(v.latitude)) && !isNaN(Number(v.longitude))).length;
+      if (vehicles.length > 0 && validCount === 0) {
+        fallbackTriedRef.current = true;
+        try {
+          console.log('Tentando fallback Rastrosystem para obter posições...');
+          const loginRes = await fetch('https://locaki.rastrosystem.com.br/api_v2/login/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ login: '54858795000100', senha: '123456', app: 9 })
+          });
+          if (!loginRes.ok) throw new Error('Falha no login Rastrosystem');
+          const login = await loginRes.json();
+          const token = login.token;
+          const cliente_id = login.cliente_id;
+
+          const vRes = await fetch(`https://locaki.rastrosystem.com.br/api_v2/veiculos/${cliente_id}/`, {
+            method: 'GET',
+            headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' }
+          });
+          if (!vRes.ok) throw new Error('Falha ao buscar veículos no Rastrosystem');
+          const vJson = await vRes.json();
+          const dispositivos = vJson.dispositivos || vJson || [];
+          const mapped = dispositivos.map((d: any) => ({
+            id: d.unique_id || String(d.id),
+            imei: d.imei || d.unique_id,
+            plate: d.placa || d.name || 'Sem placa',
+            brand: d.modelo ? String(d.modelo).split(' ')[0] : (d.name?.split(' ')[0] || 'Veículo'),
+            model: d.name || d.modelo || 'Dispositivo',
+            latitude: typeof d.latitude === 'number' ? d.latitude : Number(d.latitude),
+            longitude: typeof d.longitude === 'number' ? d.longitude : Number(d.longitude),
+            status: d.status ? 'online' : 'offline',
+            last_update: d.server_time || d.time,
+            address: d.address || null
+          })).filter((v: any) => !isNaN(Number(v.latitude)) && !isNaN(Number(v.longitude)));
+
+          console.log('Fallback Rastrosystem mapeou veículos:', mapped.length, mapped);
+          if (mapped.length > 0) {
+            setVehicles(mapped);
+          }
+        } catch (err) {
+          console.error('Fallback Rastrosystem falhou:', err);
+        }
+      }
+    };
+
+    tryFallback();
+  }, [vehicles, loading, user?.id]);
 
   return (
     <div className="p-6 space-y-6">
