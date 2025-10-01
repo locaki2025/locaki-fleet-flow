@@ -66,7 +66,6 @@ const GoogleMapComponent = ({ vehicles }: GoogleMapComponentProps) => {
   const [inputKey, setInputKey] = useState<string>('');
   const [isConfiguring, setIsConfiguring] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
-  const [mapCenter] = useState(defaultCenter);
   const mapRef = useRef<google.maps.Map | null>(null);
   const markersRef = useRef<Map<string, google.maps.Marker>>(new Map());
   const hasFittedBoundsRef = useRef(false);
@@ -246,7 +245,7 @@ const GoogleMapComponent = ({ vehicles }: GoogleMapComponentProps) => {
     <LoadScript googleMapsApiKey={apiKey}>
       <GoogleMap
         mapContainerStyle={containerStyle}
-        center={mapCenter}
+        center={defaultCenter}
         zoom={13}
         onLoad={(map) => { 
           mapRef.current = map; 
@@ -257,6 +256,7 @@ const GoogleMapComponent = ({ vehicles }: GoogleMapComponentProps) => {
           streetViewControl: false,
           mapTypeControl: true,
           fullscreenControl: true,
+          gestureHandling: 'greedy', // Permite movimentação livre do mapa
         }}
       >
         {selectedVehicle && (
