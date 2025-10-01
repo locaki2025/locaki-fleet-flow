@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useMemo } from 'react';
-import { GoogleMap, LoadScript, InfoWindow } from '@react-google-maps/api';
+import { GoogleMap, LoadScript, Marker, InfoWindow } from '@react-google-maps/api';
 import { supabase } from '@/integrations/supabase/client';
 import { Car } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -16,7 +16,6 @@ interface Vehicle {
   status: string;
   last_update: string;
   address?: string;
-  speed?: number;
 }
 
 interface GoogleMapComponentProps {
@@ -31,41 +30,48 @@ const containerStyle = {
 
 const defaultCenter = {
   lat: -23.5505,
-  lng: -46.6333, // São Paulo
+  lng: -46.6333, // São Paulo - Brasil
 };
 
 const CONFIG_KEY = 'google_maps_api_key';
 
+// Função estável para gerar ícone do marcador
+const getMarkerIcon = (vehicle: any) => {
+  let color = '#ef4444'; // Vermelho para offline (padrão)
+  
+  // Verifica se está online
+  if (vehicle.status === 'online' || vehicle.status === true) {
+    // Verifica se está em movimento (velocidade > 0)
+    const speed = Number(vehicle.speed || vehicle.velocidade || 0);
+    if (speed > 0) {
+      color = '#3b82f6'; // Azul para em movimento
+    } else {
+      color = '#22c55e'; // Verde para online parado
+    }
+  }
+  
+  return {
+    path: google.maps.SymbolPath.CIRCLE,
+    fillColor: color,
+    fillOpacity: 1,
+    strokeWeight: 3,
+    strokeColor: '#ffffff',
+    scale: 8,
+  };
+};
+
 const GoogleMapComponent = ({ vehicles }: GoogleMapComponentProps) => {
   const { toast } = useToast();
-  const [apiKey, setApiKey] = useState('');
-  const [inputKey, setInputKey] = useState('');
+  const [apiKey, setApiKey] = useState<string>('');
+  const [inputKey, setInputKey] = useState<string>('');
   const [isConfiguring, setIsConfiguring] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
-
+  const [mapCenter] = useState(defaultCenter);
   const mapRef = useRef<google.maps.Map | null>(null);
   const markersRef = useRef<Map<string, google.maps.Marker>>(new Map());
-  const hasFittedBounds = useRef(false);
+  const hasFittedBoundsRef = useRef(false);
 
-  // Função auxiliar para parsear coordenadas
-  const parseCoord = (val: any): number | null => {
-    if (val == null) return null;
-    const str = typeof val === 'string' ? val.replace(',', '.') : val;
-    const num = Number(str);
-    return Number.isFinite(num) ? num : null;
-  };
 
-  // Filtra e normaliza veículos válidos
-  const validVehicles = useMemo(() => {
-    const mapped = vehicles.map((v) => ({
-      ...v,
-      latitude: parseCoord(v.latitude),
-      longitude: parseCoord(v.longitude),
-    }));
-    return mapped.filter((v) => v.latitude != null && v.longitude != null);
-  }, [vehicles]);
-
-  // Carrega a API key do Supabase
   useEffect(() => {
     const loadApiKey = async () => {
       try {
@@ -75,15 +81,22 @@ const GoogleMapComponent = ({ vehicles }: GoogleMapComponentProps) => {
           .eq('config_key', CONFIG_KEY)
           .maybeSingle();
 
-        if (error) return console.error('Erro carregando chave API:', error);
+        if (error) {
+          console.error('Error loading API key:', error);
+          return;
+        }
 
         if (data?.config_value) {
-          setApiKey(String(data.config_value));
+          const key = typeof data.config_value === 'string' 
+            ? data.config_value 
+            : String(data.config_value);
+          setApiKey(key);
+          console.log('Google Maps API key loaded successfully');
         } else {
           setIsConfiguring(true);
         }
       } catch (error) {
-        console.error('Erro carregando chave API:', error);
+        console.error('Error loading API key:', error);
         setIsConfiguring(true);
       }
     };
@@ -91,24 +104,27 @@ const GoogleMapComponent = ({ vehicles }: GoogleMapComponentProps) => {
     loadApiKey();
   }, []);
 
-  // Salva a chave de API no Supabase
   const saveApiKey = async () => {
     if (!inputKey.trim()) {
-      return toast({
+      toast({
         title: "Erro",
         description: "Por favor, insira uma chave de API válida",
         variant: "destructive",
       });
+      return;
     }
 
     try {
+      // Get the current user first
       const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
       if (userError || !user) {
-        return toast({
+        toast({
           title: "Erro",
           description: "Você precisa estar autenticado para salvar a configuração",
           variant: "destructive",
         });
+        return;
       }
 
       const { error } = await supabase
@@ -127,25 +143,42 @@ const GoogleMapComponent = ({ vehicles }: GoogleMapComponentProps) => {
       setIsConfiguring(false);
       toast({
         title: "Sucesso",
-        description: "Chave da API salva com sucesso",
+        description: "Chave da API do Google Maps configurada com sucesso",
       });
     } catch (error) {
-      console.error('Erro salvando chave API:', error);
+      console.error('Error saving API key:', error);
       toast({
         title: "Erro",
-        description: "Erro ao salvar chave da API",
+        description: "Não foi possível salvar a chave da API",
         variant: "destructive",
       });
     }
   };
 
-  // Atualiza/Cria marcadores dinamicamente
+  // Normaliza coordenadas (suporta vírgula decimal) e pré-filtra veículos válidos
+  const parseCoord = (val: any): number | null => {
+    if (val == null) return null;
+    const str = typeof val === 'string' ? val.replace(',', '.') : val;
+    const num = Number(str);
+    return Number.isFinite(num) ? num : null;
+  };
+
+  const validVehicles = useMemo(() => {
+    const mapped = vehicles.map((v: any) => ({
+      ...v,
+      latitude: parseCoord(v.latitude),
+      longitude: parseCoord(v.longitude),
+    }));
+    return mapped.filter((v: any) => v.latitude != null && v.longitude != null);
+  }, [vehicles]);
+
+  // Atualiza marcadores existentes ou cria novos sem recarregar o mapa
   useEffect(() => {
     if (!mapRef.current || !window.google) return;
 
     const currentVehicleIds = new Set(validVehicles.map(v => v.id));
-
-    // Remove marcadores antigos
+    
+    // Remove marcadores de veículos que não existem mais
     markersRef.current.forEach((marker, id) => {
       if (!currentVehicleIds.has(id)) {
         marker.setMap(null);
@@ -154,83 +187,55 @@ const GoogleMapComponent = ({ vehicles }: GoogleMapComponentProps) => {
     });
 
     // Atualiza ou cria marcadores
-    validVehicles.forEach(vehicle => {
+    validVehicles.forEach((vehicle: any) => {
+      const existingMarker = markersRef.current.get(vehicle.id);
       const position = { lat: Number(vehicle.latitude), lng: Number(vehicle.longitude) };
       const icon = getMarkerIcon(vehicle);
 
-      const existing = markersRef.current.get(vehicle.id);
-      if (existing) {
-        existing.setPosition(position);
-        existing.setIcon(icon);
+      if (existingMarker) {
+        // Apenas atualiza a posição e ícone do marcador existente
+        existingMarker.setPosition(position);
+        existingMarker.setIcon(icon);
       } else {
+        // Cria novo marcador
         const marker = new google.maps.Marker({
-          map: mapRef.current!,
           position,
+          map: mapRef.current,
           icon,
           title: `${vehicle.brand} ${vehicle.model} - ${vehicle.plate}`,
         });
 
-        marker.addListener('click', () => setSelectedVehicle(vehicle));
+        marker.addListener('click', () => {
+          setSelectedVehicle(vehicle);
+        });
+
         markersRef.current.set(vehicle.id, marker);
       }
     });
 
-    // Centraliza apenas na primeira vez
-    if (!hasFittedBounds.current && validVehicles.length > 0) {
+    // Ajusta bounds apenas no primeiro carregamento
+    if (!hasFittedBoundsRef.current && validVehicles.length > 0) {
       const bounds = new google.maps.LatLngBounds();
-      validVehicles.forEach((v) => {
-        bounds.extend({ lat: Number(v.latitude), lng: Number(v.longitude) });
-      });
+      validVehicles.forEach((v: any) => bounds.extend({ lat: Number(v.latitude), lng: Number(v.longitude) }));
       try {
         mapRef.current.fitBounds(bounds, 64);
-        hasFittedBounds.current = true;
+        hasFittedBoundsRef.current = true;
       } catch (e) {
-        console.warn('Erro ajustando bounds:', e);
+        console.warn('Não foi possível ajustar bounds do mapa:', e);
       }
     }
   }, [validVehicles]);
 
-  // Ícone do marcador de acordo com o status
-  const getMarkerIcon = (vehicle: Vehicle): google.maps.Symbol => {
-    let color = '#ef4444'; // offline
-
-    if (vehicle.status === 'online') {
-      const speed = Number(vehicle.speed || 0);
-      color = speed > 0 ? '#3b82f6' : '#22c55e'; // azul ou verde
-    }
-
-    return {
-      path: google.maps.SymbolPath.CIRCLE,
-      fillColor: color,
-      fillOpacity: 1,
-      strokeWeight: 3,
-      strokeColor: '#fff',
-      scale: 8,
-    };
-  };
-
-  if (isConfiguring) {
-    return (
-      <div className="h-96 flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <Car className="w-10 h-10 mx-auto text-primary" />
-          <p>Configure a chave da API do Google Maps:</p>
-          <Input
-            placeholder="Cole sua chave aqui"
-            value={inputKey}
-            onChange={(e) => setInputKey(e.target.value)}
-          />
-          <Button onClick={saveApiKey}>Salvar</Button>
-        </div>
-      </div>
-    );
-  }
-
   if (!apiKey) {
     return (
-      <div className="h-96 flex items-center justify-center">
-        <Car className="w-10 h-10 animate-pulse text-muted-foreground" />
-        <p>Carregando mapa...</p>
+      <div className="h-96 bg-muted/30 rounded-lg border-2 border-dashed border-muted-foreground/20 flex items-center justify-center">
+        <div className="text-center space-y-2">
+          <Car className="h-12 w-12 text-muted-foreground mx-auto animate-pulse" />
+          <p className="text-lg font-medium text-muted-foreground">Carregando mapa...</p>
+          <p className="text-sm text-muted-foreground">
+            Configurando Google Maps
+          </p>
+        </div>
       </div>
     );
   }
@@ -239,16 +244,17 @@ const GoogleMapComponent = ({ vehicles }: GoogleMapComponentProps) => {
     <LoadScript googleMapsApiKey={apiKey}>
       <GoogleMap
         mapContainerStyle={containerStyle}
-        center={defaultCenter}
+        center={mapCenter}
         zoom={13}
-        onLoad={(map) => {
-          mapRef.current = map;
+        onLoad={(map) => { 
+          mapRef.current = map; 
+          console.log('Mapa carregado'); 
         }}
         options={{
           zoomControl: true,
           streetViewControl: false,
-          mapTypeControl: false,
-          fullscreenControl: false,
+          mapTypeControl: true,
+          fullscreenControl: true,
         }}
       >
         {selectedVehicle && (
@@ -263,7 +269,39 @@ const GoogleMapComponent = ({ vehicles }: GoogleMapComponentProps) => {
               <h3 className="font-semibold text-sm mb-1">
                 {selectedVehicle.brand} {selectedVehicle.model}
               </h3>
-              <p className="text-xs font-mono text-gray-600">{selectedVehicle.plate}</p>
-              <p className="text-xs">
-                <span className="font-medium">Status:</span>{' '}
-               
+              <p className="text-xs text-gray-600 font-mono mb-2">
+                {selectedVehicle.plate}
+              </p>
+              <div className="space-y-1">
+                <p className="text-xs">
+                  <span className="font-medium">Status:</span>{' '}
+                  <span
+                    className={`${
+                      selectedVehicle.status === 'online'
+                        ? 'text-green-600'
+                        : 'text-red-600'
+                    }`}
+                  >
+                    {selectedVehicle.status === 'online' ? 'Online' : 'Offline'}
+                  </span>
+                </p>
+                <p className="text-xs">
+                  <span className="font-medium">Última atualização:</span>{' '}
+                  {new Date(selectedVehicle.last_update).toLocaleString('pt-BR')}
+                </p>
+                {selectedVehicle.address && (
+                  <p className="text-xs">
+                    <span className="font-medium">Endereço:</span>{' '}
+                    {selectedVehicle.address}
+                  </p>
+                )}
+              </div>
+            </div>
+          </InfoWindow>
+        )}
+      </GoogleMap>
+    </LoadScript>
+  );
+};
+
+export default GoogleMapComponent;
