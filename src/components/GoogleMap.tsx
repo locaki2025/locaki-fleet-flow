@@ -179,44 +179,6 @@ const mapRef = useRef<google.maps.Map | null>(null);
   };
 
 
-  if (isConfiguring) {
-    return (
-      <div className="h-96 bg-background rounded-lg border flex items-center justify-center p-8">
-        <div className="text-center space-y-4 max-w-md">
-          <Car className="h-12 w-12 text-primary mx-auto" />
-          <div>
-            <h3 className="text-lg font-semibold mb-2">Configure o Google Maps</h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              Para visualizar o mapa, você precisa configurar uma chave de API do Google Maps.
-            </p>
-            <p className="text-xs text-muted-foreground mb-4">
-              Obtenha sua chave em:{' '}
-              <a 
-                href="https://console.cloud.google.com/google/maps-apis" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-primary hover:underline"
-              >
-                Google Cloud Console
-              </a>
-            </p>
-          </div>
-          <div className="space-y-2">
-            <Input
-              type="text"
-              placeholder="Cole sua chave de API aqui"
-              value={inputKey}
-              onChange={(e) => setInputKey(e.target.value)}
-              className="w-full"
-            />
-            <Button onClick={saveApiKey} className="w-full">
-              Salvar Configuração
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   if (!apiKey) {
     return (
