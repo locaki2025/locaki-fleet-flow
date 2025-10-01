@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useMemo, memo } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { GoogleMap, LoadScript, Marker, InfoWindow } from '@react-google-maps/api';
 import { supabase } from '@/integrations/supabase/client';
 import { Car } from 'lucide-react';
@@ -41,8 +41,10 @@ const GoogleMapComponent = ({ vehicles }: GoogleMapComponentProps) => {
   const [inputKey, setInputKey] = useState<string>('');
   const [isConfiguring, setIsConfiguring] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
-const [mapCenter, setMapCenter] = useState(defaultCenter);
-const mapRef = useRef<google.maps.Map | null>(null);
+  const [mapCenter] = useState(defaultCenter);
+  const mapRef = useRef<google.maps.Map | null>(null);
+  const markersRef = useRef<Map<string, google.maps.Marker>>(new Map());
+  const [, forceUpdate] = useState({});
 
 
   useEffect(() => {
@@ -145,26 +147,56 @@ const mapRef = useRef<google.maps.Map | null>(null);
     return mapped.filter((v: any) => v.latitude != null && v.longitude != null);
   }, [vehicles]);
 
-  // Centraliza no primeiro veículo válido
+  // Atualiza marcadores existentes ou cria novos sem recarregar o mapa
   useEffect(() => {
-    const first = validVehicles[0];
-    if (first) {
-      console.log('Centralizando mapa no veículo:', first.plate, { lat: first.latitude, lng: first.longitude });
-      setMapCenter({ lat: Number(first.latitude), lng: Number(first.longitude) });
-    }
-  }, [validVehicles]);
+    if (!mapRef.current || !window.google) return;
 
-  // Ajusta bounds para mostrar todos os veículos válidos apenas na primeira vez
-  const boundsAdjustedRef = useRef(false);
-  useEffect(() => {
-    if (!mapRef.current || validVehicles.length === 0 || boundsAdjustedRef.current) return;
-    const bounds = new google.maps.LatLngBounds();
-    validVehicles.forEach((v: any) => bounds.extend({ lat: Number(v.latitude), lng: Number(v.longitude) }));
-    try {
-      mapRef.current.fitBounds(bounds, 64);
-      boundsAdjustedRef.current = true;
-    } catch (e) {
-      console.warn('Não foi possível ajustar bounds do mapa:', e);
+    const currentVehicleIds = new Set(validVehicles.map(v => v.id));
+    
+    // Remove marcadores de veículos que não existem mais
+    markersRef.current.forEach((marker, id) => {
+      if (!currentVehicleIds.has(id)) {
+        marker.setMap(null);
+        markersRef.current.delete(id);
+      }
+    });
+
+    // Atualiza ou cria marcadores
+    validVehicles.forEach((vehicle: any) => {
+      const existingMarker = markersRef.current.get(vehicle.id);
+      const position = { lat: Number(vehicle.latitude), lng: Number(vehicle.longitude) };
+      const icon = getMarkerIcon(vehicle);
+
+      if (existingMarker) {
+        // Apenas atualiza a posição e ícone do marcador existente
+        existingMarker.setPosition(position);
+        existingMarker.setIcon(icon);
+      } else {
+        // Cria novo marcador
+        const marker = new google.maps.Marker({
+          position,
+          map: mapRef.current,
+          icon,
+          title: `${vehicle.brand} ${vehicle.model} - ${vehicle.plate}`,
+        });
+
+        marker.addListener('click', () => {
+          setSelectedVehicle(vehicle);
+        });
+
+        markersRef.current.set(vehicle.id, marker);
+      }
+    });
+
+    // Ajusta bounds apenas na primeira vez
+    if (validVehicles.length > 0 && markersRef.current.size === validVehicles.length) {
+      const bounds = new google.maps.LatLngBounds();
+      validVehicles.forEach((v: any) => bounds.extend({ lat: Number(v.latitude), lng: Number(v.longitude) }));
+      try {
+        mapRef.current.fitBounds(bounds, 64);
+      } catch (e) {
+        console.warn('Não foi possível ajustar bounds do mapa:', e);
+      }
     }
   }, [validVehicles]);
 
@@ -214,7 +246,10 @@ const mapRef = useRef<google.maps.Map | null>(null);
         mapContainerStyle={containerStyle}
         center={mapCenter}
         zoom={13}
-        onLoad={(map) => { mapRef.current = map; console.log('Mapa carregado, centro:', mapCenter, 'veículos válidos:', validVehicles.length); }}
+        onLoad={(map) => { 
+          mapRef.current = map; 
+          console.log('Mapa carregado'); 
+        }}
         options={{
           zoomControl: true,
           streetViewControl: false,
@@ -222,26 +257,6 @@ const mapRef = useRef<google.maps.Map | null>(null);
           fullscreenControl: true,
         }}
       >
-        {validVehicles.map((vehicle: any) => {
-          console.log('Renderizando marcador para:', vehicle.plate, {
-            lat: Number(vehicle.latitude),
-            lng: Number(vehicle.longitude)
-          });
-
-          return (
-            <Marker
-              key={vehicle.id}
-              position={{
-                lat: Number(vehicle.latitude),
-                lng: Number(vehicle.longitude),
-              }}
-              icon={getMarkerIcon(vehicle)}
-              onClick={() => setSelectedVehicle(vehicle)}
-              title={`${vehicle.brand} ${vehicle.model} - ${vehicle.plate}`}
-            />
-          );
-        })}
-
         {selectedVehicle && (
           <InfoWindow
             position={{
@@ -289,18 +304,4 @@ const mapRef = useRef<google.maps.Map | null>(null);
   );
 };
 
-// Memoiza o componente para evitar re-renders desnecessários
-export default memo(GoogleMapComponent, (prevProps, nextProps) => {
-  // Só re-renderiza se os veículos mudaram de verdade (posição, status, etc)
-  if (prevProps.vehicles.length !== nextProps.vehicles.length) return false;
-  
-  return prevProps.vehicles.every((prevVehicle, index) => {
-    const nextVehicle = nextProps.vehicles[index];
-    return (
-      prevVehicle.id === nextVehicle.id &&
-      prevVehicle.latitude === nextVehicle.latitude &&
-      prevVehicle.longitude === nextVehicle.longitude &&
-      prevVehicle.status === nextVehicle.status
-    );
-  });
-});
+export default GoogleMapComponent;
