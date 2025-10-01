@@ -35,31 +35,6 @@ const defaultCenter = {
 
 const CONFIG_KEY = 'google_maps_api_key';
 
-// Função estável para ícones dos marcadores
-const getMarkerIcon = (vehicle: any) => {
-  let color = '#ef4444'; // Vermelho para offline (padrão)
-  
-  // Verifica se está online
-  if (vehicle.status === 'online' || vehicle.status === true) {
-    // Verifica se está em movimento (velocidade > 0)
-    const speed = Number(vehicle.speed || vehicle.velocidade || 0);
-    if (speed > 0) {
-      color = '#3b82f6'; // Azul para em movimento
-    } else {
-      color = '#22c55e'; // Verde para online parado
-    }
-  }
-  
-  return {
-    path: google.maps.SymbolPath.CIRCLE,
-    fillColor: color,
-    fillOpacity: 1,
-    strokeWeight: 3,
-    strokeColor: '#ffffff',
-    scale: 8,
-  };
-};
-
 const GoogleMapComponent = ({ vehicles }: GoogleMapComponentProps) => {
   const { toast } = useToast();
   const [apiKey, setApiKey] = useState<string>('');
@@ -171,6 +146,30 @@ const GoogleMapComponent = ({ vehicles }: GoogleMapComponentProps) => {
     }));
     return mapped.filter((v: any) => v.latitude != null && v.longitude != null);
   }, [vehicles]);
+
+  const getMarkerIcon = (vehicle: any) => {
+    let color = '#ef4444'; // Vermelho para offline (padrão)
+    
+    // Verifica se está online
+    if (vehicle.status === 'online' || vehicle.status === true) {
+      // Verifica se está em movimento (velocidade > 0)
+      const speed = Number(vehicle.speed || vehicle.velocidade || 0);
+      if (speed > 0) {
+        color = '#3b82f6'; // Azul para em movimento
+      } else {
+        color = '#22c55e'; // Verde para online parado
+      }
+    }
+    
+    return {
+      path: google.maps.SymbolPath.CIRCLE,
+      fillColor: color,
+      fillOpacity: 1,
+      strokeWeight: 3,
+      strokeColor: '#ffffff',
+      scale: 8,
+    };
+  };
 
   // Atualiza marcadores existentes ou cria novos sem recarregar o mapa
   useEffect(() => {
