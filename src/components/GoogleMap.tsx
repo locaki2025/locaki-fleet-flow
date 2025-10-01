@@ -166,15 +166,27 @@ const mapRef = useRef<google.maps.Map | null>(null);
     }
   }, [validVehicles]);
 
-  const getMarkerIcon = (status: string) => {
-    const color = status === 'online' ? '#22c55e' : '#ef4444';
+  const getMarkerIcon = (vehicle: any) => {
+    let color = '#ef4444'; // Vermelho para offline (padrão)
+    
+    // Verifica se está online
+    if (vehicle.status === 'online' || vehicle.status === true) {
+      // Verifica se está em movimento (velocidade > 0)
+      const speed = Number(vehicle.speed || vehicle.velocidade || 0);
+      if (speed > 0) {
+        color = '#3b82f6'; // Azul para em movimento
+      } else {
+        color = '#22c55e'; // Verde para online parado
+      }
+    }
+    
     return {
-      path: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z',
+      path: google.maps.SymbolPath.CIRCLE,
       fillColor: color,
       fillOpacity: 1,
-      strokeWeight: 2,
+      strokeWeight: 3,
       strokeColor: '#ffffff',
-      scale: 1.5,
+      scale: 8,
     };
   };
 
@@ -221,7 +233,7 @@ const mapRef = useRef<google.maps.Map | null>(null);
                 lat: Number(vehicle.latitude),
                 lng: Number(vehicle.longitude),
               }}
-              
+              icon={getMarkerIcon(vehicle)}
               onClick={() => setSelectedVehicle(vehicle)}
               title={`${vehicle.brand} ${vehicle.model} - ${vehicle.plate}`}
             />

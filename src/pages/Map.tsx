@@ -150,6 +150,8 @@ const Map = () => {
             latitude: device.latitude ? Number(device.latitude) : null,
             longitude: device.longitude ? Number(device.longitude) : null,
             status: device.status === 'online' ? 'online' : 'offline',
+            speed: (device as any).speed || 0,
+            velocidade: (device as any).velocidade || 0,
             last_update: device.last_update,
             address: device.address
           };
@@ -171,6 +173,8 @@ const Map = () => {
           latitude: device.latitude ? Number(device.latitude) : null,
           longitude: device.longitude ? Number(device.longitude) : null,
           status: device.status === 'online' ? 'online' : 'offline',
+          speed: (device as any).speed || 0,
+          velocidade: (device as any).velocidade || 0,
           last_update: device.last_update,
           address: device.address
         }));
@@ -234,6 +238,8 @@ const Map = () => {
             latitude: typeof d.latitude === 'number' ? d.latitude : Number(d.latitude),
             longitude: typeof d.longitude === 'number' ? d.longitude : Number(d.longitude),
             status: d.status ? 'online' : 'offline',
+            speed: d.speed || d.velocidade || 0,
+            velocidade: d.velocidade || d.speed || 0,
             last_update: d.server_time || d.time,
             address: d.address || null
           })).filter((v: any) => !isNaN(Number(v.latitude)) && !isNaN(Number(v.longitude)));
