@@ -14,12 +14,13 @@ import {
   RefreshCw,
   Settings
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import GoogleMapComponent from "@/components/GoogleMap";
 import RastrosystemConfigDialog from "@/components/RastrosystemConfigDialog";
+import { useMonitoramentoTraccar } from "@/hooks/useMonitoramentoTraccar";
 
 const Map = () => {
   const { user } = useAuth();
@@ -27,12 +28,53 @@ const Map = () => {
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showConfigDialog, setShowConfigDialog] = useState(false);
+  const { fetchLocation } = useMonitoramentoTraccar();
 
   useEffect(() => {
     if (user) {
       fetchVehicles();
     }
   }, [user]);
+
+  // Atualização em tempo real das posições
+  useEffect(() => {
+    if (!user || vehicles.length === 0) return;
+
+    const updatePositions = async () => {
+      try {
+        const positions = await fetchLocation();
+        
+        if (positions.length > 0) {
+          setVehicles(prevVehicles => 
+            prevVehicles.map(vehicle => {
+              const position = positions.find(p => p.deviceId.toString() === vehicle.id);
+              if (position) {
+                return {
+                  ...vehicle,
+                  latitude: position.latitude,
+                  longitude: position.longitude,
+                  status: 'online',
+                  last_update: position.fixTime,
+                  address: position.address || vehicle.address
+                };
+              }
+              return vehicle;
+            })
+          );
+        }
+      } catch (error) {
+        console.error('Erro ao atualizar posições:', error);
+      }
+    };
+
+    // Atualiza imediatamente
+    updatePositions();
+
+    // Atualiza a cada 30 segundos
+    const interval = setInterval(updatePositions, 30000);
+
+    return () => clearInterval(interval);
+  }, [user, vehicles.length, fetchLocation]);
 
   const fetchVehicles = async () => {
     if (!user?.id) {
