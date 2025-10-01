@@ -245,11 +245,11 @@ const GoogleMapComponent = ({ vehicles }: GoogleMapComponentProps) => {
     <LoadScript googleMapsApiKey={apiKey}>
       <GoogleMap
         mapContainerStyle={containerStyle}
-        center={defaultCenter}
-        zoom={13}
-        onLoad={(map) => { 
-          mapRef.current = map; 
-          console.log('Mapa carregado'); 
+        onLoad={(map) => {
+          mapRef.current = map;
+          map.setCenter(defaultCenter);
+          map.setZoom(13);
+          console.log('Mapa carregado');
         }}
         options={{
           zoomControl: true,
