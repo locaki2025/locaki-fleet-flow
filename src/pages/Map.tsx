@@ -283,8 +283,9 @@ const Map = () => {
   const filteredVehicles = vehicles.filter(v => {
     // Primeiro filtra pela placa se houver pesquisa
     if (searchPlate.trim()) {
-      const plateMatch = v.plate?.toLowerCase().includes(searchPlate.toLowerCase());
-      if (!plateMatch) return false;
+      const plate = (v.plate ?? '').toString().toLowerCase();
+      const term = searchPlate.trim().toLowerCase();
+      if (!plate.includes(term)) return false;
     }
     
     // Se nenhum filtro está ativo, mostra todos os veículos
