@@ -65,35 +65,29 @@ const ExtratoConta = () => {
     }
   }, [user, dataInicio, dataFim]);
 
-  // Auto sync with Cora every time page loads
-  useEffect(() => {
-    if (user) {
-      syncCoraTransactions();
-    }
-  }, [user]);
 
   const syncCoraTransactions = async () => {
     if (!user?.id) return;
     
+    // Get Cora configuration first
+    const { data: config, error: configError } = await supabase
+      .from('tenant_config')
+      .select('config_value')
+      .eq('user_id', user.id)
+      .eq('config_key', 'cora_settings')
+      .single();
+
+    if (configError || !config?.config_value) {
+      toast({
+        title: "Configuração necessária",
+        description: "Configure suas credenciais do Cora primeiro.",
+      });
+      setIsCoraConfigOpen(true);
+      return;
+    }
+    
     setSyncing(true);
     try {
-      // Get Cora configuration
-      const { data: config, error: configError } = await supabase
-        .from('tenant_config')
-        .select('config_value')
-        .eq('user_id', user.id)
-        .eq('config_key', 'cora_settings')
-        .single();
-
-      if (configError || !config?.config_value) {
-        toast({
-          title: "Configuração não encontrada",
-          description: "Configure suas credenciais do Cora para sincronizar as transações.",
-          variant: "destructive",
-        });
-        setIsCoraConfigOpen(true);
-        return;
-      }
 
       // Sync transactions for the current date range
       const { data, error } = await supabase.functions.invoke('cora-webhook', {
