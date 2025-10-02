@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,14 +9,35 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
+interface Customer {
+  id: string;
+  name: string;
+  type: string;
+  cpf_cnpj: string;
+  email: string;
+  phone: string;
+  street: string;
+  number: string;
+  city: string;
+  state: string;
+  zip_code: string;
+  observations?: string;
+  cnh_expiry_date?: string;
+  cnh_category?: string;
+  cnh_attachment_url?: string;
+}
+
 interface CustomerDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  customer?: Customer | null;
+  onCustomerUpdated?: () => void;
 }
 
-const CustomerDialog: React.FC<CustomerDialogProps> = ({ open, onOpenChange }) => {
+const CustomerDialog: React.FC<CustomerDialogProps> = ({ open, onOpenChange, customer, onCustomerUpdated }) => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const isEditing = !!customer;
   const [customerData, setCustomerData] = useState({
     name: "",
     type: "",
@@ -37,54 +58,27 @@ const CustomerDialog: React.FC<CustomerDialogProps> = ({ open, onOpenChange }) =
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!user) {
-      toast({
-        title: "Erro de autenticação",
-        description: "Você precisa estar logado para cadastrar clientes",
-        variant: "destructive"
+  useEffect(() => {
+    if (customer) {
+      setCustomerData({
+        name: customer.name || "",
+        type: customer.type || "",
+        cpfCnpj: customer.cpf_cnpj || "",
+        email: customer.email || "",
+        phone: customer.phone || "",
+        address: {
+          street: customer.street || "",
+          number: customer.number || "",
+          city: customer.city || "",
+          state: customer.state || "",
+          zipCode: customer.zip_code || ""
+        },
+        observations: customer.observations || "",
+        cnhExpiryDate: customer.cnh_expiry_date || "",
+        cnhCategory: customer.cnh_category || "",
+        cnhAttachmentUrl: customer.cnh_attachment_url || ""
       });
-      return;
-    }
-
-    setIsSubmitting(true);
-
-    try {
-      const { error } = await supabase
-        .from('customers')
-        .insert([
-          {
-            user_id: user.id,
-            name: customerData.name,
-            type: customerData.type,
-            cpf_cnpj: customerData.cpfCnpj,
-            email: customerData.email,
-            phone: customerData.phone,
-            street: customerData.address.street,
-            number: customerData.address.number,
-            city: customerData.address.city,
-            state: customerData.address.state,
-            zip_code: customerData.address.zipCode,
-            observations: customerData.observations,
-            cnh_expiry_date: customerData.cnhExpiryDate || null,
-            cnh_category: customerData.cnhCategory || null,
-            cnh_attachment_url: customerData.cnhAttachmentUrl || null
-          }
-        ]);
-
-      if (error) {
-        console.error('Supabase error creating customer:', error);
-        throw new Error(`Erro ao cadastrar cliente: ${error.message}`);
-      }
-
-      toast({
-        title: "Cliente cadastrado",
-        description: "Cliente cadastrado com sucesso!",
-      });
-      
-      // Reset form and close dialog
+    } else {
       setCustomerData({
         name: "",
         type: "",
@@ -103,13 +97,95 @@ const CustomerDialog: React.FC<CustomerDialogProps> = ({ open, onOpenChange }) =
         cnhCategory: "",
         cnhAttachmentUrl: ""
       });
+    }
+  }, [customer]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!user) {
+      toast({
+        title: "Erro de autenticação",
+        description: "Você precisa estar logado para cadastrar clientes",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      if (isEditing) {
+        const { error } = await supabase
+          .from('customers')
+          .update({
+            name: customerData.name,
+            type: customerData.type,
+            cpf_cnpj: customerData.cpfCnpj,
+            email: customerData.email,
+            phone: customerData.phone,
+            street: customerData.address.street,
+            number: customerData.address.number,
+            city: customerData.address.city,
+            state: customerData.address.state,
+            zip_code: customerData.address.zipCode,
+            observations: customerData.observations,
+            cnh_expiry_date: customerData.cnhExpiryDate || null,
+            cnh_category: customerData.cnhCategory || null,
+            cnh_attachment_url: customerData.cnhAttachmentUrl || null
+          })
+          .eq('id', customer?.id);
+
+        if (error) {
+          console.error('Supabase error updating customer:', error);
+          throw new Error(`Erro ao atualizar cliente: ${error.message}`);
+        }
+
+        toast({
+          title: "Cliente atualizado",
+          description: "Cliente atualizado com sucesso!",
+        });
+      } else {
+        const { error } = await supabase
+          .from('customers')
+          .insert([
+            {
+              user_id: user.id,
+              name: customerData.name,
+              type: customerData.type,
+              cpf_cnpj: customerData.cpfCnpj,
+              email: customerData.email,
+              phone: customerData.phone,
+              street: customerData.address.street,
+              number: customerData.address.number,
+              city: customerData.address.city,
+              state: customerData.address.state,
+              zip_code: customerData.address.zipCode,
+              observations: customerData.observations,
+              cnh_expiry_date: customerData.cnhExpiryDate || null,
+              cnh_category: customerData.cnhCategory || null,
+              cnh_attachment_url: customerData.cnhAttachmentUrl || null
+            }
+          ]);
+
+        if (error) {
+          console.error('Supabase error creating customer:', error);
+          throw new Error(`Erro ao cadastrar cliente: ${error.message}`);
+        }
+
+        toast({
+          title: "Cliente cadastrado",
+          description: "Cliente cadastrado com sucesso!",
+        });
+      }
       
+      onCustomerUpdated?.();
       onOpenChange(false);
     } catch (error) {
-      console.error('Error creating customer:', error);
+      console.error('Error saving customer:', error);
       toast({
-        title: "Erro ao cadastrar cliente",
-        description: error instanceof Error ? error.message : "Erro desconhecido ao cadastrar cliente",
+        title: "Erro ao salvar",
+        description: error instanceof Error ? error.message : "Não foi possível salvar o cliente",
         variant: "destructive"
       });
     } finally {
@@ -139,9 +215,9 @@ const CustomerDialog: React.FC<CustomerDialogProps> = ({ open, onOpenChange }) =
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Novo Cliente</DialogTitle>
+          <DialogTitle>{isEditing ? 'Editar Cliente' : 'Novo Cliente'}</DialogTitle>
           <DialogDescription>
-            Cadastre um novo cliente no sistema
+            {isEditing ? 'Atualize as informações do cliente' : 'Cadastre um novo cliente no sistema'}
           </DialogDescription>
         </DialogHeader>
         
@@ -340,7 +416,7 @@ const CustomerDialog: React.FC<CustomerDialogProps> = ({ open, onOpenChange }) =
               className="bg-gradient-primary hover:opacity-90"
               disabled={isSubmitting}
             >
-              {isSubmitting ? "Cadastrando..." : "Cadastrar Cliente"}
+              {isSubmitting ? (isEditing ? "Atualizando..." : "Cadastrando...") : (isEditing ? "Atualizar Cliente" : "Cadastrar Cliente")}
             </Button>
           </DialogFooter>
         </form>

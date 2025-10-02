@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Plus, Search, Filter, User, Building2, Phone, Mail, Eye, Calendar, CreditCard } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Plus, Search, Filter, User, Building2, Phone, Mail, Eye, Calendar, CreditCard, Edit, Trash2 } from "lucide-react";
 import CustomerDialog from "@/components/CustomerDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -18,6 +19,8 @@ const Customers = () => {
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   // Fetch customers from Supabase
   const fetchCustomers = async () => {
@@ -89,6 +92,54 @@ const Customers = () => {
       toast({ title: 'Erro ao sincronizar clientes', description: err instanceof Error ? err.message : 'Erro desconhecido', variant: 'destructive' });
       return false;
     }
+  };
+
+  const handleEdit = () => {
+    setEditDialogOpen(true);
+  };
+
+  const handleDelete = () => {
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!selectedCustomer) return;
+
+    try {
+      const { error } = await supabase
+        .from('customers')
+        .delete()
+        .eq('id', selectedCustomer.id)
+        .eq('user_id', user?.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Cliente excluído",
+        description: `${selectedCustomer.name} foi removido com sucesso.`,
+        variant: "destructive",
+      });
+
+      setDeleteDialogOpen(false);
+      setIsDetailsOpen(false);
+      fetchCustomers();
+    } catch (error) {
+      console.error('Error deleting customer:', error);
+      toast({
+        title: "Erro ao excluir",
+        description: error instanceof Error ? error.message : "Não foi possível excluir o cliente",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCustomerUpdated = () => {
+    setEditDialogOpen(false);
+    fetchCustomers();
+    toast({
+      title: "Cliente atualizado",
+      description: `${selectedCustomer.name} foi atualizado com sucesso.`,
+    });
   };
 
   useEffect(() => {
@@ -409,10 +460,56 @@ const Customers = () => {
                   <span> • Última atualização: {new Date(selectedCustomer.updated_at).toLocaleDateString('pt-BR')}</span>
                 )}
               </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-2 pt-4 border-t">
+                <Button 
+                  variant="outline" 
+                  className="flex-1"
+                  onClick={handleEdit}
+                >
+                  <Edit className="h-4 w-4 mr-2" />
+                  Editar
+                </Button>
+                
+                <Button 
+                  variant="destructive" 
+                  className="flex-1"
+                  onClick={handleDelete}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Excluir
+                </Button>
+              </div>
             </div>
           )}
         </DialogContent>
       </Dialog>
+
+      <CustomerDialog 
+        open={editDialogOpen} 
+        onOpenChange={setEditDialogOpen}
+        customer={selectedCustomer}
+        onCustomerUpdated={handleCustomerUpdated}
+      />
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir o cliente <strong>{selectedCustomer?.name}</strong>? 
+              Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive hover:bg-destructive/90">
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
