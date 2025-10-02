@@ -195,17 +195,26 @@ const GoogleMapComponent = ({ vehicles }: GoogleMapComponentProps) => {
       const existingMarker = markersRef.current.get(vehicle.id);
       const position = { lat: Number(vehicle.latitude), lng: Number(vehicle.longitude) };
       const icon = getMarkerIcon(vehicle);
+      const label = {
+        text: vehicle.plate || '',
+        color: '#ffffff',
+        fontSize: '11px',
+        fontWeight: 'bold',
+        className: 'marker-label'
+      };
 
       if (existingMarker) {
-        // Apenas atualiza a posição e ícone do marcador existente
+        // Apenas atualiza a posição, ícone e label do marcador existente
         existingMarker.setPosition(position);
         existingMarker.setIcon(icon);
+        existingMarker.setLabel(label);
       } else {
         // Cria novo marcador
         const marker = new google.maps.Marker({
           position,
           map: mapRef.current,
           icon,
+          label,
           title: `${vehicle.brand} ${vehicle.model} - ${vehicle.plate}`,
         });
 
