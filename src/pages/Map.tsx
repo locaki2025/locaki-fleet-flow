@@ -36,6 +36,7 @@ const Map = () => {
   const [filterOnline, setFilterOnline] = useState(false);
   const [filterOffline, setFilterOffline] = useState(false);
   const [filterMoving, setFilterMoving] = useState(false);
+  const [searchPlate, setSearchPlate] = useState("");
 
   useEffect(() => {
     if (user) {
@@ -280,6 +281,12 @@ const Map = () => {
   
   // Aplica os filtros - se nenhum filtro estiver ativo, mostra todos os veículos
   const filteredVehicles = vehicles.filter(v => {
+    // Primeiro filtra pela placa se houver pesquisa
+    if (searchPlate.trim()) {
+      const plateMatch = v.plate?.toLowerCase().includes(searchPlate.toLowerCase());
+      if (!plateMatch) return false;
+    }
+    
     // Se nenhum filtro está ativo, mostra todos os veículos
     const hasAnyFilter = filterOnline || filterOffline || filterMoving;
     if (!hasAnyFilter) return true;
@@ -380,6 +387,28 @@ const Map = () => {
             {loading ? 'Atualizando...' : 'Atualizar'}
           </Button>
         </div>
+      </div>
+
+      {/* Search Field */}
+      <div className="flex gap-2 items-center max-w-md">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input 
+            placeholder="Pesquisar por placa..." 
+            value={searchPlate}
+            onChange={(e) => setSearchPlate(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        {searchPlate && (
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={() => setSearchPlate("")}
+          >
+            Limpar
+          </Button>
+        )}
       </div>
 
       <RastrosystemConfigDialog 
