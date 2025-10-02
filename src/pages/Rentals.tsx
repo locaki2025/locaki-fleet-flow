@@ -161,15 +161,15 @@ const Rentals = () => {
         throw new Error('No data returned from edge function');
       }
 
-      if (!data.pdf_base64) {
+      if (!data.pdf) {
         console.error('Response data:', data);
-        throw new Error('pdf_base64 not found in response');
+        throw new Error('pdf not found in response');
       }
 
-      console.log('pdf_base64 length:', data.pdf_base64.length);
+      console.log('pdf length:', data.pdf.length);
 
       // Decode base64 and create PDF blob
-      const byteCharacters = atob(data.pdf_base64);
+      const byteCharacters = atob(data.pdf);
       const byteNumbers = new Array(byteCharacters.length);
       for (let i = 0; i < byteCharacters.length; i++) {
         byteNumbers[i] = byteCharacters.charCodeAt(i);

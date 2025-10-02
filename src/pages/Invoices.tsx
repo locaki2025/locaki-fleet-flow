@@ -209,8 +209,8 @@ const Invoices = () => {
 
           if (error) throw error;
 
-          if (data?.pdf_base64) {
-            const byteCharacters = atob(data.pdf_base64);
+          if (data?.pdf) {
+            const byteCharacters = atob(data.pdf);
             const byteNumbers = new Array(byteCharacters.length);
             for (let i = 0; i < byteCharacters.length; i++) {
               byteNumbers[i] = byteCharacters.charCodeAt(i);

@@ -103,7 +103,7 @@ const PDFExportDialog = ({ open, onOpenChange, type, data }: PDFExportDialogProp
 
       if (error) throw error;
 
-      if (pdfData && (pdfData.pdfUrl || pdfData.pdf_base64)) {
+      if (pdfData && (pdfData.pdfUrl || pdfData.pdf)) {
         if (pdfData.pdfUrl) {
           // Create download link from URL
           const element = document.createElement('a');
@@ -112,9 +112,9 @@ const PDFExportDialog = ({ open, onOpenChange, type, data }: PDFExportDialogProp
           document.body.appendChild(element);
           element.click();
           document.body.removeChild(element);
-        } else if (pdfData.pdf_base64) {
+        } else if (pdfData.pdf) {
           // Create download link from base64
-          const byteCharacters = atob(pdfData.pdf_base64);
+          const byteCharacters = atob(pdfData.pdf);
           const byteNumbers = new Array(byteCharacters.length);
           for (let i = 0; i < byteCharacters.length; i++) {
             byteNumbers[i] = byteCharacters.charCodeAt(i);
