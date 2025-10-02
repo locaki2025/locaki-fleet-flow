@@ -206,7 +206,17 @@ const CoraConfigDialog = ({ open, onOpenChange }: CoraConfigDialogProps) => {
             Configurações do Banco Cora
           </DialogTitle>
           <DialogDescription>
-            Configure sua integração com o Banco Cora para automatizar a geração de faturas
+            <div className="space-y-2">
+              <p>Configure sua integração com o Banco Cora para automatizar a geração de faturas</p>
+              <div className="bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-md p-3 text-xs">
+                <p className="font-semibold text-yellow-800 dark:text-yellow-200">⚠️ Limitação Técnica</p>
+                <p className="text-yellow-700 dark:text-yellow-300 mt-1">
+                  A API do Cora requer autenticação mTLS (certificados client-side) que não é suportada 
+                  pelas Edge Functions do Supabase. Para usar esta integração, é necessário um servidor 
+                  intermediário ou backend próprio.
+                </p>
+              </div>
+            </div>
           </DialogDescription>
         </DialogHeader>
 

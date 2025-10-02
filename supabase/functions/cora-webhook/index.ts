@@ -84,45 +84,22 @@ const updateInvoiceStatus = async (coraChargeId: string, status: string, paidAmo
 
 // Get Cora access token using mTLS
 const getCoraAccessToken = async (config: CoraConfig) => {
-  const { client_id, certificate, private_key, environment } = config;
+  // IMPORTANTE: A API do Cora requer autenticação mTLS (Mutual TLS)
+  // Infelizmente, o ambiente Deno das Edge Functions do Supabase não suporta
+  // configuração de certificados client-side necessários para mTLS.
+  // 
+  // Para usar a API do Cora, você precisaria:
+  // 1. Usar um servidor intermediário (proxy) que suporte mTLS
+  // 2. Configurar o proxy com os certificados do Cora
+  // 3. Fazer as chamadas através desse proxy
+  //
+  // Ou implementar esta funcionalidade em um backend próprio que suporte mTLS.
   
-  // Determine auth endpoint based on environment
-  const authUrl = environment === 'production' 
-    ? 'https://matls-clients.api.cora.com.br/token'
-    : 'https://matls-clients.api.stage.cora.com.br/token';
-  
-  try {
-    // Note: In Deno, we need to use the fetch API with client certificates
-    // This requires the certificate and private key to be properly formatted
-    const authResponse = await fetch(authUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: new URLSearchParams({
-        grant_type: 'client_credentials',
-        client_id: client_id,
-      }),
-      // Note: mTLS configuration would go here in production
-      // For now, we'll use a simplified approach
-    });
-
-    if (!authResponse.ok) {
-      const errorText = await authResponse.text();
-      throw new Error(`Falha na autenticação: ${authResponse.status} - ${errorText}`);
-    }
-
-    const authData = await authResponse.json();
-    
-    if (!authData.access_token) {
-      throw new Error('Token de acesso não recebido');
-    }
-
-    return authData.access_token;
-  } catch (error) {
-    console.error('Error getting Cora access token:', error);
-    throw error;
-  }
+  throw new Error(
+    'A integração com o Cora requer autenticação mTLS (Mutual TLS) que não é suportada ' +
+    'nativamente pelas Edge Functions do Supabase. É necessário usar um servidor intermediário ' +
+    'ou backend próprio que suporte configuração de certificados client-side para TLS.'
+  );
 };
 
 // Sync transactions from Cora API
