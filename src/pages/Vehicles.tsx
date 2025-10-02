@@ -21,6 +21,7 @@ const Vehicles = () => {
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [contracts, setContracts] = useState<any[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
   useEffect(() => {
     if (user) {
       fetchVehicles();
@@ -220,8 +221,10 @@ const Vehicles = () => {
             <div className="relative flex-1 max-w-sm">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
               <Input
-                placeholder="Buscar por placa, modelo..."
+                placeholder="Buscar por nome, marca, placa ou modelo..."
                 className="pl-10"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
             <Button variant="outline" onClick={handleFilters}>
@@ -257,7 +260,15 @@ const Vehicles = () => {
         </Card>
       ) : (
         <div className="grid grid-cols-1 gap-6">
-          {vehicles.map((vehicle) => (
+          {vehicles
+            .filter((vehicle) => {
+              const search = searchTerm.toLowerCase();
+              return vehicle.plate.toLowerCase().includes(search) || 
+                     vehicle.brand.toLowerCase().includes(search) ||
+                     vehicle.model.toLowerCase().includes(search) ||
+                     (vehicle.category && vehicle.category.toLowerCase().includes(search));
+            })
+            .map((vehicle) => (
           <Card key={vehicle.id} className="hover:shadow-md transition-shadow">
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between">
