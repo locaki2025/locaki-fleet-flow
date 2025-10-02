@@ -57,6 +57,9 @@ const CustomerDialog: React.FC<CustomerDialogProps> = ({ open, onOpenChange, cus
     cnhAttachmentUrl: ""
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (customer) {
@@ -115,6 +118,83 @@ const CustomerDialog: React.FC<CustomerDialogProps> = ({ open, onOpenChange, cus
     setIsSubmitting(true);
 
     try {
+      let cnhUrl = customerData.cnhAttachmentUrl;
+
+      // Upload file if selected
+      if (selectedFile) {
+        setUploading(true);
+        
+        // For new customers, we'll need to create first to get the ID
+        let customerId = customer?.id;
+        
+        if (!customerId) {
+          // Insert customer first to get ID
+          const { data: newCustomer, error: insertError } = await supabase
+            .from('customers')
+            .insert([
+              {
+                user_id: user.id,
+                name: customerData.name,
+                type: customerData.type,
+                cpf_cnpj: customerData.cpfCnpj,
+                email: customerData.email,
+                phone: customerData.phone,
+                street: customerData.address.street,
+                number: customerData.address.number,
+                city: customerData.address.city,
+                state: customerData.address.state,
+                zip_code: customerData.address.zipCode,
+                observations: customerData.observations,
+                cnh_expiry_date: customerData.cnhExpiryDate || null,
+                cnh_category: customerData.cnhCategory || null,
+                cnh_attachment_url: null
+              }
+            ])
+            .select()
+            .single();
+
+          if (insertError) throw insertError;
+          customerId = newCustomer.id;
+        }
+
+        // Get file extension
+        const fileExt = selectedFile.name.split('.').pop();
+        const filePath = `${user.id}/${customerId}.${fileExt}`;
+
+        // Upload to storage
+        const { error: uploadError } = await supabase.storage
+          .from('cnh-clientes')
+          .upload(filePath, selectedFile, { upsert: true });
+
+        if (uploadError) throw uploadError;
+
+        // Get public URL
+        const { data: urlData } = supabase.storage
+          .from('cnh-clientes')
+          .getPublicUrl(filePath);
+
+        cnhUrl = urlData.publicUrl;
+        setUploading(false);
+
+        // Update with file URL
+        const { error: updateError } = await supabase
+          .from('customers')
+          .update({ cnh_attachment_url: cnhUrl })
+          .eq('id', customerId);
+
+        if (updateError) throw updateError;
+
+        toast({
+          title: "Cliente cadastrado",
+          description: "Cliente e arquivo CNH salvos com sucesso!",
+        });
+        
+        onCustomerUpdated?.();
+        onOpenChange(false);
+        return;
+      }
+
+      // Normal flow without file upload
       if (isEditing) {
         const { error } = await supabase
           .from('customers')
@@ -132,7 +212,7 @@ const CustomerDialog: React.FC<CustomerDialogProps> = ({ open, onOpenChange, cus
             observations: customerData.observations,
             cnh_expiry_date: customerData.cnhExpiryDate || null,
             cnh_category: customerData.cnhCategory || null,
-            cnh_attachment_url: customerData.cnhAttachmentUrl || null
+            cnh_attachment_url: cnhUrl || null
           })
           .eq('id', customer?.id);
 
@@ -164,7 +244,7 @@ const CustomerDialog: React.FC<CustomerDialogProps> = ({ open, onOpenChange, cus
               observations: customerData.observations,
               cnh_expiry_date: customerData.cnhExpiryDate || null,
               cnh_category: customerData.cnhCategory || null,
-              cnh_attachment_url: customerData.cnhAttachmentUrl || null
+              cnh_attachment_url: cnhUrl || null
             }
           ]);
 
@@ -190,6 +270,26 @@ const CustomerDialog: React.FC<CustomerDialogProps> = ({ open, onOpenChange, cus
       });
     } finally {
       setIsSubmitting(false);
+      setUploading(false);
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type
+      const validTypes = ['text/plain', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+      if (!validTypes.includes(file.type) && !file.name.match(/\.(txt|pdf|doc|docx)$/i)) {
+        toast({
+          title: "Tipo de arquivo inválido",
+          description: "Por favor, selecione um arquivo TXT, PDF, DOC ou DOCX",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      setSelectedFile(file);
+      handleInputChange('cnhAttachmentUrl', file.name);
     }
   };
 
@@ -379,19 +479,32 @@ const CustomerDialog: React.FC<CustomerDialogProps> = ({ open, onOpenChange, cus
             
             <div className="space-y-2">
               <Label htmlFor="cnhAttachment">Anexar CNH</Label>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".txt,.pdf,.doc,.docx"
+                onChange={handleFileSelect}
+                className="hidden"
+              />
               <div className="flex gap-2">
                 <Input
                   id="cnhAttachment"
                   value={customerData.cnhAttachmentUrl}
                   onChange={(e) => handleInputChange('cnhAttachmentUrl', e.target.value)}
                   placeholder="URL ou caminho do arquivo CNH"
+                  readOnly={!!selectedFile}
                 />
-                <Button type="button" variant="outline" size="sm">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                >
                   Selecionar Arquivo
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
-                Anexe uma cópia da CNH do cliente
+                Anexe uma cópia da CNH do cliente (TXT, PDF, DOC, DOCX)
               </p>
             </div>
           </div>
@@ -414,9 +527,9 @@ const CustomerDialog: React.FC<CustomerDialogProps> = ({ open, onOpenChange, cus
             <Button 
               type="submit" 
               className="bg-gradient-primary hover:opacity-90"
-              disabled={isSubmitting}
+              disabled={isSubmitting || uploading}
             >
-              {isSubmitting ? (isEditing ? "Atualizando..." : "Cadastrando...") : (isEditing ? "Atualizar Cliente" : "Cadastrar Cliente")}
+              {uploading ? "Enviando arquivo..." : isSubmitting ? (isEditing ? "Atualizando..." : "Cadastrando...") : (isEditing ? "Atualizar Cliente" : "Cadastrar Cliente")}
             </Button>
           </DialogFooter>
         </form>

@@ -106,6 +106,27 @@ const Customers = () => {
     if (!selectedCustomer) return;
 
     try {
+      // Delete CNH file from storage if exists
+      if (selectedCustomer.cnh_attachment_url) {
+        try {
+          // Extract file path from URL
+          const urlParts = selectedCustomer.cnh_attachment_url.split('cnh-clientes/');
+          if (urlParts.length > 1) {
+            const filePath = urlParts[1].split('?')[0]; // Remove query params if any
+            const { error: storageError } = await supabase.storage
+              .from('cnh-clientes')
+              .remove([filePath]);
+            
+            if (storageError) {
+              console.error('Error deleting CNH file:', storageError);
+            }
+          }
+        } catch (storageErr) {
+          console.error('Error processing CNH file deletion:', storageErr);
+        }
+      }
+
+      // Delete customer from database
       const { error } = await supabase
         .from('customers')
         .delete()
