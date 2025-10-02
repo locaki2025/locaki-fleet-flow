@@ -14,7 +14,6 @@ interface CoraConfigDialogProps {
 }
 
 interface CoraConfig {
-  account_id: string;
   client_id: string;
   certificate: string;
   private_key: string;
@@ -30,7 +29,6 @@ const CoraConfigDialog = ({ open, onOpenChange }: CoraConfigDialogProps) => {
   const [testing, setTesting] = useState(false);
   
   const [config, setConfig] = useState<CoraConfig>({
-    account_id: '',
     client_id: '',
     certificate: '',
     private_key: '',
@@ -214,16 +212,6 @@ const CoraConfigDialog = ({ open, onOpenChange }: CoraConfigDialogProps) => {
 
         <div className="grid gap-4 py-4">
           <div className="space-y-2">
-            <Label htmlFor="account_id">ID da Conta</Label>
-            <Input
-              id="account_id"
-              placeholder="Seu ID de conta no Cora"
-              value={config.account_id}
-              onChange={(e) => setConfig({ ...config, account_id: e.target.value })}
-            />
-          </div>
-          
-          <div className="space-y-2">
             <Label htmlFor="client_id">Client ID</Label>
             <Input
               id="client_id"
@@ -305,7 +293,7 @@ const CoraConfigDialog = ({ open, onOpenChange }: CoraConfigDialogProps) => {
           </Button>
           <Button 
             onClick={handleSave} 
-            disabled={saving || !config.account_id || !config.client_id}
+            disabled={saving || !config.client_id}
             className="bg-gradient-primary hover:opacity-90"
           >
             {saving ? (

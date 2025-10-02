@@ -17,7 +17,6 @@ interface CoraTransaction {
 }
 
 interface CoraConfig {
-  account_id: string;
   client_id: string;
   certificate: string;
   private_key: string;
@@ -143,8 +142,8 @@ const syncCoraTransactions = async (userId: string, config: CoraConfig, startDat
       ? 'https://api.cora.com.br'
       : 'https://api.stage.cora.com.br';
     
-    // Fetch statement (extrato) from Cora API
-    const statementUrl = `${apiBaseUrl}/accounts/${config.account_id}/statement?start=${startDate}&end=${endDate}`;
+    // Fetch statement (extrato) from Cora API - the API will automatically use the account associated with the mTLS certificate
+    const statementUrl = `${apiBaseUrl}/statement?start=${startDate}&end=${endDate}`;
     console.log(`Fetching statement from: ${statementUrl}`);
     
     const statementResponse = await fetch(statementUrl, {
@@ -326,10 +325,10 @@ const autoReconcileTransaction = async (userId: string, transaction: CoraTransac
 // Test Cora API connection
 const testCoraConnection = async (config: any) => {
   try {
-    const { account_id, client_id, certificate, private_key, environment } = config;
+    const { client_id, certificate, private_key, environment } = config;
     
-    if (!account_id || !client_id || !certificate || !private_key) {
-      throw new Error('Configuração incompleta: account_id, client_id, certificado e chave privada são obrigatórios');
+    if (!client_id || !certificate || !private_key) {
+      throw new Error('Configuração incompleta: client_id, certificado e chave privada são obrigatórios');
     }
 
     const accessToken = await getCoraAccessToken(config);
@@ -341,7 +340,7 @@ const testCoraConnection = async (config: any) => {
 
     // Test API access by fetching a simple statement
     const today = new Date().toISOString().split('T')[0];
-    const testUrl = `${apiBaseUrl}/accounts/${account_id}/statement?start=${today}&end=${today}`;
+    const testUrl = `${apiBaseUrl}/statement?start=${today}&end=${today}`;
     
     const testResponse = await fetch(testUrl, {
       headers: {
