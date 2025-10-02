@@ -311,8 +311,40 @@ const CustomerDialog: React.FC<CustomerDialogProps> = ({ open, onOpenChange, cus
     }
   };
 
+  const resetForm = () => {
+    setCustomerData({
+      name: "",
+      type: "",
+      cpfCnpj: "",
+      email: "",
+      phone: "",
+      address: {
+        street: "",
+        number: "",
+        city: "",
+        state: "",
+        zipCode: ""
+      },
+      observations: "",
+      cnhExpiryDate: "",
+      cnhCategory: "",
+      cnhAttachmentUrl: ""
+    });
+    setSelectedFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleDialogChange = (open: boolean) => {
+    if (!open && !isEditing) {
+      resetForm();
+    }
+    onOpenChange(open);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleDialogChange}>
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{isEditing ? 'Editar Cliente' : 'Novo Cliente'}</DialogTitle>
@@ -521,7 +553,7 @@ const CustomerDialog: React.FC<CustomerDialogProps> = ({ open, onOpenChange, cus
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button type="button" variant="outline" onClick={() => handleDialogChange(false)}>
               Cancelar
             </Button>
             <Button 
