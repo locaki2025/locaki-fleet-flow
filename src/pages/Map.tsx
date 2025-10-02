@@ -32,10 +32,10 @@ const Map = () => {
   const [showConfigDialog, setShowConfigDialog] = useState(false);
   const { fetchLocation } = useMonitoramentoTraccar();
   
-  // Filtros
-  const [filterOnline, setFilterOnline] = useState(true);
-  const [filterOffline, setFilterOffline] = useState(true);
-  const [filterMoving, setFilterMoving] = useState(true);
+  // Filtros - iniciam desmarcados
+  const [filterOnline, setFilterOnline] = useState(false);
+  const [filterOffline, setFilterOffline] = useState(false);
+  const [filterMoving, setFilterMoving] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -255,23 +255,23 @@ const Map = () => {
     return speed > 0 && v.status === 'online';
   }).length;
   
-  // Aplica os filtros
+  // Aplica os filtros - se nenhum filtro estiver ativo, mostra todos os veículos
   const filteredVehicles = vehicles.filter(v => {
+    // Se nenhum filtro está ativo, mostra todos os veículos
+    const hasAnyFilter = filterOnline || filterOffline || filterMoving;
+    if (!hasAnyFilter) return true;
+    
     const speed = Number(v.speed || v.velocidade || 0);
     const isMoving = speed > 0 && v.status === 'online';
     const isOnline = v.status === 'online';
     const isOffline = v.status !== 'online';
     
-    // Se o veículo está em movimento, só mostra se o filtro de movimento estiver ativo
-    if (isMoving && !filterMoving) return false;
+    // Se algum filtro está ativo, verifica se o veículo corresponde a algum dos filtros ativos
+    if (isMoving && filterMoving) return true;
+    if (isOnline && !isMoving && filterOnline) return true;
+    if (isOffline && filterOffline) return true;
     
-    // Se o veículo está online mas parado, só mostra se o filtro online estiver ativo
-    if (isOnline && !isMoving && !filterOnline) return false;
-    
-    // Se o veículo está offline, só mostra se o filtro offline estiver ativo
-    if (isOffline && !filterOffline) return false;
-    
-    return true;
+    return false;
   });
 
   // Fallback: se não houver coordenadas no banco, busca diretamente no Rastrosystem
