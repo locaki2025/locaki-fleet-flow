@@ -15,11 +15,13 @@ import {
   Clock,
   AlertCircle,
   TrendingUp,
-  TrendingDown
+  TrendingDown,
+  Settings
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import CoraConfigDialog from "@/components/CoraConfigDialog";
 import {
   Select,
   SelectContent,
@@ -55,6 +57,8 @@ const ExtratoConta = () => {
   const [lancamentos, setLancamentos] = useState<FinancialEntry[]>([]);
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+  const [isCoraConfigOpen, setIsCoraConfigOpen] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -72,6 +76,7 @@ const ExtratoConta = () => {
   const syncCoraTransactions = async () => {
     if (!user?.id) return;
     
+    setSyncing(true);
     try {
       // Get Cora configuration
       const { data: config, error: configError } = await supabase
@@ -82,7 +87,12 @@ const ExtratoConta = () => {
         .single();
 
       if (configError || !config?.config_value) {
-        console.log('Cora configuration not found');
+        toast({
+          title: "Configuração não encontrada",
+          description: "Configure suas credenciais do Cora para sincronizar as transações.",
+          variant: "destructive",
+        });
+        setIsCoraConfigOpen(true);
         return;
       }
 
@@ -99,17 +109,33 @@ const ExtratoConta = () => {
 
       if (error) {
         console.error('Cora sync error:', error);
+        toast({
+          title: "Erro ao sincronizar",
+          description: error.message || "Não foi possível sincronizar com o Cora.",
+          variant: "destructive",
+        });
         return;
       }
 
       if (data?.success) {
         console.log('Cora sync completed:', data);
+        toast({
+          title: "Sincronização concluída",
+          description: data.message || `${data.imported} transações importadas`,
+        });
         // Refresh data after sync
         fetchLancamentos();
       }
 
     } catch (error) {
       console.error('Error syncing Cora transactions:', error);
+      toast({
+        title: "Erro ao sincronizar",
+        description: "Ocorreu um erro ao sincronizar com o Cora.",
+        variant: "destructive",
+      });
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -301,11 +327,27 @@ const ExtratoConta = () => {
         <div className="flex gap-2">
           <Button 
             variant="outline" 
-            onClick={syncCoraTransactions}
-            disabled={loading}
+            onClick={() => setIsCoraConfigOpen(true)}
           >
-            <DollarSign className="h-4 w-4 mr-2" />
-            Sincronizar Cora
+            <Settings className="h-4 w-4 mr-2" />
+            Configurar Cora
+          </Button>
+          <Button 
+            variant="outline" 
+            onClick={syncCoraTransactions}
+            disabled={loading || syncing}
+          >
+            {syncing ? (
+              <>
+                <Clock className="h-4 w-4 mr-2 animate-spin" />
+                Sincronizando...
+              </>
+            ) : (
+              <>
+                <DollarSign className="h-4 w-4 mr-2" />
+                Sincronizar Cora
+              </>
+            )}
           </Button>
           <Button variant="outline" onClick={handleExportExcel}>
             <FileSpreadsheet className="h-4 w-4 mr-2" />
@@ -513,6 +555,11 @@ const ExtratoConta = () => {
           </Card>
         </div>
       </div>
+
+      <CoraConfigDialog 
+        open={isCoraConfigOpen} 
+        onOpenChange={setIsCoraConfigOpen}
+      />
     </div>
   );
 };
