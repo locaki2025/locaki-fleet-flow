@@ -176,14 +176,18 @@ const GoogleMapComponent = ({ vehicles }: GoogleMapComponentProps) => {
   useEffect(() => {
     if (!mapRef.current || !window.google) return;
 
-    const currentVehicleIds = new Set(validVehicles.map(v => v.id));
     
-    // Remove marcadores de veículos que não existem mais
+    
+    const allVehicleIds = new Set(vehicles.map((v: any) => v.id));
+    
+    // Remove somente marcadores de veículos que realmente saíram da lista (não apenas sem coordenadas)
     markersRef.current.forEach((marker, id) => {
-      if (!currentVehicleIds.has(id)) {
+      if (!allVehicleIds.has(id)) {
         marker.setMap(null);
         markersRef.current.delete(id);
       }
+      // Se o veículo ainda existe porém está sem coordenadas válidas nesta renderização,
+      // mantemos o marcador na última posição conhecida (não removemos aqui).
     });
 
     // Atualiza ou cria marcadores
@@ -224,7 +228,7 @@ const GoogleMapComponent = ({ vehicles }: GoogleMapComponentProps) => {
         console.warn('Não foi possível ajustar bounds do mapa:', e);
       }
     }
-  }, [validVehicles]);
+  }, [validVehicles, vehicles]);
 
 
 
