@@ -21,6 +21,7 @@ const Customers = () => {
   const [loading, setLoading] = useState(true);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
 
   // Fetch customers from Supabase
   const fetchCustomers = async () => {
@@ -231,6 +232,8 @@ const Customers = () => {
               <Input
                 placeholder="Buscar por nome, CPF/CNPJ..."
                 className="pl-10"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
             <Button variant="outline">
@@ -249,7 +252,13 @@ const Customers = () => {
         </div>
       ) : customers.length > 0 ? (
         <div className="grid grid-cols-1 gap-6">
-          {customers.map((customer) => (
+          {customers
+            .filter((customer) => {
+              const search = searchTerm.toLowerCase();
+              return customer.name.toLowerCase().includes(search) || 
+                     customer.cpf_cnpj.toLowerCase().includes(search);
+            })
+            .map((customer) => (
           <Card key={customer.id} className="hover:shadow-md transition-shadow">
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between">
