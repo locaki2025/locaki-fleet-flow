@@ -94,8 +94,20 @@ const Map = () => {
         
         console.log(`Atualizando ${dispositivos.length} veículos do Rastrosystem`);
         
-        setVehicles(prevVehicles => 
-          prevVehicles.map(vehicle => {
+        setVehicles(prevVehicles => {
+          // Se não houver veículos anteriores, não atualiza
+          if (!prevVehicles || prevVehicles.length === 0) {
+            console.log('Nenhum veículo anterior para atualizar');
+            return prevVehicles;
+          }
+
+          // Se não houver dispositivos, mantém os veículos atuais
+          if (!dispositivos || dispositivos.length === 0) {
+            console.log('Nenhum dispositivo recebido, mantendo veículos atuais');
+            return prevVehicles;
+          }
+
+          return prevVehicles.map(vehicle => {
             // Encontra o dispositivo correspondente pela placa ou IMEI
             const device = dispositivos.find((d: any) => 
               d.placa === vehicle.plate || 
@@ -103,27 +115,38 @@ const Map = () => {
               d.unique_id === vehicle.imei
             );
             
-            if (device && device.latitude && device.longitude) {
-              console.log(`Atualizando ${vehicle.plate}:`, {
-                lat: device.latitude,
-                lng: device.longitude,
-                speed: device.speed || device.velocidade || 0
-              });
+            // Valida se as coordenadas são válidas antes de atualizar
+            if (device) {
+              const lat = typeof device.latitude === 'number' ? device.latitude : Number(device.latitude);
+              const lng = typeof device.longitude === 'number' ? device.longitude : Number(device.longitude);
               
-              return {
-                ...vehicle,
-                latitude: typeof device.latitude === 'number' ? device.latitude : Number(device.latitude),
-                longitude: typeof device.longitude === 'number' ? device.longitude : Number(device.longitude),
-                status: device.status ? 'online' : 'offline',
-                speed: device.speed || device.velocidade || 0,
-                velocidade: device.velocidade || device.speed || 0,
-                last_update: device.server_time || device.time,
-                address: device.address || vehicle.address
-              };
+              // Só atualiza se as coordenadas forem válidas (não nulas, não NaN, não zero)
+              const hasValidCoords = !isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0;
+              
+              if (hasValidCoords) {
+                console.log(`Atualizando ${vehicle.plate}:`, {
+                  lat,
+                  lng,
+                  speed: device.speed || device.velocidade || 0
+                });
+                
+                return {
+                  ...vehicle,
+                  latitude: lat,
+                  longitude: lng,
+                  status: device.status ? 'online' : 'offline',
+                  speed: device.speed || device.velocidade || 0,
+                  velocidade: device.velocidade || device.speed || 0,
+                  last_update: device.server_time || device.time,
+                  address: device.address || vehicle.address
+                };
+              }
             }
+            
+            // Mantém o veículo sem alterações se não encontrou ou coordenadas inválidas
             return vehicle;
-          })
-        );
+          });
+        });
       } catch (error) {
         console.error('Erro ao atualizar posições do Rastrosystem:', error);
       }
