@@ -8,6 +8,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import VehicleDialog from "./VehicleDialog";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Vehicle {
   id: string;
@@ -38,6 +40,7 @@ interface VehicleDetailsDialogProps {
 const VehicleDetailsDialog = ({ open, onOpenChange, vehicle, onVehicleUpdate }: VehicleDetailsDialogProps) => {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
@@ -76,15 +79,35 @@ const VehicleDetailsDialog = ({ open, onOpenChange, vehicle, onVehicleUpdate }: 
     setDeleteDialogOpen(true);
   };
 
-  const confirmDelete = () => {
-    toast({
-      title: "Veículo excluído",
-      description: `${vehicle.brand} ${vehicle.model} - ${vehicle.plate} foi removido da frota.`,
-      variant: "destructive",
-    });
-    setDeleteDialogOpen(false);
-    onOpenChange(false);
-    onVehicleUpdate?.();
+  const confirmDelete = async () => {
+    if (!vehicle) return;
+
+    try {
+      const { error } = await supabase
+        .from('vehicles')
+        .delete()
+        .eq('id', vehicle.id)
+        .eq('user_id', user?.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Veículo excluído",
+        description: `${vehicle.brand} ${vehicle.model} - ${vehicle.plate} foi removido da frota.`,
+        variant: "destructive",
+      });
+
+      setDeleteDialogOpen(false);
+      onOpenChange(false);
+      onVehicleUpdate?.();
+    } catch (error) {
+      console.error('Error deleting vehicle:', error);
+      toast({
+        title: "Erro ao excluir",
+        description: error instanceof Error ? error.message : "Não foi possível excluir o veículo",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleVehicleUpdated = () => {
