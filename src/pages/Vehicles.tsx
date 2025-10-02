@@ -256,7 +256,7 @@ const Vehicles = () => {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 gap-6">
           {vehicles.map((vehicle) => (
           <Card key={vehicle.id} className="hover:shadow-md transition-shadow">
             <CardHeader className="pb-3">

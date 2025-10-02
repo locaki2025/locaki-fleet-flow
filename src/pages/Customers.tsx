@@ -227,7 +227,7 @@ const Customers = () => {
           <p className="mt-2 text-muted-foreground">Carregando clientes...</p>
         </div>
       ) : customers.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 gap-6">
           {customers.map((customer) => (
           <Card key={customer.id} className="hover:shadow-md transition-shadow">
             <CardHeader className="pb-3">
