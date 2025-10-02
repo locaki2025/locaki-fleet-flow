@@ -21,6 +21,8 @@ import { useToast } from "@/hooks/use-toast";
 import GoogleMapComponent from "@/components/GoogleMap";
 import RastrosystemConfigDialog from "@/components/RastrosystemConfigDialog";
 import { useMonitoramentoTraccar } from "@/hooks/useMonitoramentoTraccar";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 const Map = () => {
   const { user } = useAuth();
@@ -29,6 +31,11 @@ const Map = () => {
   const [loading, setLoading] = useState(true);
   const [showConfigDialog, setShowConfigDialog] = useState(false);
   const { fetchLocation } = useMonitoramentoTraccar();
+  
+  // Filtros
+  const [filterOnline, setFilterOnline] = useState(true);
+  const [filterOffline, setFilterOffline] = useState(true);
+  const [filterMoving, setFilterMoving] = useState(true);
 
   useEffect(() => {
     if (user) {
@@ -243,6 +250,29 @@ const Map = () => {
   const vehiclesWithLocation = vehicles.filter(v => v.latitude && v.longitude);
   const onlineVehicles = vehicles.filter(v => v.status === 'online').length;
   const offlineVehicles = vehicles.length - onlineVehicles;
+  const movingVehicles = vehicles.filter(v => {
+    const speed = Number(v.speed || v.velocidade || 0);
+    return speed > 0 && v.status === 'online';
+  }).length;
+  
+  // Aplica os filtros
+  const filteredVehicles = vehicles.filter(v => {
+    const speed = Number(v.speed || v.velocidade || 0);
+    const isMoving = speed > 0 && v.status === 'online';
+    const isOnline = v.status === 'online';
+    const isOffline = v.status !== 'online';
+    
+    // Se o veículo está em movimento, só mostra se o filtro de movimento estiver ativo
+    if (isMoving && !filterMoving) return false;
+    
+    // Se o veículo está online mas parado, só mostra se o filtro online estiver ativo
+    if (isOnline && !isMoving && !filterOnline) return false;
+    
+    // Se o veículo está offline, só mostra se o filtro offline estiver ativo
+    if (isOffline && !filterOffline) return false;
+    
+    return true;
+  });
 
   // Fallback: se não houver coordenadas no banco, busca diretamente no Rastrosystem
   const fallbackTriedRef = useRef(false);
@@ -370,7 +400,7 @@ const Map = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Em Movimento</p>
-                <p className="text-2xl font-bold text-accent">2</p>
+                <p className="text-2xl font-bold text-accent">{movingVehicles}</p>
               </div>
               <div className="h-8 w-8 rounded-full bg-accent/20 flex items-center justify-center">
                 <Car className="h-4 w-4 text-accent" />
@@ -409,18 +439,69 @@ const Map = () => {
                 </CardDescription>
               </div>
               <div className="flex items-center gap-2">
-                 <Button variant="outline" size="sm" onClick={() => {
-                   alert("Funcionalidade de filtros em desenvolvimento");
-                 }}>
-                   <Filter className="h-4 w-4 mr-2" />
-                   Filtros
-                 </Button>
+                 <Popover>
+                   <PopoverTrigger asChild>
+                     <Button variant="outline" size="sm">
+                       <Filter className="h-4 w-4 mr-2" />
+                       Filtros
+                     </Button>
+                   </PopoverTrigger>
+                   <PopoverContent className="w-64">
+                     <div className="space-y-4">
+                       <h4 className="font-medium text-sm">Filtrar veículos</h4>
+                       <div className="space-y-3">
+                         <div className="flex items-center space-x-2">
+                           <Checkbox 
+                             id="filter-online" 
+                             checked={filterOnline}
+                             onCheckedChange={(checked) => setFilterOnline(checked as boolean)}
+                           />
+                           <label
+                             htmlFor="filter-online"
+                             className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-2"
+                           >
+                             <div className="h-3 w-3 rounded-full bg-success"></div>
+                             Veículos Online ({onlineVehicles - movingVehicles})
+                           </label>
+                         </div>
+                         <div className="flex items-center space-x-2">
+                           <Checkbox 
+                             id="filter-offline" 
+                             checked={filterOffline}
+                             onCheckedChange={(checked) => setFilterOffline(checked as boolean)}
+                           />
+                           <label
+                             htmlFor="filter-offline"
+                             className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-2"
+                           >
+                             <div className="h-3 w-3 rounded-full bg-destructive"></div>
+                             Veículos Offline ({offlineVehicles})
+                           </label>
+                         </div>
+                         <div className="flex items-center space-x-2">
+                           <Checkbox 
+                             id="filter-moving" 
+                             checked={filterMoving}
+                             onCheckedChange={(checked) => setFilterMoving(checked as boolean)}
+                           />
+                           <label
+                             htmlFor="filter-moving"
+                             className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-2"
+                           >
+                             <div className="h-3 w-3 rounded-full bg-accent"></div>
+                             Em Movimento ({movingVehicles})
+                           </label>
+                         </div>
+                       </div>
+                     </div>
+                   </PopoverContent>
+                 </Popover>
               </div>
             </div>
           </CardHeader>
           <CardContent>
             <div className="h-96 rounded-lg overflow-hidden">
-              <GoogleMapComponent vehicles={vehicles} />
+              <GoogleMapComponent vehicles={filteredVehicles} />
             </div>
             <div className="flex items-center justify-center gap-4 mt-4 pt-4 border-t">
               <div className="flex items-center gap-1">
@@ -453,7 +534,7 @@ const Map = () => {
               </div>
             </CardHeader>
              <CardContent className="max-h-96 overflow-y-auto space-y-3">
-               {vehicles.filter(v => v.latitude && v.longitude).map((vehicle) => (
+               {filteredVehicles.filter(v => v.latitude && v.longitude).map((vehicle) => (
                  <div key={vehicle.id} className="p-3 border rounded-lg hover:bg-muted/50 cursor-pointer">
                    <div className="flex items-center justify-between mb-2">
                      <div className="flex items-center gap-2">
