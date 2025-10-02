@@ -38,6 +38,52 @@ const CoraConfigDialog = ({ open, onOpenChange }: CoraConfigDialogProps) => {
     environment: 'production'
   });
 
+  const handleCertificateUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const content = e.target?.result as string;
+        setConfig({ ...config, certificate: content });
+        toast({
+          title: "Certificado carregado",
+          description: "O certificado foi carregado com sucesso",
+        });
+      };
+      reader.onerror = () => {
+        toast({
+          title: "Erro ao carregar certificado",
+          description: "Não foi possível ler o arquivo do certificado",
+          variant: "destructive",
+        });
+      };
+      reader.readAsText(file);
+    }
+  };
+
+  const handlePrivateKeyUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const content = e.target?.result as string;
+        setConfig({ ...config, private_key: content });
+        toast({
+          title: "Chave privada carregada",
+          description: "A chave privada foi carregada com sucesso",
+        });
+      };
+      reader.onerror = () => {
+        toast({
+          title: "Erro ao carregar chave privada",
+          description: "Não foi possível ler o arquivo da chave privada",
+          variant: "destructive",
+        });
+      };
+      reader.readAsText(file);
+    }
+  };
+
   // Load configuration when dialog opens
   useEffect(() => {
     if (open && user) {
@@ -188,29 +234,39 @@ const CoraConfigDialog = ({ open, onOpenChange }: CoraConfigDialogProps) => {
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="certificate">Certificado (PEM)</Label>
-            <textarea
-              id="certificate"
-              className="w-full min-h-[100px] p-2 border rounded-md text-sm font-mono"
-              placeholder="-----BEGIN CERTIFICATE-----
-MIIDXTCCAkW...
------END CERTIFICATE-----"
-              value={config.certificate}
-              onChange={(e) => setConfig({ ...config, certificate: e.target.value })}
-            />
+            <Label htmlFor="certificate">Certificado (arquivo .pem ou .crt)</Label>
+            <div className="flex flex-col gap-2">
+              <Input
+                id="certificate"
+                type="file"
+                accept=".pem,.crt"
+                onChange={handleCertificateUpload}
+                className="cursor-pointer"
+              />
+              {config.certificate && (
+                <div className="text-xs text-muted-foreground bg-muted p-2 rounded">
+                  ✓ Certificado carregado ({config.certificate.length} caracteres)
+                </div>
+              )}
+            </div>
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="private_key">Chave Privada (PEM)</Label>
-            <textarea
-              id="private_key"
-              className="w-full min-h-[100px] p-2 border rounded-md text-sm font-mono"
-              placeholder="-----BEGIN PRIVATE KEY-----
-MIIEvgIBADA...
------END PRIVATE KEY-----"
-              value={config.private_key}
-              onChange={(e) => setConfig({ ...config, private_key: e.target.value })}
-            />
+            <Label htmlFor="private_key">Chave Privada (arquivo .key ou .pem)</Label>
+            <div className="flex flex-col gap-2">
+              <Input
+                id="private_key"
+                type="file"
+                accept=".key,.pem"
+                onChange={handlePrivateKeyUpload}
+                className="cursor-pointer"
+              />
+              {config.private_key && (
+                <div className="text-xs text-muted-foreground bg-muted p-2 rounded">
+                  ✓ Chave privada carregada ({config.private_key.length} caracteres)
+                </div>
+              )}
+            </div>
           </div>
           
           <div className="space-y-2">
