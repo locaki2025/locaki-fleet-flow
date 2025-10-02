@@ -181,15 +181,18 @@ const GoogleMapComponent = ({ vehicles }: GoogleMapComponentProps) => {
     
     const allVehicleIds = new Set(vehicles.map((v: any) => v.id));
     
-    // Remove somente marcadores de veículos que realmente saíram da lista (não apenas sem coordenadas)
-    markersRef.current.forEach((marker, id) => {
-      if (!allVehicleIds.has(id)) {
-        marker.setMap(null);
-        markersRef.current.delete(id);
-      }
-      // Se o veículo ainda existe porém está sem coordenadas válidas nesta renderização,
-      // mantemos o marcador na última posição conhecida (não removemos aqui).
-    });
+    // Evita remover todos os marcadores em atualizações transitórias vazias
+    if (vehicles.length > 0) {
+      markersRef.current.forEach((marker, id) => {
+        if (!allVehicleIds.has(id)) {
+          marker.setMap(null);
+          markersRef.current.delete(id);
+        }
+        // Se o veículo ainda existe porém está sem coordenadas válidas nesta renderização,
+        // mantemos o marcador na última posição conhecida (não removemos aqui).
+      });
+    }
+
 
     // Atualiza ou cria marcadores
     validVehicles.forEach((vehicle: any) => {
