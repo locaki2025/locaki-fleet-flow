@@ -57,6 +57,7 @@ const getMarkerIcon = (vehicle: any) => {
     strokeWeight: 3,
     strokeColor: '#ffffff',
     scale: 8,
+    labelOrigin: new google.maps.Point(0, -2), // Posiciona o label acima do círculo
   };
 };
 
