@@ -3,7 +3,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, Filter, Car, MapPin, Gauge, Calendar } from "lucide-react";
+import { Plus, Search, Filter, Car, MapPin, Gauge, Calendar, X } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -22,6 +25,7 @@ const Vehicles = () => {
   const [loading, setLoading] = useState(true);
   const [contracts, setContracts] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilters, setStatusFilters] = useState<string[]>([]);
   useEffect(() => {
     if (user) {
       fetchVehicles();
@@ -136,11 +140,16 @@ const Vehicles = () => {
     setIsDetailsDialogOpen(true);
   };
 
-  const handleFilters = () => {
-    toast({
-      title: "Filtros",
-      description: "Funcionalidade de filtros será implementada em breve",
-    });
+  const toggleStatusFilter = (status: string) => {
+    setStatusFilters(prev => 
+      prev.includes(status) 
+        ? prev.filter(s => s !== status)
+        : [...prev, status]
+    );
+  };
+
+  const clearFilters = () => {
+    setStatusFilters([]);
   };
 
   return (
@@ -227,10 +236,81 @@ const Vehicles = () => {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <Button variant="outline" onClick={handleFilters}>
-              <Filter className="h-4 w-4 mr-2" />
-              Filtros
-            </Button>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline">
+                  <Filter className="h-4 w-4 mr-2" />
+                  Filtros
+                  {statusFilters.length > 0 && (
+                    <Badge variant="secondary" className="ml-2">
+                      {statusFilters.length}
+                    </Badge>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64" align="end">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-semibold text-sm">Filtrar por Status</h4>
+                    {statusFilters.length > 0 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={clearFilters}
+                        className="h-auto p-1 text-xs"
+                      >
+                        <X className="h-3 w-3 mr-1" />
+                        Limpar
+                      </Button>
+                    )}
+                  </div>
+                  <div className="space-y-3">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox 
+                        id="disponivel"
+                        checked={statusFilters.includes('disponivel')}
+                        onCheckedChange={() => toggleStatusFilter('disponivel')}
+                      />
+                      <Label 
+                        htmlFor="disponivel" 
+                        className="text-sm font-normal cursor-pointer flex items-center gap-2"
+                      >
+                        <div className="h-2 w-2 rounded-full bg-success" />
+                        Disponíveis
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox 
+                        id="alugado"
+                        checked={statusFilters.includes('alugado')}
+                        onCheckedChange={() => toggleStatusFilter('alugado')}
+                      />
+                      <Label 
+                        htmlFor="alugado" 
+                        className="text-sm font-normal cursor-pointer flex items-center gap-2"
+                      >
+                        <div className="h-2 w-2 rounded-full bg-accent" />
+                        Alugados
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox 
+                        id="manutencao"
+                        checked={statusFilters.includes('manutencao')}
+                        onCheckedChange={() => toggleStatusFilter('manutencao')}
+                      />
+                      <Label 
+                        htmlFor="manutencao" 
+                        className="text-sm font-normal cursor-pointer flex items-center gap-2"
+                      >
+                        <div className="h-2 w-2 rounded-full bg-warning" />
+                        Em Manutenção
+                      </Label>
+                    </div>
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
         </CardContent>
       </Card>
@@ -263,10 +343,15 @@ const Vehicles = () => {
           {vehicles
             .filter((vehicle) => {
               const search = searchTerm.toLowerCase();
-              return vehicle.plate.toLowerCase().includes(search) || 
+              const matchesSearch = vehicle.plate.toLowerCase().includes(search) || 
                      vehicle.brand.toLowerCase().includes(search) ||
                      vehicle.model.toLowerCase().includes(search) ||
                      (vehicle.category && vehicle.category.toLowerCase().includes(search));
+              
+              const vehicleStatus = getVehicleStatus(vehicle);
+              const matchesStatus = statusFilters.length === 0 || statusFilters.includes(vehicleStatus);
+              
+              return matchesSearch && matchesStatus;
             })
             .map((vehicle) => (
           <Card key={vehicle.id} className="hover:shadow-md transition-shadow">
