@@ -15,8 +15,7 @@ import {
   Clock,
   AlertCircle,
   TrendingUp,
-  TrendingDown,
-  Settings
+  TrendingDown
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -325,13 +324,6 @@ const ExtratoConta = () => {
           </div>
         </div>
         <div className="flex gap-2">
-          <Button 
-            variant="outline" 
-            onClick={() => setIsCoraConfigOpen(true)}
-          >
-            <Settings className="h-4 w-4 mr-2" />
-            Configurar Cora
-          </Button>
           <Button 
             variant="outline" 
             onClick={syncCoraTransactions}

@@ -16,8 +16,10 @@ interface CoraConfigDialogProps {
 interface CoraConfig {
   account_id: string;
   client_id: string;
-  client_secret: string;
+  certificate: string;
+  private_key: string;
   base_url: string;
+  environment: 'production' | 'stage';
 }
 
 const CoraConfigDialog = ({ open, onOpenChange }: CoraConfigDialogProps) => {
@@ -30,8 +32,10 @@ const CoraConfigDialog = ({ open, onOpenChange }: CoraConfigDialogProps) => {
   const [config, setConfig] = useState<CoraConfig>({
     account_id: '',
     client_id: '',
-    client_secret: '',
-    base_url: 'https://api.cora.com.br'
+    certificate: '',
+    private_key: '',
+    base_url: 'https://api.cora.com.br',
+    environment: 'production'
   });
 
   // Load configuration when dialog opens
@@ -184,31 +188,49 @@ const CoraConfigDialog = ({ open, onOpenChange }: CoraConfigDialogProps) => {
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="client_secret">Client Secret</Label>
-            <Input
-              id="client_secret"
-              type="password"
-              placeholder="Seu Client Secret da API"
-              value={config.client_secret}
-              onChange={(e) => setConfig({ ...config, client_secret: e.target.value })}
+            <Label htmlFor="certificate">Certificado (PEM)</Label>
+            <textarea
+              id="certificate"
+              className="w-full min-h-[100px] p-2 border rounded-md text-sm font-mono"
+              placeholder="-----BEGIN CERTIFICATE-----
+MIIDXTCCAkW...
+-----END CERTIFICATE-----"
+              value={config.certificate}
+              onChange={(e) => setConfig({ ...config, certificate: e.target.value })}
             />
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="base_url">URL Base da API</Label>
-            <Input
-              id="base_url"
-              placeholder="https://api.cora.com.br"
-              value={config.base_url}
-              onChange={(e) => setConfig({ ...config, base_url: e.target.value })}
+            <Label htmlFor="private_key">Chave Privada (PEM)</Label>
+            <textarea
+              id="private_key"
+              className="w-full min-h-[100px] p-2 border rounded-md text-sm font-mono"
+              placeholder="-----BEGIN PRIVATE KEY-----
+MIIEvgIBADA...
+-----END PRIVATE KEY-----"
+              value={config.private_key}
+              onChange={(e) => setConfig({ ...config, private_key: e.target.value })}
             />
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="environment">Ambiente</Label>
+            <select
+              id="environment"
+              className="w-full p-2 border rounded-md"
+              value={config.environment}
+              onChange={(e) => setConfig({ ...config, environment: e.target.value as 'production' | 'stage' })}
+            >
+              <option value="stage">Stage (Testes)</option>
+              <option value="production">Produção</option>
+            </select>
           </div>
 
           <div className="flex gap-2 pt-2">
             <Button
               variant="outline"
               onClick={testConnection}
-              disabled={testing || !config.client_id || !config.client_secret}
+              disabled={testing || !config.client_id || !config.certificate || !config.private_key}
               className="flex-1"
             >
               {testing ? (
