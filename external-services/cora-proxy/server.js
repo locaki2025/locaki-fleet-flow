@@ -25,9 +25,11 @@ app.post('/cora/test', async (req, res) => {
       });
     }
 
-    const options = {
-      hostname: base_url.replace('https://', ''),
-      path: '/token',
+    const urlObj = new URL(base_url);
+    const basePath = urlObj.pathname.replace(/\/$/, '');
+    let options = {
+      hostname: urlObj.hostname,
+      path: `${basePath}/token`,
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -37,7 +39,19 @@ app.post('/cora/test', async (req, res) => {
       rejectUnauthorized: true,
     };
 
-    const result = await makeRequest(options, `grant_type=client_credentials&client_id=${client_id}`);
+    let result;
+    try {
+      result = await makeRequest(options, `grant_type=client_credentials&client_id=${client_id}`);
+    } catch (err) {
+      const msg = String((err && err.message) || err);
+      if (msg.includes('No context-path') || msg.includes('HTTP 404')) {
+        console.warn('Primary /token failed, retrying with /oauth2/token');
+        const fallbackOptions = { ...options, path: `${basePath}/oauth2/token` };
+        result = await makeRequest(fallbackOptions, `grant_type=client_credentials&client_id=${client_id}`);
+      } else {
+        throw err;
+      }
+    }
     res.json({ success: true, data: result });
   } catch (error) {
     console.error('Cora test error:', error);
@@ -59,9 +73,11 @@ app.post('/cora/token', async (req, res) => {
       });
     }
 
-    const options = {
-      hostname: base_url.replace('https://', ''),
-      path: '/token',
+    const urlObj = new URL(base_url);
+    const basePath = urlObj.pathname.replace(/\/$/, '');
+    let options = {
+      hostname: urlObj.hostname,
+      path: `${basePath}/token`,
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -71,7 +87,19 @@ app.post('/cora/token', async (req, res) => {
       rejectUnauthorized: true,
     };
 
-    const result = await makeRequest(options, `grant_type=client_credentials&client_id=${client_id}`);
+    let result;
+    try {
+      result = await makeRequest(options, `grant_type=client_credentials&client_id=${client_id}`);
+    } catch (err) {
+      const msg = String((err && err.message) || err);
+      if (msg.includes('No context-path') || msg.includes('HTTP 404')) {
+        console.warn('Primary /token failed, retrying with /oauth2/token');
+        const fallbackOptions = { ...options, path: `${basePath}/oauth2/token` };
+        result = await makeRequest(fallbackOptions, `grant_type=client_credentials&client_id=${client_id}`);
+      } else {
+        throw err;
+      }
+    }
     res.json(result);
   } catch (error) {
     console.error('Token error:', error);
@@ -90,10 +118,12 @@ app.post('/cora/transactions', async (req, res) => {
       });
     }
 
-    const path = `/transactions?startDate=${start_date}&endDate=${end_date}`;
+    const urlObj = new URL(base_url);
+    const basePath = urlObj.pathname.replace(/\/$/, '');
+    const path = `${basePath}/transactions?startDate=${start_date}&endDate=${end_date}`;
     
     const options = {
-      hostname: base_url.replace('https://', ''),
+      hostname: urlObj.hostname,
       path: path,
       method: 'GET',
       headers: {
