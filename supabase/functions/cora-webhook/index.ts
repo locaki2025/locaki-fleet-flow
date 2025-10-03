@@ -82,24 +82,33 @@ const updateInvoiceStatus = async (coraChargeId: string, status: string, paidAmo
   return invoice;
 };
 
-// Get Cora access token using mTLS
+// Get Cora access token using mTLS proxy
 const getCoraAccessToken = async (config: CoraConfig) => {
-  // IMPORTANTE: A API do Cora requer autenticação mTLS (Mutual TLS)
-  // Infelizmente, o ambiente Deno das Edge Functions do Supabase não suporta
-  // configuração de certificados client-side necessários para mTLS.
-  // 
-  // Para usar a API do Cora, você precisaria:
-  // 1. Usar um servidor intermediário (proxy) que suporte mTLS
-  // 2. Configurar o proxy com os certificados do Cora
-  // 3. Fazer as chamadas através desse proxy
-  //
-  // Ou implementar esta funcionalidade em um backend próprio que suporte mTLS.
+  const PROXY_URL = 'https://cora-mtls-proxy.onrender.com';
   
-  throw new Error(
-    'A integração com o Cora requer autenticação mTLS (Mutual TLS) que não é suportada ' +
-    'nativamente pelas Edge Functions do Supabase. É necessário usar um servidor intermediário ' +
-    'ou backend próprio que suporte configuração de certificados client-side para TLS.'
-  );
+  try {
+    const response = await fetch(`${PROXY_URL}/cora/token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        client_id: config.client_id,
+        certificate: config.certificate,
+        private_key: config.private_key,
+        base_url: config.base_url
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Erro ao obter token: ${response.status} - ${errorText}`);
+    }
+
+    const data = await response.json();
+    return data.access_token;
+  } catch (error) {
+    console.error('Error getting Cora access token:', error);
+    throw error;
+  }
 };
 
 // Sync transactions from Cora API
@@ -112,31 +121,31 @@ const syncCoraTransactions = async (userId: string, config: CoraConfig, startDat
   try {
     console.log(`Starting Cora sync for user ${userId} from ${startDate} to ${endDate}`);
     
+    const PROXY_URL = 'https://cora-mtls-proxy.onrender.com';
     const accessToken = await getCoraAccessToken(config);
     
-    // Determine API base URL based on environment
-    const apiBaseUrl = config.environment === 'production'
-      ? 'https://api.cora.com.br'
-      : 'https://api.stage.cora.com.br';
+    // Fetch transactions through proxy
+    console.log(`Fetching transactions from ${startDate} to ${endDate}`);
     
-    // Fetch statement (extrato) from Cora API - the API will automatically use the account associated with the mTLS certificate
-    const statementUrl = `${apiBaseUrl}/statement?start=${startDate}&end=${endDate}`;
-    console.log(`Fetching statement from: ${statementUrl}`);
-    
-    const statementResponse = await fetch(statementUrl, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Accept': 'application/json',
-      },
+    const transactionsResponse = await fetch(`${PROXY_URL}/cora/transactions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        access_token: accessToken,
+        certificate: config.certificate,
+        private_key: config.private_key,
+        base_url: config.base_url,
+        start_date: startDate,
+        end_date: endDate
+      })
     });
 
-    if (!statementResponse.ok) {
-      const errorText = await statementResponse.text();
-      throw new Error(`Erro ao buscar extrato: ${statementResponse.status} - ${errorText}`);
+    if (!transactionsResponse.ok) {
+      const errorText = await transactionsResponse.text();
+      throw new Error(`Erro ao buscar transações: ${transactionsResponse.status} - ${errorText}`);
     }
 
-    const statementData = await statementResponse.json();
+    const statementData = await transactionsResponse.json();
     const entries = statementData.entries || [];
     console.log(`Found ${entries.length} entries from Cora statement`);
 
@@ -299,39 +308,40 @@ const autoReconcileTransaction = async (userId: string, transaction: CoraTransac
   }
 };
 
-// Test Cora API connection
+// Test Cora API connection through proxy
 const testCoraConnection = async (config: any) => {
   try {
-    const { client_id, certificate, private_key, environment } = config;
+    const { client_id, certificate, private_key, base_url } = config;
     
     if (!client_id || !certificate || !private_key) {
       throw new Error('Configuração incompleta: client_id, certificado e chave privada são obrigatórios');
     }
 
-    const accessToken = await getCoraAccessToken(config);
-
-    // Determine API base URL based on environment
-    const apiBaseUrl = environment === 'production'
-      ? 'https://api.cora.com.br'
-      : 'https://api.stage.cora.com.br';
-
-    // Test API access by fetching a simple statement
-    const today = new Date().toISOString().split('T')[0];
-    const testUrl = `${apiBaseUrl}/statement?start=${today}&end=${today}`;
+    const PROXY_URL = 'https://cora-mtls-proxy.onrender.com';
     
-    const testResponse = await fetch(testUrl, {
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Accept': 'application/json',
-      },
+    const testResponse = await fetch(`${PROXY_URL}/cora/test`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        client_id,
+        certificate,
+        private_key,
+        base_url
+      })
     });
 
     if (!testResponse.ok) {
       const errorText = await testResponse.text();
-      throw new Error(`Erro ao acessar API: ${testResponse.status} - ${errorText}`);
+      throw new Error(`Erro ao testar conexão: ${testResponse.status} - ${errorText}`);
     }
 
-    return { success: true, message: 'Conexão com Cora estabelecida com sucesso' };
+    const result = await testResponse.json();
+    
+    if (!result.success) {
+      throw new Error(result.error || 'Erro desconhecido ao testar conexão');
+    }
+
+    return { success: true, message: 'Conexão com Cora estabelecida com sucesso através do proxy mTLS' };
 
   } catch (error) {
     console.error('Cora connection test failed:', error);
