@@ -32,7 +32,7 @@ const CoraConfigDialog = ({ open, onOpenChange }: CoraConfigDialogProps) => {
     client_id: '',
     certificate: '',
     private_key: '',
-    base_url: 'https://api.cora.com.br',
+    base_url: 'https://matls-clients.api.cora.com.br',
     environment: 'production'
   });
 
@@ -273,7 +273,16 @@ const CoraConfigDialog = ({ open, onOpenChange }: CoraConfigDialogProps) => {
               id="environment"
               className="w-full p-2 border rounded-md"
               value={config.environment}
-              onChange={(e) => setConfig({ ...config, environment: e.target.value as 'production' | 'stage' })}
+              onChange={(e) => {
+                const env = e.target.value as 'production' | 'stage';
+                setConfig({ 
+                  ...config, 
+                  environment: env,
+                  base_url: env === 'production' 
+                    ? 'https://matls-clients.api.cora.com.br'
+                    : 'https://matls-clients.api.stage.cora.com.br'
+                });
+              }}
             >
               <option value="stage">Stage (Testes)</option>
               <option value="production">Produção</option>

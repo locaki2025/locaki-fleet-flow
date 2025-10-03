@@ -27,7 +27,7 @@ app.post('/cora/test', async (req, res) => {
 
     const options = {
       hostname: base_url.replace('https://', ''),
-      path: '/oauth2/token',
+      path: '/token',
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -61,7 +61,7 @@ app.post('/cora/token', async (req, res) => {
 
     const options = {
       hostname: base_url.replace('https://', ''),
-      path: '/oauth2/token',
+      path: '/token',
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
