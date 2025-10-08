@@ -228,11 +228,13 @@ const Map = () => {
 
       console.log('Veículos da base:', vehiclesData);
 
-      // Create a map of vehicle id to plate
+      // Create bidirectional maps for vehicle id <-> plate
       const vehicleIdToPlate: Record<string, string> = {};
+      const plateToId: Record<string, string> = {};
       if (vehiclesData) {
         vehiclesData.forEach(v => {
           vehicleIdToPlate[v.id] = v.plate;
+          plateToId[v.plate] = v.id;
         });
       }
 
@@ -240,15 +242,42 @@ const Map = () => {
       const renterMap: Record<string, string> = {};
       if (activeContracts) {
         activeContracts.forEach(contract => {
-          // Try to match by moto_id (which could be vehicle id or plate)
-          const plate = vehicleIdToPlate[contract.moto_id] || contract.moto_id;
-          console.log('Processando contrato - moto_id:', contract.moto_id, '-> placa:', plate, '-> cliente:', contract.cliente_nome);
-          if (plate && contract.cliente_nome) {
-            renterMap[plate] = contract.cliente_nome;
+          if (!contract.cliente_nome) return;
+          
+          // Try multiple strategies to match vehicle
+          let matchedPlate: string | null = null;
+          
+          // Strategy 1: moto_id is a vehicle UUID
+          if (vehicleIdToPlate[contract.moto_id]) {
+            matchedPlate = vehicleIdToPlate[contract.moto_id];
+            console.log('Matched by UUID:', contract.moto_id, '->', matchedPlate);
+          }
+          // Strategy 2: moto_id is already a plate
+          else if (vehiclesData?.some(v => v.plate === contract.moto_id)) {
+            matchedPlate = contract.moto_id;
+            console.log('Matched by plate directly:', matchedPlate);
+          }
+          // Strategy 3: Try to find by partial match (in case of formatting differences)
+          else {
+            const normalizedMotoId = contract.moto_id.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+            const found = vehiclesData?.find(v => 
+              v.plate.replace(/[^A-Z0-9]/gi, '').toUpperCase() === normalizedMotoId
+            );
+            if (found) {
+              matchedPlate = found.plate;
+              console.log('Matched by normalized plate:', contract.moto_id, '->', matchedPlate);
+            }
+          }
+          
+          if (matchedPlate) {
+            renterMap[matchedPlate] = contract.cliente_nome;
+            console.log('✓ Mapeado:', matchedPlate, '->', contract.cliente_nome);
+          } else {
+            console.warn('✗ Não encontrado veículo para contrato moto_id:', contract.moto_id);
           }
         });
       }
-      console.log('Mapa de locatários por placa:', renterMap);
+      console.log('Mapa final de locatários por placa:', renterMap);
         
       if (!updatedError && updatedDevices) {
         console.log('Dispositivos recebidos do banco:', updatedDevices);
