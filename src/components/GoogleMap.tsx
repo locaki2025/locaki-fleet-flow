@@ -233,8 +233,8 @@ const GoogleMapComponent = ({ vehicles, initialCenter, initialZoom = 13 }: Googl
       }
     });
 
-    // Ajusta bounds apenas na primeira vez
-    if (!hasFittedBoundsRef.current && validVehicles.length > 0) {
+    // Ajusta bounds apenas na primeira vez e somente quando não houver initialCenter
+    if (!hasFittedBoundsRef.current && validVehicles.length > 0 && !initialCenter) {
       const bounds = new google.maps.LatLngBounds();
       validVehicles.forEach((v: any) => bounds.extend({ lat: Number(v.latitude), lng: Number(v.longitude) }));
       try {
@@ -270,7 +270,7 @@ const GoogleMapComponent = ({ vehicles, initialCenter, initialZoom = 13 }: Googl
           mapRef.current = map;
           map.setCenter(initialCenter || mapCenter);
           map.setZoom(initialZoom);
-          hasFittedBoundsRef.current = false;
+          hasFittedBoundsRef.current = !!initialCenter;
           setMapReady(true);
           
           // Atualiza o centro quando o usuário move o mapa
