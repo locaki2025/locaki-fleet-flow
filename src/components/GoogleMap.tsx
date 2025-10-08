@@ -20,6 +20,8 @@ interface Vehicle {
 
 interface GoogleMapComponentProps {
   vehicles: Vehicle[];
+  initialCenter?: { lat: number; lng: number };
+  initialZoom?: number;
 }
 
 const containerStyle = {
@@ -61,13 +63,13 @@ const getMarkerIcon = (vehicle: any) => {
   };
 };
 
-const GoogleMapComponent = ({ vehicles }: GoogleMapComponentProps) => {
+const GoogleMapComponent = ({ vehicles, initialCenter, initialZoom = 13 }: GoogleMapComponentProps) => {
   const { toast } = useToast();
   const [apiKey, setApiKey] = useState<string>('');
   const [inputKey, setInputKey] = useState<string>('');
   const [isConfiguring, setIsConfiguring] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
-  const [mapCenter, setMapCenter] = useState(defaultCenter);
+  const [mapCenter, setMapCenter] = useState(initialCenter || defaultCenter);
   const mapRef = useRef<google.maps.Map | null>(null);
   const markersRef = useRef<Map<string, google.maps.Marker>>(new Map());
   const hasFittedBoundsRef = useRef(false);
@@ -266,8 +268,8 @@ const GoogleMapComponent = ({ vehicles }: GoogleMapComponentProps) => {
         mapContainerStyle={containerStyle}
         onLoad={(map) => {
           mapRef.current = map;
-          map.setCenter(mapCenter);
-          map.setZoom(13);
+          map.setCenter(initialCenter || mapCenter);
+          map.setZoom(initialZoom);
           hasFittedBoundsRef.current = false;
           setMapReady(true);
           

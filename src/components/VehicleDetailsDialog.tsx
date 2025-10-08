@@ -353,6 +353,8 @@ const VehicleDetailsDialog = ({ open, onOpenChange, vehicle, onVehicleUpdate }: 
                     <div className="h-[200px] rounded-lg overflow-hidden border">
                       <GoogleMapComponent 
                         vehicles={[mapVehicle]}
+                        initialCenter={{ lat: mapVehicle.latitude, lng: mapVehicle.longitude }}
+                        initialZoom={15}
                       />
                     </div>
                   </>
@@ -363,15 +365,6 @@ const VehicleDetailsDialog = ({ open, onOpenChange, vehicle, onVehicleUpdate }: 
                 )}
                 
                 <div className="space-y-3">
-                  <Button 
-                    className="w-full bg-gradient-primary hover:opacity-90"
-                    onClick={handleViewOnMap}
-                    disabled={!mapVehicle}
-                  >
-                    <MapPin className="h-4 w-4 mr-2" />
-                    Ver no Mapa
-                  </Button>
-                  
                   {vehicle.status === 'disponivel' && (
                     <Button 
                       variant="outline" 
