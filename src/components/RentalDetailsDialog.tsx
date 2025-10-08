@@ -1,10 +1,12 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileText, User, Car, Calendar, DollarSign, MapPin, Printer } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
 
 interface Contract {
   id: string;
@@ -31,6 +33,7 @@ interface RentalDetailsDialogProps {
 
 const RentalDetailsDialog = ({ open, onOpenChange, rental }: RentalDetailsDialogProps) => {
   const { toast } = useToast();
+  const [showDeleteAlert, setShowDeleteAlert] = useState(false);
 
   if (!rental) return null;
 
@@ -131,10 +134,6 @@ const RentalDetailsDialog = ({ open, onOpenChange, rental }: RentalDetailsDialog
   };
 
   const handleDeleteContract = async () => {
-    if (!window.confirm('Tem certeza que deseja excluir este contrato? Esta ação não pode ser desfeita.')) {
-      return;
-    }
-
     try {
       const { error } = await supabase
         .from('contratos')
@@ -148,6 +147,7 @@ const RentalDetailsDialog = ({ open, onOpenChange, rental }: RentalDetailsDialog
         description: `Contrato #${rental.id} foi excluído com sucesso`,
       });
       
+      setShowDeleteAlert(false);
       onOpenChange(false);
     } catch (error) {
       toast({
@@ -318,11 +318,28 @@ const RentalDetailsDialog = ({ open, onOpenChange, rental }: RentalDetailsDialog
             Histórico
           </Button>
           
-          <Button variant="destructive" onClick={handleDeleteContract}>
+          <Button variant="destructive" onClick={() => setShowDeleteAlert(true)}>
             Excluir Contrato
           </Button>
         </div>
       </DialogContent>
+
+      <AlertDialog open={showDeleteAlert} onOpenChange={setShowDeleteAlert}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Tem certeza que deseja excluir este contrato?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. O contrato #{rental.id} será permanentemente excluído do sistema.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteContract} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 };
