@@ -31,6 +31,16 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import DeviceDialog from "@/components/DeviceDialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const RASTROSYSTEM_API_URL = 'https://locaki.rastrosystem.com.br/api_v2';
 
@@ -57,6 +67,7 @@ const Devices = () => {
   const [devices, setDevices] = useState<Device[]>([]);
   const [isDeviceDialogOpen, setIsDeviceDialogOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [deviceToDelete, setDeviceToDelete] = useState<string | null>(null);
 
   // Fetch devices from Supabase (vehicles table)
   useEffect(() => {
@@ -217,6 +228,37 @@ const Devices = () => {
     ));
   };
 
+  const handleDeleteDevice = async () => {
+    if (!deviceToDelete) return;
+
+    try {
+      const { error } = await supabase
+        .from('vehicles')
+        .delete()
+        .eq('id', deviceToDelete)
+        .eq('user_id', user?.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Rastreador excluído",
+        description: "O rastreador foi removido com sucesso",
+      });
+
+      // Recarregar a lista
+      await fetchDevices();
+    } catch (error) {
+      console.error('Error deleting device:', error);
+      toast({
+        title: "Erro ao excluir",
+        description: error instanceof Error ? error.message : "Não foi possível excluir o rastreador",
+        variant: "destructive",
+      });
+    } finally {
+      setDeviceToDelete(null);
+    }
+  };
+
   const handleDeviceAction = async (action: string, deviceId: string) => {
     try {
       if (action === "Ver localização") {
@@ -274,7 +316,12 @@ const Devices = () => {
         return;
       }
       
-      if (action === "Reiniciar" || action === "Remover") {
+      if (action === "Remover") {
+        setDeviceToDelete(deviceId);
+        return;
+      }
+      
+      if (action === "Reiniciar") {
         const { data, error } = await supabase.functions.invoke('rastrosystem-sync', {
           body: { action: action.toLowerCase(), deviceId }
         });
@@ -636,6 +683,23 @@ const Devices = () => {
         onOpenChange={setIsDeviceDialogOpen}
         onDeviceCreated={handleDeviceCreated}
       />
+
+      <AlertDialog open={!!deviceToDelete} onOpenChange={() => setDeviceToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir este rastreador? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteDevice} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
