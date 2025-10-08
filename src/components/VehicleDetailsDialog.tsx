@@ -51,6 +51,7 @@ const VehicleDetailsDialog = ({ open, onOpenChange, vehicle, onVehicleUpdate }: 
   useEffect(() => {
     const loadLocation = async () => {
       if (!open || !vehicle || !user?.id) return;
+      console.log('[VehicleDetailsDialog] Carregando localização para placa:', vehicle.plate);
       
       try {
         // Tenta sincronizar (mesma lógica do Map.tsx), mas não bloqueia em caso de erro
@@ -58,7 +59,9 @@ const VehicleDetailsDialog = ({ open, onOpenChange, vehicle, onVehicleUpdate }: 
           await supabase.functions.invoke('rastrosystem-sync', {
             body: { action: 'sync_devices', user_id: user.id },
           });
-        } catch (_) {}
+        } catch (syncErr) {
+          console.warn('[VehicleDetailsDialog] Sync Rastrosystem falhou (segue com fallback):', syncErr);
+        }
 
         // Busca o device correspondente pela placa
         const { data: device, error } = await supabase
@@ -68,11 +71,15 @@ const VehicleDetailsDialog = ({ open, onOpenChange, vehicle, onVehicleUpdate }: 
           .eq('vehicle_plate', vehicle.plate)
           .maybeSingle();
 
+        if (!error && device) {
+          console.log('[VehicleDetailsDialog] Device encontrado no banco:', device?.id, device?.vehicle_plate, device?.latitude, device?.longitude);
+        }
+
         if (!error && device && device.latitude != null && device.longitude != null) {
           const lat = Number(device.latitude);
           const lng = Number(device.longitude);
           if (Number.isFinite(lat) && Number.isFinite(lng)) {
-            setMapVehicle({
+            const mapped = {
               id: device.id,
               plate: device.vehicle_plate,
               brand: (device.name || 'Veículo').split(' ')[0],
@@ -82,13 +89,15 @@ const VehicleDetailsDialog = ({ open, onOpenChange, vehicle, onVehicleUpdate }: 
               status: device.status === 'online' ? 'online' : 'offline',
               last_update: device.last_update || new Date().toISOString(),
               address: device.address || undefined,
-            });
+            };
+            console.log('[VehicleDetailsDialog] Localização via DB:', mapped);
+            setMapVehicle(mapped);
             return;
           }
         }
 
         // FALLBACK: Busca diretamente no Rastrosystem (mesma lógica do Map.tsx)
-        console.log('Device não encontrado no banco, tentando fallback Rastrosystem...');
+        console.log('[VehicleDetailsDialog] Device não encontrado no banco, tentando fallback Rastrosystem...');
         try {
           const loginRes = await fetch('https://locaki.rastrosystem.com.br/api_v2/login/', {
             method: 'POST',
@@ -114,6 +123,7 @@ const VehicleDetailsDialog = ({ open, onOpenChange, vehicle, onVehicleUpdate }: 
           
           const vJson = await vRes.json();
           const dispositivos = vJson.dispositivos || vJson || [];
+          console.log('[VehicleDetailsDialog] Dispositivos recebidos (fallback):', dispositivos?.length);
           
           // Procura o dispositivo pela placa
           const rastroDevice = dispositivos.find((d: any) => 
@@ -131,8 +141,7 @@ const VehicleDetailsDialog = ({ open, onOpenChange, vehicle, onVehicleUpdate }: 
               : Number(rastroDevice.longitude);
 
             if (Number.isFinite(lat) && Number.isFinite(lng) && lat !== 0 && lng !== 0) {
-              console.log('Localização encontrada via Rastrosystem:', { lat, lng, placa: vehicle.plate });
-              setMapVehicle({
+              const mapped = {
                 id: rastroDevice.unique_id || String(rastroDevice.id),
                 plate: rastroDevice.placa || vehicle.plate,
                 brand: vehicle.brand,
@@ -142,17 +151,24 @@ const VehicleDetailsDialog = ({ open, onOpenChange, vehicle, onVehicleUpdate }: 
                 status: rastroDevice.status ? 'online' : 'offline',
                 last_update: rastroDevice.server_time || rastroDevice.time || new Date().toISOString(),
                 address: rastroDevice.address || undefined,
-              });
+              };
+              console.log('[VehicleDetailsDialog] Localização via Rastrosystem (fallback):', mapped);
+              setMapVehicle(mapped);
               return;
+            } else {
+              console.warn('[VehicleDetailsDialog] Coordenadas inválidas no fallback:', rastroDevice?.latitude, rastroDevice?.longitude);
             }
+          } else {
+            console.warn('[VehicleDetailsDialog] Nenhum dispositivo encontrado para a placa no fallback:', vehicle.plate);
           }
         } catch (fallbackError) {
-          console.error('Fallback Rastrosystem falhou:', fallbackError);
+          console.error('[VehicleDetailsDialog] Fallback Rastrosystem falhou:', fallbackError);
         }
 
+        console.warn('[VehicleDetailsDialog] Localização não encontrada. mapVehicle = null');
         setMapVehicle(null);
       } catch (e) {
-        console.error('Falha ao carregar localização do veículo:', e);
+        console.error('[VehicleDetailsDialog] Falha ao carregar localização do veículo:', e);
         setMapVehicle(null);
       }
     };
