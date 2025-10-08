@@ -456,7 +456,7 @@ const Devices = () => {
                           </Badge>
                         </div>
                         <p className="text-sm text-muted-foreground">
-                          {device.vehiclePlate}
+                          {device.vehiclePlate} • IMEI: {device.imei}
                         </p>
                         <div className="flex items-center gap-4 text-xs text-muted-foreground">
                           <div className="flex items-center gap-1">
