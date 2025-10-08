@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Car, MapPin, Gauge, Calendar, FileText, Settings, Edit, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import VehicleDialog from "./VehicleDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -44,6 +44,62 @@ const VehicleDetailsDialog = ({ open, onOpenChange, vehicle, onVehicleUpdate }: 
   const { user } = useAuth();
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+
+  // Dados do mapa seguindo a mesma lógica da página de Mapa (devices)
+  const [mapVehicle, setMapVehicle] = useState<any | null>(null);
+
+  useEffect(() => {
+    const loadLocation = async () => {
+      if (!open || !vehicle || !user?.id) return;
+      try {
+        // Tenta sincronizar (mesma lógica do Map.tsx), mas não bloqueia em caso de erro
+        try {
+          await supabase.functions.invoke('rastrosystem-sync', {
+            body: { action: 'sync_devices', user_id: user.id },
+          });
+        } catch (_) {}
+
+        // Busca o device correspondente pela placa
+        const { data: device, error } = await supabase
+          .from('devices')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('vehicle_plate', vehicle.plate)
+          .maybeSingle();
+
+        if (error) {
+          console.warn('Erro ao buscar device para o mapa:', error);
+          setMapVehicle(null);
+          return;
+        }
+
+        if (device && device.latitude != null && device.longitude != null) {
+          const lat = Number(device.latitude);
+          const lng = Number(device.longitude);
+          if (Number.isFinite(lat) && Number.isFinite(lng)) {
+            setMapVehicle({
+              id: device.id,
+              plate: device.vehicle_plate,
+              brand: (device.name || 'Veículo').split(' ')[0],
+              model: device.name || vehicle.model,
+              latitude: lat,
+              longitude: lng,
+              status: device.status === 'online' ? 'online' : 'offline',
+              last_update: device.last_update || new Date().toISOString(),
+              address: device.address || undefined,
+            });
+            return;
+          }
+        }
+        setMapVehicle(null);
+      } catch (e) {
+        console.error('Falha ao carregar localização do veículo:', e);
+        setMapVehicle(null);
+      }
+    };
+
+    loadLocation();
+  }, [open, vehicle?.id, user?.id]);
 
   if (!vehicle) return null;
 
@@ -206,30 +262,22 @@ const VehicleDetailsDialog = ({ open, onOpenChange, vehicle, onVehicleUpdate }: 
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {vehicle.lastLocation ? (
+                {mapVehicle ? (
                   <>
                     <div className="p-3 bg-accent/10 rounded-lg">
                       <p className="text-sm font-medium">Última localização</p>
-                      <p className="text-sm text-muted-foreground">{vehicle.lastLocation.address}</p>
+                      {mapVehicle.address && (
+                        <p className="text-sm text-muted-foreground">{mapVehicle.address}</p>
+                      )}
                       <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
                         <Calendar className="h-3 w-3" />
-                        {new Date(vehicle.lastLocation.updatedAt).toLocaleString('pt-BR')}
+                        {new Date(mapVehicle.last_update).toLocaleString('pt-BR')}
                       </p>
                     </div>
                     
                     <div className="h-[200px] rounded-lg overflow-hidden border">
                       <GoogleMapComponent 
-                        vehicles={[{
-                          id: vehicle.id,
-                          plate: vehicle.plate,
-                          brand: vehicle.brand,
-                          model: vehicle.model,
-                          latitude: vehicle.lastLocation.lat,
-                          longitude: vehicle.lastLocation.lng,
-                          status: vehicle.status,
-                          last_update: vehicle.lastLocation.updatedAt,
-                          address: vehicle.lastLocation.address
-                        }]}
+                        vehicles={[mapVehicle]}
                       />
                     </div>
                   </>
@@ -243,7 +291,7 @@ const VehicleDetailsDialog = ({ open, onOpenChange, vehicle, onVehicleUpdate }: 
                   <Button 
                     className="w-full bg-gradient-primary hover:opacity-90"
                     onClick={handleViewOnMap}
-                    disabled={!vehicle.lastLocation}
+                    disabled={!mapVehicle}
                   >
                     <MapPin className="h-4 w-4 mr-2" />
                     Ver no Mapa
