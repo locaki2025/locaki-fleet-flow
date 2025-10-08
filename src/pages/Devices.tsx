@@ -91,6 +91,15 @@ const Devices = () => {
     };
   }, [user]);
 
+  const clearAndReloadDevices = async () => {
+    setDevices([]);
+    await fetchDevices();
+    toast({
+      title: "Dados recarregados",
+      description: "Lista de rastreadores atualizada com sucesso",
+    });
+  };
+
   const fetchDevices = async () => {
     if (!user?.id) {
       console.warn('No user ID found, skipping devices fetch');
@@ -334,7 +343,7 @@ const Devices = () => {
         <div className="flex gap-2">
           <Button 
             variant="outline"
-            onClick={fetchDevices}
+            onClick={clearAndReloadDevices}
             disabled={loading}
           >
             {loading ? (
@@ -342,7 +351,7 @@ const Devices = () => {
             ) : (
               <Power className="h-4 w-4 mr-2" />
             )}
-            Atualizar
+            Recarregar
           </Button>
           <Button 
             className="bg-gradient-primary hover:opacity-90"
