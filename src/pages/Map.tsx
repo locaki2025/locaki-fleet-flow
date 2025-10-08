@@ -576,7 +576,7 @@ const Map = () => {
                 onVehicleClick={(vehicle) => setSelectedVehicle(vehicle)}
               />
               {selectedVehicle && (
-                <div className="absolute top-4 right-4 w-80 max-h-[calc(100%-2rem)] overflow-y-auto z-10">
+                <div className="absolute bottom-4 left-4 w-80 max-h-[calc(100%-2rem)] overflow-y-auto z-10">
                   <VehicleMapCard
                     vehicle={selectedVehicle}
                     onClose={() => setSelectedVehicle(null)}
