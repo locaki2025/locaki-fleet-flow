@@ -74,6 +74,7 @@ const GoogleMapComponent = ({ vehicles, initialCenter, initialZoom = 13, onVehic
   const markersRef = useRef<Map<string, google.maps.Marker>>(new Map());
   const hasFittedBoundsRef = useRef(false);
   const [mapReady, setMapReady] = useState(false);
+  const centerAppliedRef = useRef(false);
 
 
   useEffect(() => {
@@ -246,7 +247,18 @@ const GoogleMapComponent = ({ vehicles, initialCenter, initialZoom = 13, onVehic
         console.warn('Não foi possível ajustar bounds do mapa:', e);
       }
     }
-  }, [validVehicles, vehicles, mapReady]);
+
+    // Força centralização quando initialCenter está definido
+    if (mapReady && initialCenter && !centerAppliedRef.current && validVehicles.length > 0) {
+      setTimeout(() => {
+        if (mapRef.current) {
+          mapRef.current.setCenter(initialCenter);
+          mapRef.current.setZoom(initialZoom);
+          centerAppliedRef.current = true;
+        }
+      }, 300);
+    }
+  }, [validVehicles, vehicles, mapReady, initialCenter, initialZoom]);
 
 
 
