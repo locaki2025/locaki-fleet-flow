@@ -690,7 +690,6 @@ const Map = () => {
               <GoogleMapComponent 
                 vehicles={filteredVehicles} 
                 onVehicleClick={(vehicle) => setSelectedVehicle(vehicle)}
-                selectedVehicle={selectedVehicle}
               />
               {selectedVehicle && (
                 <div className="absolute bottom-4 left-4 w-80 max-h-[calc(100%-2rem)] overflow-y-auto z-10">

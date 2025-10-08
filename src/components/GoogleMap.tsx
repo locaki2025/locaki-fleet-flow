@@ -23,7 +23,6 @@ interface GoogleMapComponentProps {
   initialCenter?: { lat: number; lng: number };
   initialZoom?: number;
   onVehicleClick?: (vehicle: Vehicle) => void;
-  selectedVehicle?: Vehicle | null;
 }
 
 const containerStyle = {
@@ -65,7 +64,7 @@ const getMarkerIcon = (vehicle: any) => {
   };
 };
 
-const GoogleMapComponent = ({ vehicles, initialCenter, initialZoom = 13, onVehicleClick, selectedVehicle }: GoogleMapComponentProps) => {
+const GoogleMapComponent = ({ vehicles, initialCenter, initialZoom = 13, onVehicleClick }: GoogleMapComponentProps) => {
   const { toast } = useToast();
   const [apiKey, setApiKey] = useState<string>('');
   const [inputKey, setInputKey] = useState<string>('');
@@ -248,19 +247,6 @@ const GoogleMapComponent = ({ vehicles, initialCenter, initialZoom = 13, onVehic
       }
     }
   }, [validVehicles, vehicles, mapReady]);
-
-  // Centraliza o mapa quando um veículo é selecionado
-  useEffect(() => {
-    if (!mapRef.current || !selectedVehicle) return;
-    
-    const lat = parseCoord(selectedVehicle.latitude);
-    const lng = parseCoord(selectedVehicle.longitude);
-    
-    if (lat !== null && lng !== null) {
-      mapRef.current.panTo({ lat, lng });
-      mapRef.current.setZoom(17); // Zoom mais próximo para ver o veículo
-    }
-  }, [selectedVehicle]);
 
 
 
