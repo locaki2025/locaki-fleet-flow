@@ -20,7 +20,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import GoogleMapComponent from "@/components/GoogleMap";
 import RastrosystemConfigDialog from "@/components/RastrosystemConfigDialog";
-import VehicleDetailsDialog from "@/components/VehicleDetailsDialog";
+import VehicleMapCard from "@/components/VehicleMapCard";
 import { useMonitoramentoTraccar } from "@/hooks/useMonitoramentoTraccar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -557,11 +557,10 @@ const Map = () => {
                 onVehicleClick={(vehicle) => setSelectedVehicle(vehicle)}
               />
               {selectedVehicle && (
-                <div className="absolute top-4 right-4 w-96 max-h-[calc(100%-2rem)] overflow-y-auto z-10">
-                  <VehicleDetailsDialog
+                <div className="absolute top-4 right-4 w-80 max-h-[calc(100%-2rem)] overflow-y-auto z-10">
+                  <VehicleMapCard
                     vehicle={selectedVehicle}
-                    open={true}
-                    onOpenChange={(open) => !open && setSelectedVehicle(null)}
+                    onClose={() => setSelectedVehicle(null)}
                   />
                 </div>
               )}
