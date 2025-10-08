@@ -1,7 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { MapPin, Navigation, Clock, Battery, X } from "lucide-react";
+import { MapPin, Navigation, Clock, Battery, X, User } from "lucide-react";
 
 interface VehicleMapCardProps {
   vehicle: any;
@@ -47,16 +47,25 @@ const VehicleMapCard = ({ vehicle, onClose }: VehicleMapCardProps) => {
           </Button>
         </div>
 
-        <Badge 
-          variant="outline" 
-          className={`${
-            vehicle.status === 'online' 
-              ? 'bg-success/10 text-success border-success' 
-              : 'bg-destructive/10 text-destructive border-destructive'
-          }`}
-        >
-          {vehicle.status === 'online' ? 'Online' : 'Offline'}
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Badge 
+            variant="outline" 
+            className={`${
+              vehicle.status === 'online' 
+                ? 'bg-success/10 text-success border-success' 
+                : 'bg-destructive/10 text-destructive border-destructive'
+            }`}
+          >
+            {vehicle.status === 'online' ? 'Online' : 'Offline'}
+          </Badge>
+          
+          {vehicle.renter && (
+            <Badge variant="secondary" className="flex items-center gap-1">
+              <User className="h-3 w-3" />
+              {vehicle.renter}
+            </Badge>
+          )}
+        </div>
 
         <div className="space-y-2 text-xs">
           {vehicle.speed !== undefined && (

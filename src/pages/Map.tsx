@@ -206,6 +206,23 @@ const Map = () => {
         .from('devices')
         .select('*')
         .eq('user_id', user.id);
+
+      // Fetch active contracts to get renter names
+      const { data: activeContracts } = await supabase
+        .from('contratos')
+        .select('moto_id, cliente_nome, status')
+        .eq('user_id', user.id)
+        .eq('status', 'ativo');
+
+      // Create a map of vehicle plate to renter name
+      const renterMap: Record<string, string> = {};
+      if (activeContracts) {
+        activeContracts.forEach(contract => {
+          if (contract.moto_id && contract.cliente_nome) {
+            renterMap[contract.moto_id] = contract.cliente_nome;
+          }
+        });
+      }
         
       if (!updatedError && updatedDevices) {
         console.log('Dispositivos recebidos do banco:', updatedDevices);
@@ -231,7 +248,8 @@ const Map = () => {
             speed: (device as any).speed || 0,
             velocidade: (device as any).velocidade || 0,
             last_update: device.last_update,
-            address: device.address
+            address: device.address,
+            renter: renterMap[device.vehicle_plate] || null
           };
         });
         
@@ -254,7 +272,8 @@ const Map = () => {
           speed: (device as any).speed || 0,
           velocidade: (device as any).velocidade || 0,
           last_update: device.last_update,
-          address: device.address
+          address: device.address,
+          renter: renterMap[device.vehicle_plate] || null
         }));
         
         setVehicles(mappedDevices);
