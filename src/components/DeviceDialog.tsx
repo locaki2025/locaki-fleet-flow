@@ -106,6 +106,8 @@ const DeviceDialog = ({ open, onOpenChange, onDeviceCreated, device }: DeviceDia
           .update({
             tracker_id: formData.imei || null,
             plate: formData.vehiclePlate,
+            chip_number: formData.chipNumber || null,
+            tracker_model: formData.trackerModel || null,
             status: formData.status === 'online' ? 'disponivel' : formData.status === 'maintenance' ? 'manutencao' : 'offline',
           })
           .eq('id', device.id)

@@ -804,6 +804,7 @@ export type Database = {
           brand: string
           category: string
           chassis: string | null
+          chip_number: string | null
           color: string
           created_at: string
           id: string
@@ -815,6 +816,7 @@ export type Database = {
           renavam: string | null
           status: string
           tracker_id: string | null
+          tracker_model: string | null
           updated_at: string
           user_id: string
           year: number
@@ -823,6 +825,7 @@ export type Database = {
           brand: string
           category: string
           chassis?: string | null
+          chip_number?: string | null
           color: string
           created_at?: string
           id?: string
@@ -834,6 +837,7 @@ export type Database = {
           renavam?: string | null
           status?: string
           tracker_id?: string | null
+          tracker_model?: string | null
           updated_at?: string
           user_id: string
           year: number
@@ -842,6 +846,7 @@ export type Database = {
           brand?: string
           category?: string
           chassis?: string | null
+          chip_number?: string | null
           color?: string
           created_at?: string
           id?: string
@@ -853,6 +858,7 @@ export type Database = {
           renavam?: string | null
           status?: string
           tracker_id?: string | null
+          tracker_model?: string | null
           updated_at?: string
           user_id?: string
           year?: number

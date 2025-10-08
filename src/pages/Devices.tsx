@@ -298,8 +298,8 @@ const Devices = () => {
           name: `${data.brand} ${data.model}`,
           imei: data.tracker_id || '',
           vehicle_plate: data.plate,
-          chip_number: null,
-          tracker_model: null,
+          chip_number: data.chip_number,
+          tracker_model: data.tracker_model,
           status: data.status === 'disponivel' ? 'online' : data.status === 'manutencao' ? 'maintenance' : 'offline'
         };
         
