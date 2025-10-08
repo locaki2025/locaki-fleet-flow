@@ -71,6 +71,7 @@ const GoogleMapComponent = ({ vehicles }: GoogleMapComponentProps) => {
   const mapRef = useRef<google.maps.Map | null>(null);
   const markersRef = useRef<Map<string, google.maps.Marker>>(new Map());
   const hasFittedBoundsRef = useRef(false);
+  const [mapReady, setMapReady] = useState(false);
 
 
   useEffect(() => {
@@ -241,7 +242,7 @@ const GoogleMapComponent = ({ vehicles }: GoogleMapComponentProps) => {
         console.warn('Não foi possível ajustar bounds do mapa:', e);
       }
     }
-  }, [validVehicles, vehicles]);
+  }, [validVehicles, vehicles, mapReady]);
 
 
 
@@ -267,6 +268,8 @@ const GoogleMapComponent = ({ vehicles }: GoogleMapComponentProps) => {
           mapRef.current = map;
           map.setCenter(mapCenter);
           map.setZoom(13);
+          hasFittedBoundsRef.current = false;
+          setMapReady(true);
           
           // Atualiza o centro quando o usuário move o mapa
           map.addListener('center_changed', () => {
