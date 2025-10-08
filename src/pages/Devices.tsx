@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -63,6 +64,7 @@ interface Device {
 const Devices = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [devices, setDevices] = useState<Device[]>([]);
   const [isDeviceDialogOpen, setIsDeviceDialogOpen] = useState(false);
@@ -262,51 +264,11 @@ const Devices = () => {
   const handleDeviceAction = async (action: string, deviceId: string) => {
     try {
       if (action === "Ver localização") {
-        // Always try to open Traccar monitoring system
-        try {
-          // First try to sync and create default config if needed
-          const { data: syncData, error: syncError } = await supabase.functions.invoke('traccar-sync', {
-            body: { action: 'sync_devices' }
-          });
-          
-          // Now get the configuration
-          const { data: configData } = await supabase
-            .from('tenant_config')
-            .select('config_value')
-            .eq('user_id', user?.id)
-            .eq('config_key', 'traccar_settings')
-            .maybeSingle();
-
-          if (configData?.config_value && typeof configData.config_value === 'object') {
-            const traccarConfig = configData.config_value as any;
-            
-            if (traccarConfig.api_url) {
-              // Open Traccar web interface in new tab
-              const traccarWebUrl = traccarConfig.api_url.replace('/api', '');
-              window.open(traccarWebUrl, '_blank');
-              
-              toast({
-                title: "Abrindo Traccar",
-                description: "Sistema de monitoramento Traccar aberto em nova aba",
-              });
-              return;
-            }
-          }
-          
-          // If no Traccar configured, show message to configure it
-          toast({
-            title: "Traccar não configurado",
-            description: "Verifique se as configurações da API Traccar estão corretas nas integrações",
-            variant: "destructive",
-          });
-          
-        } catch (error) {
-          console.error('Error getting Traccar config:', error);
-          toast({
-            title: "Erro de configuração",
-            description: "Erro ao acessar configurações do Traccar",
-            variant: "destructive",
-          });
+        // Encontra o dispositivo selecionado
+        const device = devices.find(d => d.id === deviceId);
+        if (device) {
+          // Navega para a página do mapa com a placa do veículo como parâmetro
+          navigate(`/map?plate=${encodeURIComponent(device.vehiclePlate)}`);
         }
         return;
       }

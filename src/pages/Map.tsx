@@ -15,6 +15,7 @@ import {
   Settings
 } from "lucide-react";
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -28,6 +29,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 const Map = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showConfigDialog, setShowConfigDialog] = useState(false);
@@ -39,6 +41,20 @@ const Map = () => {
   const [filterOffline, setFilterOffline] = useState(false);
   const [filterMoving, setFilterMoving] = useState(false);
   const [searchPlate, setSearchPlate] = useState("");
+
+  // Verifica se há uma placa na URL e aplica o filtro
+  useEffect(() => {
+    const plateFromUrl = searchParams.get('plate');
+    if (plateFromUrl) {
+      setSearchPlate(plateFromUrl);
+      
+      // Seleciona o veículo correspondente quando os dados forem carregados
+      const vehicle = vehicles.find(v => v.plate === plateFromUrl);
+      if (vehicle) {
+        setSelectedVehicle(vehicle);
+      }
+    }
+  }, [searchParams, vehicles]);
 
   useEffect(() => {
     if (user) {
