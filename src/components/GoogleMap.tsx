@@ -22,6 +22,7 @@ interface GoogleMapComponentProps {
   vehicles: Vehicle[];
   initialCenter?: { lat: number; lng: number };
   initialZoom?: number;
+  onVehicleClick?: (vehicle: Vehicle) => void;
 }
 
 const containerStyle = {
@@ -63,7 +64,7 @@ const getMarkerIcon = (vehicle: any) => {
   };
 };
 
-const GoogleMapComponent = ({ vehicles, initialCenter, initialZoom = 13 }: GoogleMapComponentProps) => {
+const GoogleMapComponent = ({ vehicles, initialCenter, initialZoom = 13, onVehicleClick }: GoogleMapComponentProps) => {
   const { toast } = useToast();
   const [apiKey, setApiKey] = useState<string>('');
   const [inputKey, setInputKey] = useState<string>('');
@@ -226,6 +227,9 @@ const GoogleMapComponent = ({ vehicles, initialCenter, initialZoom = 13 }: Googl
         });
 
         marker.addListener('click', () => {
+          if (onVehicleClick) {
+            onVehicleClick(vehicle);
+          }
           setSelectedVehicle(vehicle);
         });
 
