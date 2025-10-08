@@ -201,15 +201,15 @@ const Customers = () => {
 
       // Gera URL pública do arquivo encontrado
       const filePath = `${user.id}/${cnhFile.name}`;
-      const { data: urlData } = supabase.storage
+      const { data: signedUrlData, error: signedUrlError } = await supabase.storage
         .from('cnh-clientes')
-        .getPublicUrl(filePath);
+        .createSignedUrl(filePath, 300);
 
-      if (urlData.publicUrl) {
-        window.open(urlData.publicUrl, '_blank');
-      } else {
-        throw new Error("Não foi possível gerar URL do arquivo");
+      if (signedUrlError || !signedUrlData?.signedUrl) {
+        throw new Error("Não foi possível gerar URL assinada do arquivo");
       }
+
+      window.open(signedUrlData.signedUrl, '_blank');
     } catch (error) {
       console.error('Error viewing CNH:', error);
       toast({
