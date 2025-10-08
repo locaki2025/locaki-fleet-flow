@@ -50,54 +50,6 @@ interface Device {
   };
 }
 
-// Fallback com dados de exemplo (mock)
-const mockDevices: Device[] = [
-  {
-    id: "TRACK001",
-    name: "Rastreador Honda CG 160",
-    imei: "123456789012345",
-    vehiclePlate: "ABC-1234",
-    status: "online",
-    lastUpdate: "2024-08-24T10:30:00Z",
-    battery: 85,
-    signal: 4,
-    location: { lat: -23.5505, lng: -46.6333, address: "Av. Paulista, 1000 - São Paulo, SP" }
-  },
-  {
-    id: "TRACK002",
-    name: "Rastreador Yamaha Factor",
-    imei: "987654321098765",
-    vehiclePlate: "DEF-5678",
-    status: "online",
-    lastUpdate: "2024-08-24T10:25:00Z",
-    battery: 92,
-    signal: 3,
-    location: { lat: -23.5489, lng: -46.6388, address: "Rua Augusta, 500 - São Paulo, SP" }
-  },
-  {
-    id: "TRACK003",
-    name: "Rastreador Honda Hornet",
-    imei: "456789012345678",
-    vehiclePlate: "GHI-9012",
-    status: "offline",
-    lastUpdate: "2024-08-23T15:20:00Z",
-    battery: 23,
-    signal: 0,
-    location: { lat: -23.5617, lng: -46.6564, address: "Oficina Central - São Paulo, SP" }
-  },
-  {
-    id: "TRACK004",
-    name: "Rastreador Kawasaki Ninja",
-    imei: "789012345678901",
-    vehiclePlate: "JKL-3456",
-    status: "maintenance",
-    lastUpdate: "2024-08-24T08:15:00Z",
-    battery: 78,
-    signal: 2,
-    location: { lat: -23.5505, lng: -46.6333, address: "Centro de Manutenção - São Paulo, SP" }
-  }
-];
-
 const Devices = () => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -162,12 +114,8 @@ const Devices = () => {
       }
 
       if (!vehiclesData || vehiclesData.length === 0) {
-        console.log('Nenhum veículo encontrado, usando mock');
-        setDevices(mockDevices);
-        toast({ 
-          title: "Exibindo dados de exemplo", 
-          description: "Nenhum veículo cadastrado ainda." 
-        });
+        console.log('Nenhum veículo encontrado');
+        setDevices([]);
         return;
       }
 
@@ -198,10 +146,11 @@ const Devices = () => {
       console.log('Devices loaded successfully:', devicesData.length);
     } catch (error) {
       console.error('Erro ao buscar dispositivos:', error);
-      setDevices(mockDevices);
+      setDevices([]);
       toast({
-        title: "Exibindo dados de exemplo",
-        description: error instanceof Error ? error.message : "Não foi possível carregar os dispositivos reais.",
+        title: "Erro ao carregar dispositivos",
+        description: error instanceof Error ? error.message : "Não foi possível carregar os dispositivos.",
+        variant: "destructive"
       });
     } finally {
       setLoading(false);
@@ -507,7 +456,7 @@ const Devices = () => {
                           </Badge>
                         </div>
                         <p className="text-sm text-muted-foreground">
-                          {device.vehiclePlate} • IMEI: {device.imei}
+                          {device.vehiclePlate}
                         </p>
                         <div className="flex items-center gap-4 text-xs text-muted-foreground">
                           <div className="flex items-center gap-1">
