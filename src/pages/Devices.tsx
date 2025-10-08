@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,7 +18,8 @@ import {
   Edit,
   Trash2,
   Power,
-  Signal
+  Signal,
+  Loader2
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -31,76 +32,175 @@ import {
 } from "@/components/ui/dropdown-menu";
 import DeviceDialog from "@/components/DeviceDialog";
 
-// Mock data para rastreadores
-const mockDevices = [
-  {
-    id: "TRACK001",
-    name: "Rastreador Honda CG 160",
-    imei: "123456789012345",
-    vehiclePlate: "ABC-1234",
-    status: "online",
-    lastUpdate: "2024-08-24T10:30:00Z",
-    battery: 85,
-    signal: 4,
-    location: {
-      lat: -23.5505,
-      lng: -46.6333,
-      address: "Av. Paulista, 1000 - São Paulo, SP"
-    }
-  },
-  {
-    id: "TRACK002",
-    name: "Rastreador Yamaha Factor",
-    imei: "987654321098765",
-    vehiclePlate: "DEF-5678",
-    status: "online",
-    lastUpdate: "2024-08-24T10:25:00Z",
-    battery: 92,
-    signal: 3,
-    location: {
-      lat: -23.5489,
-      lng: -46.6388,
-      address: "Rua Augusta, 500 - São Paulo, SP"
-    }
-  },
-  {
-    id: "TRACK003",
-    name: "Rastreador Honda Hornet",
-    imei: "456789012345678",
-    vehiclePlate: "GHI-9012",
-    status: "offline",
-    lastUpdate: "2024-08-23T15:20:00Z",
-    battery: 23,
-    signal: 0,
-    location: {
-      lat: -23.5617,
-      lng: -46.6564,
-      address: "Oficina Central - São Paulo, SP"
-    }
-  },
-  {
-    id: "TRACK004",
-    name: "Rastreador Kawasaki Ninja",
-    imei: "789012345678901",
-    vehiclePlate: "JKL-3456",
-    status: "maintenance",
-    lastUpdate: "2024-08-24T08:15:00Z",
-    battery: 78,
-    signal: 2,
-    location: {
-      lat: -23.5505,
-      lng: -46.6333,
-      address: "Centro de Manutenção - São Paulo, SP"
-    }
-  }
-];
+const RASTROSYSTEM_API_URL = 'https://locaki.rastrosystem.com.br/api_v2';
+
+interface Device {
+  id: string;
+  name: string;
+  imei: string;
+  vehiclePlate: string;
+  status: string;
+  lastUpdate: string;
+  battery: number;
+  signal: number;
+  location: {
+    lat: number;
+    lng: number;
+    address: string;
+  };
+}
 
 const Devices = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
-  const [devices, setDevices] = useState(mockDevices);
+  const [devices, setDevices] = useState<Device[]>([]);
   const [isDeviceDialogOpen, setIsDeviceDialogOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch devices from Rastrosystem API
+  useEffect(() => {
+    if (user?.id) {
+      fetchDevices();
+    }
+  }, [user?.id]);
+
+  const fetchDevices = async () => {
+    try {
+      setLoading(true);
+      
+      // Get Rastrosystem token from sessionStorage
+      const token = sessionStorage.getItem('rastrosystem_token');
+      const clienteId = sessionStorage.getItem('rastrosystem_cliente_id');
+      
+      if (!token || !clienteId) {
+        console.log('Token não encontrado, tentando autenticar...');
+        await authenticateAndFetch();
+        return;
+      }
+
+      // Fetch vehicles from Rastrosystem
+      const response = await fetch(`${RASTROSYSTEM_API_URL}/veiculos/${clienteId}/`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `token ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Erro ao buscar veículos');
+      }
+
+      const vehiclesData = await response.json();
+      
+      // Fetch positions for each vehicle
+      const devicesWithPositions = await Promise.all(
+        vehiclesData.map(async (vehicle: any) => {
+          try {
+            const posResponse = await fetch(
+              `${RASTROSYSTEM_API_URL}/posicao/${vehicle.id}/`,
+              {
+                headers: {
+                  'Authorization': `token ${token}`,
+                  'Content-Type': 'application/json',
+                },
+              }
+            );
+
+            let position = null;
+            if (posResponse.ok) {
+              position = await posResponse.json();
+            }
+
+            // Calculate status based on last update
+            const lastUpdate = position?.data_hora || vehicle.data_hora_ultima_comunicacao;
+            const lastUpdateDate = lastUpdate ? new Date(lastUpdate) : null;
+            const now = new Date();
+            const hoursSinceUpdate = lastUpdateDate 
+              ? (now.getTime() - lastUpdateDate.getTime()) / (1000 * 60 * 60)
+              : 999;
+            
+            const status = hoursSinceUpdate < 2 ? 'online' : 
+                          hoursSinceUpdate < 24 ? 'maintenance' : 'offline';
+
+            return {
+              id: vehicle.id.toString(),
+              name: `${vehicle.marca || ''} ${vehicle.modelo || ''}`.trim() || vehicle.placa,
+              imei: vehicle.imei || 'N/A',
+              vehiclePlate: vehicle.placa || 'N/A',
+              status: status,
+              lastUpdate: lastUpdate || new Date().toISOString(),
+              battery: position?.bateria || 100,
+              signal: position?.sinal ? Math.min(4, Math.floor(position.sinal / 25)) : 2,
+              location: {
+                lat: position?.latitude || 0,
+                lng: position?.longitude || 0,
+                address: position?.endereco || vehicle.placa || 'Localização não disponível'
+              }
+            };
+          } catch (error) {
+            console.error('Erro ao buscar posição do veículo:', vehicle.id, error);
+            return {
+              id: vehicle.id.toString(),
+              name: `${vehicle.marca || ''} ${vehicle.modelo || ''}`.trim() || vehicle.placa,
+              imei: vehicle.imei || 'N/A',
+              vehiclePlate: vehicle.placa || 'N/A',
+              status: 'offline',
+              lastUpdate: new Date().toISOString(),
+              battery: 0,
+              signal: 0,
+              location: {
+                lat: 0,
+                lng: 0,
+                address: 'Localização não disponível'
+              }
+            };
+          }
+        })
+      );
+
+      setDevices(devicesWithPositions);
+    } catch (error) {
+      console.error('Erro ao buscar dispositivos:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar os dispositivos",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const authenticateAndFetch = async () => {
+    try {
+      const response = await fetch(`${RASTROSYSTEM_API_URL}/login/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          login: '54858795000100',
+          senha: '123456',
+          app: 9,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Falha na autenticação');
+      }
+
+      const data = await response.json();
+      sessionStorage.setItem('rastrosystem_token', data.token);
+      sessionStorage.setItem('rastrosystem_cliente_id', data.cliente_id);
+      
+      await fetchDevices();
+    } catch (error) {
+      console.error('Erro na autenticação:', error);
+      setLoading(false);
+    }
+  };
 
   const filteredDevices = devices.filter(device =>
     device.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -254,6 +354,17 @@ const Devices = () => {
     );
   }
 
+  if (loading) {
+    return (
+      <div className="p-6 flex items-center justify-center min-h-[400px]">
+        <div className="text-center space-y-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
+          <p className="text-muted-foreground">Carregando dispositivos...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -265,13 +376,27 @@ const Devices = () => {
             <p className="text-muted-foreground">Monitore e gerencie dispositivos GPS da frota</p>
           </div>
         </div>
-        <Button 
-          className="bg-gradient-primary hover:opacity-90"
-          onClick={() => setIsDeviceDialogOpen(true)}
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Adicionar Dispositivo
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline"
+            onClick={fetchDevices}
+            disabled={loading}
+          >
+            {loading ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Power className="h-4 w-4 mr-2" />
+            )}
+            Atualizar
+          </Button>
+          <Button 
+            className="bg-gradient-primary hover:opacity-90"
+            onClick={() => setIsDeviceDialogOpen(true)}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Adicionar Dispositivo
+          </Button>
+        </div>
       </div>
 
       {/* KPIs */}
