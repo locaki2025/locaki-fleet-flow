@@ -451,11 +451,12 @@ const VehicleDetailsDialog = ({ open, onOpenChange, vehicle, onVehicleUpdate }: 
                       </p>
                     </div>
 
-                    <div className="h-[200px] rounded-lg overflow-hidden border">
+                    	<div className="h-[200px] rounded-lg overflow-hidden border">
                       <GoogleMapComponent
                         vehicles={[mapVehicle]}
                         initialCenter={{ lat: mapVehicle.latitude, lng: mapVehicle.longitude }}
                         initialZoom={17}
+                        forceCenterOnLoad
                       />
                     </div>
                   </>

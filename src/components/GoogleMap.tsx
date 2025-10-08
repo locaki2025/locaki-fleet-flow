@@ -23,6 +23,7 @@ interface GoogleMapComponentProps {
   initialCenter?: { lat: number; lng: number };
   initialZoom?: number;
   onVehicleClick?: (vehicle: Vehicle) => void;
+  forceCenterOnLoad?: boolean;
 }
 
 const containerStyle = {
@@ -64,7 +65,7 @@ const getMarkerIcon = (vehicle: any) => {
   };
 };
 
-const GoogleMapComponent = ({ vehicles, initialCenter, initialZoom = 13, onVehicleClick }: GoogleMapComponentProps) => {
+const GoogleMapComponent = ({ vehicles, initialCenter, initialZoom = 13, onVehicleClick, forceCenterOnLoad = false }: GoogleMapComponentProps) => {
   const { toast } = useToast();
   const [apiKey, setApiKey] = useState<string>('');
   const [inputKey, setInputKey] = useState<string>('');
@@ -224,6 +225,7 @@ const GoogleMapComponent = ({ vehicles, initialCenter, initialZoom = 13, onVehic
           icon,
           label,
           title: `${vehicle.brand} ${vehicle.model} - ${vehicle.plate}`,
+          clickable: Boolean(onVehicleClick),
         });
 
         marker.addListener('click', () => {
@@ -286,6 +288,24 @@ const GoogleMapComponent = ({ vehicles, initialCenter, initialZoom = 13, onVehic
           map.setZoom(initialZoom);
           hasFittedBoundsRef.current = !!initialCenter;
           setMapReady(true);
+
+          // Em mini mapas, força centralização após o load e no primeiro tilesloaded
+          if (forceCenterOnLoad) {
+            const applyCenter = () => {
+              if (!mapRef.current) return;
+              const target = initialCenter || (validVehicles[0] && { lat: Number(validVehicles[0].latitude), lng: Number(validVehicles[0].longitude) }) || mapCenter;
+              mapRef.current.setCenter(target);
+              mapRef.current.setZoom(initialZoom);
+              centerAppliedRef.current = true;
+            };
+            // garante após renderização dos tiles
+            // @ts-ignore - event exists in Maps JS API
+            map.addListener('tilesloaded', () => {
+              if (!centerAppliedRef.current) applyCenter();
+            });
+            // fallback rápido pós-load
+            setTimeout(applyCenter, 200);
+          }
           
           // Atualiza o centro quando o usuário move o mapa
           map.addListener('center_changed', () => {
