@@ -141,7 +141,8 @@ const Map = () => {
                   speed: device.speed || device.velocidade || 0,
                   velocidade: device.velocidade || device.speed || 0,
                   last_update: device.server_time || device.time,
-                  address: device.address || vehicle.address
+                  address: device.address || vehicle.address,
+                  needsGeocode: !device.address && !vehicle.address // Flag para buscar endereço depois
                 };
               }
             }
@@ -160,6 +161,61 @@ const Map = () => {
 
     return () => clearInterval(interval);
   }, [user]);
+
+  // Busca endereços para veículos sem endereço usando Google Maps Geocoding
+  useEffect(() => {
+    const fetchMissingAddresses = async () => {
+      const vehiclesNeedingGeocode = vehicles.filter((v: any) => 
+        v.needsGeocode && v.latitude && v.longitude
+      );
+
+      if (vehiclesNeedingGeocode.length === 0) return;
+
+      // Get Google Maps API key
+      const { data } = await supabase
+        .from('tenant_config')
+        .select('config_value')
+        .eq('config_key', 'google_maps_api_key')
+        .maybeSingle();
+
+      if (!data?.config_value) return;
+
+      const apiKey = typeof data.config_value === 'string' 
+        ? data.config_value 
+        : String(data.config_value);
+
+      // Fetch addresses for vehicles without address
+      for (const vehicle of vehiclesNeedingGeocode.slice(0, 3)) { // Limit to 3 per batch to avoid rate limits
+        try {
+          const response = await fetch(
+            `https://maps.googleapis.com/maps/api/geocode/json?latlng=${vehicle.latitude},${vehicle.longitude}&key=${apiKey}&language=pt-BR`
+          );
+          
+          if (response.ok) {
+            const data = await response.json();
+            if (data.results && data.results[0]) {
+              const address = data.results[0].formatted_address;
+              
+              setVehicles(prev => prev.map(v => 
+                v.id === vehicle.id 
+                  ? { ...v, address, needsGeocode: false }
+                  : v
+              ));
+              
+              console.log(`Endereço obtido para ${vehicle.plate}:`, address);
+            }
+          }
+        } catch (error) {
+          console.error('Erro ao buscar endereço:', error);
+        }
+        
+        // Wait a bit between requests to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+    };
+
+    fetchMissingAddresses();
+  }, [vehicles, user?.id]);
 
   const fetchVehicles = async () => {
     if (!user?.id) {
