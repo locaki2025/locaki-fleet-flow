@@ -106,161 +106,104 @@ const Devices = () => {
   const [isDeviceDialogOpen, setIsDeviceDialogOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // Fetch devices from Rastrosystem API
+  // Fetch devices from Supabase (vehicles table)
   useEffect(() => {
     if (user?.id) {
       fetchDevices();
     }
   }, [user?.id]);
 
+  // Subscribe to realtime changes
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel('devices-vehicles-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'vehicles',
+          filter: `user_id=eq.${user.id}`
+        },
+        () => {
+          console.log('Veículo atualizado, recarregando dispositivos...');
+          fetchDevices();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
+
   const fetchDevices = async () => {
+    if (!user?.id) {
+      console.warn('No user ID found, skipping devices fetch');
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       
-      // Get Rastrosystem token from sessionStorage
-      const token = sessionStorage.getItem('rastrosystem_token');
-      const clienteId = sessionStorage.getItem('rastrosystem_cliente_id');
-      
-      if (!token || !clienteId) {
-        console.log('Token não encontrado, tentando autenticar...');
-        await authenticateAndFetch();
-        return;
+      // Buscar veículos do Supabase
+      const { data: vehiclesData, error } = await supabase
+        .from('vehicles')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Supabase error fetching vehicles:', error);
+        throw new Error(`Erro ao carregar dispositivos: ${error.message}`);
       }
 
-      // Fetch vehicles from Rastrosystem
-      const response = await fetch(`${RASTROSYSTEM_API_URL}/veiculos/${clienteId}/`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `token ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Erro ao buscar veículos');
-      }
-
-      const vehiclesData = await response.json();
-      
-      console.log('Resposta da API Rastrosystem:', vehiclesData);
-      
-      // A API pode retornar um objeto com veiculos ou diretamente um array
-      const vehicles = Array.isArray(vehiclesData) ? vehiclesData : 
-                      vehiclesData.veiculos || vehiclesData.data || [];
-      
-      if (!Array.isArray(vehicles) || vehicles.length === 0) {
+      if (!vehiclesData || vehiclesData.length === 0) {
         console.log('Nenhum veículo encontrado, usando mock');
         setDevices(mockDevices);
-        toast({ title: "Exibindo dados de exemplo", description: "Não foi possível carregar os veículos reais." });
+        toast({ 
+          title: "Exibindo dados de exemplo", 
+          description: "Nenhum veículo cadastrado ainda." 
+        });
         return;
       }
-      
-      // Fetch positions for each vehicle
-      const devicesWithPositions = await Promise.all(
-        vehicles.map(async (vehicle: any) => {
-          try {
-            const posResponse = await fetch(
-              `${RASTROSYSTEM_API_URL}/posicao/${vehicle.id}/`,
-              {
-                headers: {
-                  'Authorization': `token ${token}`,
-                  'Content-Type': 'application/json',
-                },
-              }
-            );
 
-            let position = null;
-            if (posResponse.ok) {
-              position = await posResponse.json();
-            }
+      // Transformar veículos em formato de dispositivos
+      const devicesData: Device[] = vehiclesData.map((vehicle) => {
+        // Calcular status baseado em dados reais se disponível
+        const status = vehicle.status === 'disponivel' ? 'online' : 
+                      vehicle.status === 'manutencao' ? 'maintenance' : 'offline';
 
-            // Calculate status based on last update
-            const lastUpdate = position?.data_hora || vehicle.data_hora_ultima_comunicacao;
-            const lastUpdateDate = lastUpdate ? new Date(lastUpdate) : null;
-            const now = new Date();
-            const hoursSinceUpdate = lastUpdateDate 
-              ? (now.getTime() - lastUpdateDate.getTime()) / (1000 * 60 * 60)
-              : 999;
-            
-            const status = hoursSinceUpdate < 2 ? 'online' : 
-                          hoursSinceUpdate < 24 ? 'maintenance' : 'offline';
-
-            return {
-              id: vehicle.id.toString(),
-              name: `${vehicle.marca || ''} ${vehicle.modelo || ''}`.trim() || vehicle.placa,
-              imei: vehicle.imei || 'N/A',
-              vehiclePlate: vehicle.placa || 'N/A',
-              status: status,
-              lastUpdate: lastUpdate || new Date().toISOString(),
-              battery: position?.bateria || 100,
-              signal: position?.sinal ? Math.min(4, Math.floor(position.sinal / 25)) : 2,
-              location: {
-                lat: position?.latitude || 0,
-                lng: position?.longitude || 0,
-                address: position?.endereco || vehicle.placa || 'Localização não disponível'
-              }
-            };
-          } catch (error) {
-            console.error('Erro ao buscar posição do veículo:', vehicle.id, error);
-            return {
-              id: vehicle.id.toString(),
-              name: `${vehicle.marca || ''} ${vehicle.modelo || ''}`.trim() || vehicle.placa,
-              imei: vehicle.imei || 'N/A',
-              vehiclePlate: vehicle.placa || 'N/A',
-              status: 'offline',
-              lastUpdate: new Date().toISOString(),
-              battery: 0,
-              signal: 0,
-              location: {
-                lat: 0,
-                lng: 0,
-                address: 'Localização não disponível'
-              }
-            };
+        return {
+          id: vehicle.id,
+          name: `${vehicle.brand} ${vehicle.model}`,
+          imei: vehicle.tracker_id || 'N/A',
+          vehiclePlate: vehicle.plate,
+          status: status,
+          lastUpdate: vehicle.updated_at || new Date().toISOString(),
+          battery: 85, // Valor padrão - pode ser atualizado com dados reais
+          signal: 3,   // Valor padrão - pode ser atualizado com dados reais
+          location: {
+            lat: 0,
+            lng: 0,
+            address: `${vehicle.brand} ${vehicle.model} - ${vehicle.plate}`
           }
-        })
-      );
+        };
+      });
 
-      setDevices(devicesWithPositions);
+      setDevices(devicesData);
+      console.log('Devices loaded successfully:', devicesData.length);
     } catch (error) {
       console.error('Erro ao buscar dispositivos:', error);
       setDevices(mockDevices);
       toast({
         title: "Exibindo dados de exemplo",
-        description: "Não foi possível carregar os dispositivos reais.",
+        description: error instanceof Error ? error.message : "Não foi possível carregar os dispositivos reais.",
       });
     } finally {
-      setLoading(false);
-    }
-  };
-
-  const authenticateAndFetch = async () => {
-    try {
-      const response = await fetch(`${RASTROSYSTEM_API_URL}/login/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          login: '54858795000100',
-          senha: '123456',
-          app: 9,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Falha na autenticação');
-      }
-
-      const data = await response.json();
-      sessionStorage.setItem('rastrosystem_token', data.token);
-      sessionStorage.setItem('rastrosystem_cliente_id', data.cliente_id);
-      
-      await fetchDevices();
-    } catch (error) {
-      console.error('Erro na autenticação:', error);
-      setDevices(mockDevices);
-      toast({ title: "Exibindo dados de exemplo", description: "Não foi possível autenticar no Rastrosystem." });
       setLoading(false);
     }
   };
