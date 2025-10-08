@@ -94,9 +94,21 @@ const Devices = () => {
 
       const vehiclesData = await response.json();
       
+      console.log('Resposta da API Rastrosystem:', vehiclesData);
+      
+      // A API pode retornar um objeto com veiculos ou diretamente um array
+      const vehicles = Array.isArray(vehiclesData) ? vehiclesData : 
+                      vehiclesData.veiculos || vehiclesData.data || [];
+      
+      if (!Array.isArray(vehicles) || vehicles.length === 0) {
+        console.log('Nenhum veículo encontrado');
+        setDevices([]);
+        return;
+      }
+      
       // Fetch positions for each vehicle
       const devicesWithPositions = await Promise.all(
-        vehiclesData.map(async (vehicle: any) => {
+        vehicles.map(async (vehicle: any) => {
           try {
             const posResponse = await fetch(
               `${RASTROSYSTEM_API_URL}/posicao/${vehicle.id}/`,
