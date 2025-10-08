@@ -184,10 +184,11 @@ const Customers = () => {
         return;
       }
 
-      // Procura arquivo que comece com o ID do cliente
-      const cnhFile = files.find(file => 
-        file.name.startsWith(selectedCustomer.id)
-      );
+      // Procura arquivo cujo nome (sem extensão) seja exatamente igual ao ID do cliente
+      const cnhFile = files.find(file => {
+        const fileNameWithoutExt = file.name.split('.')[0];
+        return fileNameWithoutExt === selectedCustomer.id;
+      });
 
       if (!cnhFile) {
         toast({
