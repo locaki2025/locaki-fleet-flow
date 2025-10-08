@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useMemo } from 'react';
-import { GoogleMap, LoadScript, Marker, InfoWindow } from '@react-google-maps/api';
+import { GoogleMap, LoadScript, Marker } from '@react-google-maps/api';
 import { supabase } from '@/integrations/supabase/client';
 import { Car } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -69,7 +69,6 @@ const GoogleMapComponent = ({ vehicles, initialCenter, initialZoom = 13, onVehic
   const [apiKey, setApiKey] = useState<string>('');
   const [inputKey, setInputKey] = useState<string>('');
   const [isConfiguring, setIsConfiguring] = useState(false);
-  const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [mapCenter, setMapCenter] = useState(initialCenter || defaultCenter);
   const mapRef = useRef<google.maps.Map | null>(null);
   const markersRef = useRef<Map<string, google.maps.Marker>>(new Map());
@@ -230,7 +229,6 @@ const GoogleMapComponent = ({ vehicles, initialCenter, initialZoom = 13, onVehic
           if (onVehicleClick) {
             onVehicleClick(vehicle);
           }
-          setSelectedVehicle(vehicle);
         });
 
         markersRef.current.set(vehicle.id, marker);
@@ -295,48 +293,6 @@ const GoogleMapComponent = ({ vehicles, initialCenter, initialZoom = 13, onVehic
           gestureHandling: 'greedy', // Permite movimentação livre do mapa
         }}
       >
-        {selectedVehicle && (
-          <InfoWindow
-            position={{
-              lat: selectedVehicle.latitude,
-              lng: selectedVehicle.longitude,
-            }}
-            onCloseClick={() => setSelectedVehicle(null)}
-          >
-            <div className="p-2 min-w-[200px]">
-              <h3 className="font-semibold text-sm mb-1">
-                {selectedVehicle.brand} {selectedVehicle.model}
-              </h3>
-              <p className="text-xs text-gray-600 font-mono mb-2">
-                {selectedVehicle.plate}
-              </p>
-              <div className="space-y-1">
-                <p className="text-xs">
-                  <span className="font-medium">Status:</span>{' '}
-                  <span
-                    className={`${
-                      selectedVehicle.status === 'online'
-                        ? 'text-green-600'
-                        : 'text-red-600'
-                    }`}
-                  >
-                    {selectedVehicle.status === 'online' ? 'Online' : 'Offline'}
-                  </span>
-                </p>
-                <p className="text-xs">
-                  <span className="font-medium">Última atualização:</span>{' '}
-                  {new Date(selectedVehicle.last_update).toLocaleString('pt-BR')}
-                </p>
-                {selectedVehicle.address && (
-                  <p className="text-xs">
-                    <span className="font-medium">Endereço:</span>{' '}
-                    {selectedVehicle.address}
-                  </p>
-                )}
-              </div>
-            </div>
-          </InfoWindow>
-        )}
       </GoogleMap>
     </LoadScript>
   );
