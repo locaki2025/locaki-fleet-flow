@@ -207,14 +207,32 @@ const VehicleDetailsDialog = ({ open, onOpenChange, vehicle, onVehicleUpdate }: 
               </CardHeader>
               <CardContent className="space-y-4">
                 {vehicle.lastLocation ? (
-                  <div className="p-3 bg-accent/10 rounded-lg">
-                    <p className="text-sm font-medium">Última localização</p>
-                    <p className="text-sm text-muted-foreground">{vehicle.lastLocation.address}</p>
-                    <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                      <Calendar className="h-3 w-3" />
-                      {new Date(vehicle.lastLocation.updatedAt).toLocaleString('pt-BR')}
-                    </p>
-                  </div>
+                  <>
+                    <div className="p-3 bg-accent/10 rounded-lg">
+                      <p className="text-sm font-medium">Última localização</p>
+                      <p className="text-sm text-muted-foreground">{vehicle.lastLocation.address}</p>
+                      <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                        <Calendar className="h-3 w-3" />
+                        {new Date(vehicle.lastLocation.updatedAt).toLocaleString('pt-BR')}
+                      </p>
+                    </div>
+                    
+                    <div className="h-[200px] rounded-lg overflow-hidden border">
+                      <GoogleMapComponent 
+                        vehicles={[{
+                          id: vehicle.id,
+                          plate: vehicle.plate,
+                          brand: vehicle.brand,
+                          model: vehicle.model,
+                          latitude: vehicle.lastLocation.lat,
+                          longitude: vehicle.lastLocation.lng,
+                          status: vehicle.status,
+                          last_update: vehicle.lastLocation.updatedAt,
+                          address: vehicle.lastLocation.address
+                        }]}
+                      />
+                    </div>
+                  </>
                 ) : (
                   <div className="p-3 bg-muted/50 rounded-lg">
                     <p className="text-sm text-muted-foreground">Localização não disponível</p>
@@ -274,35 +292,6 @@ const VehicleDetailsDialog = ({ open, onOpenChange, vehicle, onVehicleUpdate }: 
               </CardContent>
             </Card>
           </div>
-
-          {/* Map Section */}
-          {vehicle.lastLocation && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <MapPin className="h-5 w-5" />
-                  Localização no Mapa
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="h-[400px] rounded-lg overflow-hidden">
-                  <GoogleMapComponent 
-                    vehicles={[{
-                      id: vehicle.id,
-                      plate: vehicle.plate,
-                      brand: vehicle.brand,
-                      model: vehicle.model,
-                      latitude: vehicle.lastLocation.lat,
-                      longitude: vehicle.lastLocation.lng,
-                      status: vehicle.status,
-                      last_update: vehicle.lastLocation.updatedAt,
-                      address: vehicle.lastLocation.address
-                    }]}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-          )}
         </div>
       </DialogContent>
 
