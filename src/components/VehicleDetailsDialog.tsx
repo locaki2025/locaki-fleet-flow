@@ -105,7 +105,7 @@ const VehicleDetailsDialog = ({ open, onOpenChange, vehicle, onVehicleUpdate }: 
               last_update: device.last_update || new Date().toISOString(),
               address: device.address || undefined,
             };
-            mapped.setZoom(10);
+            mapped.setZoom(15);
             console.log("[VehicleDetailsDialog] Localização via DB:", mapped);
             setMapVehicle(mapped);
             return;
