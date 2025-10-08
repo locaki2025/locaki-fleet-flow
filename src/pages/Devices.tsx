@@ -262,33 +262,12 @@ const Devices = () => {
   const handleDeviceAction = async (action: string, deviceId: string) => {
     try {
       if (action === "Ver localização") {
-        // Buscar a última posição do veículo
-        const device = devices.find(d => d.id === deviceId);
-        if (!device) return;
-
-        const { data: positionData, error: positionError } = await supabase
-          .from('vehicle_positions')
-          .select('latitude, longitude, timestamp')
-          .eq('device_id', deviceId)
-          .order('timestamp', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (positionError) {
-          console.error('Error fetching position:', positionError);
-        }
-
-        // Se tiver posição, usar ela, senão usar coordenadas padrão de São Paulo
-        const lat = positionData?.latitude || -23.5505;
-        const lng = positionData?.longitude || -46.6333;
-
-        // Abrir Google Maps em nova aba
-        const mapsUrl = `https://www.google.com/maps?q=${lat},${lng}&z=15`;
-        window.open(mapsUrl, '_blank');
-
+        // Redirecionar para a página de mapa com o ID do dispositivo
+        window.open(`/map?device=${deviceId}`, '_blank');
+        
         toast({
-          title: "Abrindo localização",
-          description: `Localização do veículo ${device.vehiclePlate} no Google Maps`,
+          title: "Abrindo mapa",
+          description: "Visualizando localização do veículo no mapa",
         });
         return;
       }

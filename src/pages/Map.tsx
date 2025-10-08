@@ -24,10 +24,14 @@ import VehicleMapCard from "@/components/VehicleMapCard";
 import { useMonitoramentoTraccar } from "@/hooks/useMonitoramentoTraccar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useSearchParams } from "react-router-dom";
 
 const Map = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
+  const deviceIdFromUrl = searchParams.get('device');
+  
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showConfigDialog, setShowConfigDialog] = useState(false);
@@ -45,6 +49,20 @@ const Map = () => {
       fetchVehicles();
     }
   }, [user]);
+
+  // Se há um device ID na URL, seleciona esse veículo automaticamente
+  useEffect(() => {
+    if (deviceIdFromUrl && vehicles.length > 0) {
+      const vehicle = vehicles.find(v => v.id === deviceIdFromUrl);
+      if (vehicle) {
+        setSelectedVehicle(vehicle);
+        toast({
+          title: "Veículo selecionado",
+          description: `Visualizando localização de ${vehicle.plate}`,
+        });
+      }
+    }
+  }, [deviceIdFromUrl, vehicles]);
 
   // Atualização em tempo real das posições usando Rastrosystem
   const hasVehiclesRef = useRef(false);
