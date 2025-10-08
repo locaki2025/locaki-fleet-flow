@@ -262,6 +262,14 @@ const GoogleMapComponent = ({ vehicles, initialCenter, initialZoom = 13, onVehic
     }
   }, [validVehicles, vehicles, mapReady, initialCenter, initialZoom]);
 
+  // Acompanha mudanças na posição do veículo em tempo real (para mini mapas)
+  useEffect(() => {
+    if (!mapRef.current || !forceCenterOnLoad || !initialCenter) return;
+    
+    // Recentraliza o mapa quando a posição do veículo muda
+    mapRef.current.setCenter(initialCenter);
+  }, [initialCenter, forceCenterOnLoad]);
+
 
 
   if (!apiKey) {
