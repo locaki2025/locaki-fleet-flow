@@ -284,6 +284,7 @@ const Devices = () => {
           .single();
         
         if (error || !data) {
+          console.error('Erro ao carregar device:', error);
           toast({
             title: "Erro",
             description: "Não foi possível carregar os dados do dispositivo",
@@ -292,16 +293,20 @@ const Devices = () => {
           return;
         }
         
+        console.log('Dados do veículo:', data);
+        
         // Transformar dados do vehicle para formato de device
         const deviceData = {
           id: data.id,
           name: `${data.brand} ${data.model}`,
           imei: data.tracker_id || '',
           vehicle_plate: data.plate,
-          chip_number: data.chip_number,
-          tracker_model: data.tracker_model,
+          chip_number: data.chip_number || '',
+          tracker_model: data.tracker_model || '',
           status: data.status === 'disponivel' ? 'online' : data.status === 'manutencao' ? 'maintenance' : 'offline'
         };
+        
+        console.log('Device data transformado:', deviceData);
         
         setDeviceToEdit(deviceData);
         setIsDeviceDialogOpen(true);

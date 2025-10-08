@@ -53,14 +53,23 @@ const DeviceDialog = ({ open, onOpenChange, onDeviceCreated, device }: DeviceDia
 
   // Atualizar formData quando device mudar
   useEffect(() => {
+    console.log('Device recebido no dialog:', device);
     if (device) {
       setFormData({
-        name: device.name,
-        imei: device.imei,
-        vehiclePlate: device.vehicle_plate,
+        name: device.name || "",
+        imei: device.imei || "",
+        vehiclePlate: device.vehicle_plate || "",
         chipNumber: device.chip_number || "",
         trackerModel: device.tracker_model || "",
-        status: device.status,
+        status: device.status || "online",
+      });
+      console.log('FormData atualizado:', {
+        name: device.name || "",
+        imei: device.imei || "",
+        vehiclePlate: device.vehicle_plate || "",
+        chipNumber: device.chip_number || "",
+        trackerModel: device.tracker_model || "",
+        status: device.status || "online",
       });
     } else {
       setFormData({
