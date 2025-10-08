@@ -135,8 +135,60 @@ const Vehicles = () => {
     });
   };
 
-  const handleViewDetails = (vehicle: any) => {
-    setSelectedVehicle(vehicle);
+  const handleViewDetails = async (vehicle: any) => {
+    // Buscar localização do Rastrosystem se disponível
+    let vehicleWithLocation = { ...vehicle };
+    
+    if (vehicle.rastrosystem_id) {
+      try {
+        const { data: config } = await supabase
+          .from('tenant_config')
+          .select('config_value')
+          .eq('user_id', user?.id)
+          .eq('config_key', 'rastrosystem')
+          .single();
+
+        if (config?.config_value) {
+          const rastroConfig = config.config_value as any;
+          
+          // Fazer login no Rastrosystem
+          const loginResponse = await fetch('https://rastrosystem.com.br/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              login: rastroConfig.username,
+              senha: rastroConfig.password
+            })
+          });
+          
+          if (loginResponse.ok) {
+            const { token } = await loginResponse.json();
+            
+            // Buscar posição do veículo
+            const positionResponse = await fetch(`https://rastrosystem.com.br/api/posicoes/${vehicle.rastrosystem_id}`, {
+              headers: { 'Authorization': `Bearer ${token}` }
+            });
+            
+            if (positionResponse.ok) {
+              const position = await positionResponse.json();
+              
+              if (position.latitude && position.longitude) {
+                vehicleWithLocation.lastLocation = {
+                  lat: parseFloat(position.latitude),
+                  lng: parseFloat(position.longitude),
+                  address: position.endereco || 'Endereço não disponível',
+                  updatedAt: position.data_hora || new Date().toISOString()
+                };
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Erro ao buscar localização:', error);
+      }
+    }
+    
+    setSelectedVehicle(vehicleWithLocation);
     setIsDetailsDialogOpen(true);
   };
 
