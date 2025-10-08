@@ -53,7 +53,7 @@ const VehicleMapCard = ({ vehicle, onClose }: VehicleMapCardProps) => {
           </Button>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Badge 
             variant="outline" 
             className={`${
@@ -73,49 +73,57 @@ const VehicleMapCard = ({ vehicle, onClose }: VehicleMapCardProps) => {
           )}
         </div>
 
-        <div className="space-y-2 text-xs">
+        <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
           {vehicle.speed !== undefined && (
             <div className="flex items-center gap-2">
-              <Navigation className="h-3 w-3 text-muted-foreground" />
-              <span className="text-muted-foreground">Vel.:</span>
-              <span className="font-medium">{vehicle.speed || 0} km/h</span>
-            </div>
-          )}
-
-          {vehicle.latitude && vehicle.longitude && (
-            <div className="flex items-center gap-2">
-              <MapPin className="h-3 w-3 text-muted-foreground" />
-              <span className="text-muted-foreground">Lat.:</span>
-              <span className="font-medium">{vehicle.latitude.toFixed(6)}</span>
-            </div>
-          )}
-
-          {vehicle.latitude && vehicle.longitude && (
-            <div className="flex items-center gap-2">
-              <MapPin className="h-3 w-3 text-muted-foreground" />
-              <span className="text-muted-foreground">Lon.:</span>
-              <span className="font-medium">{vehicle.longitude.toFixed(6)}</span>
+              <Navigation className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+              <div className="flex flex-col">
+                <span className="text-muted-foreground">Velocidade</span>
+                <span className="font-medium">{vehicle.speed || 0} km/h</span>
+              </div>
             </div>
           )}
 
           {vehicle.last_update && (
             <div className="flex items-center gap-2">
-              <Clock className="h-3 w-3 text-muted-foreground" />
-              <span className="text-muted-foreground">Atual.:</span>
-              <span className="font-medium">{formatDate(vehicle.last_update)}</span>
+              <Clock className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+              <div className="flex flex-col">
+                <span className="text-muted-foreground">Atualizado</span>
+                <span className="font-medium">{formatDate(vehicle.last_update)}</span>
+              </div>
             </div>
           )}
 
-          {vehicle.address && (
-            <div className="flex items-start gap-2">
-              <MapPin className="h-3 w-3 text-muted-foreground mt-0.5" />
-              <div className="flex-1">
-                <span className="text-muted-foreground">Endereço:</span>
-                <p className="font-medium break-words">{vehicle.address}</p>
+          {vehicle.latitude && vehicle.longitude && (
+            <div className="flex items-center gap-2">
+              <MapPin className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+              <div className="flex flex-col">
+                <span className="text-muted-foreground">Latitude</span>
+                <span className="font-medium">{vehicle.latitude.toFixed(6)}</span>
+              </div>
+            </div>
+          )}
+
+          {vehicle.latitude && vehicle.longitude && (
+            <div className="flex items-center gap-2">
+              <MapPin className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+              <div className="flex flex-col">
+                <span className="text-muted-foreground">Longitude</span>
+                <span className="font-medium">{vehicle.longitude.toFixed(6)}</span>
               </div>
             </div>
           )}
         </div>
+
+        {vehicle.address && (
+          <div className="flex items-start gap-2 pt-2 border-t">
+            <MapPin className="h-3 w-3 text-muted-foreground mt-1 flex-shrink-0" />
+            <div className="flex-1 text-xs">
+              <span className="text-muted-foreground">Endereço:</span>
+              <p className="font-medium break-words">{vehicle.address}</p>
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
