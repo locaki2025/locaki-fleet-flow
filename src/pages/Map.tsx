@@ -142,7 +142,8 @@ const Map = () => {
                   velocidade: device.velocidade || device.speed || 0,
                   last_update: device.server_time || device.time,
                   address: device.address || vehicle.address,
-                  needsGeocode: !device.address && !vehicle.address // Flag para buscar endereço depois
+                  needsGeocode: !device.address && !vehicle.address,
+                  renter: vehicle.renter // Mantém o nome do locatário
                 };
               }
             }
