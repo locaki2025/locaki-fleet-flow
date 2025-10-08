@@ -214,15 +214,19 @@ const Map = () => {
         .eq('user_id', user.id)
         .eq('status', 'ativo');
 
+      console.log('Contratos ativos encontrados:', activeContracts);
+
       // Create a map of vehicle plate to renter name
       const renterMap: Record<string, string> = {};
       if (activeContracts) {
         activeContracts.forEach(contract => {
+          console.log('Processando contrato:', contract.moto_id, '->', contract.cliente_nome);
           if (contract.moto_id && contract.cliente_nome) {
             renterMap[contract.moto_id] = contract.cliente_nome;
           }
         });
       }
+      console.log('Mapa de locatários:', renterMap);
         
       if (!updatedError && updatedDevices) {
         console.log('Dispositivos recebidos do banco:', updatedDevices);
@@ -236,7 +240,7 @@ const Map = () => {
             status: device.status
           });
           
-          return {
+          const vehicleData = {
             id: device.id,
             imei: device.imei,
             plate: device.vehicle_plate,
@@ -251,6 +255,10 @@ const Map = () => {
             address: device.address,
             renter: renterMap[device.vehicle_plate] || null
           };
+          
+          console.log('Veículo processado:', device.vehicle_plate, 'Locatário:', vehicleData.renter);
+          
+          return vehicleData;
         });
         
         console.log('Veículos mapeados para o mapa:', mappedVehicles);

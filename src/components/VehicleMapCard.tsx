@@ -11,6 +11,12 @@ interface VehicleMapCardProps {
 const VehicleMapCard = ({ vehicle, onClose }: VehicleMapCardProps) => {
   if (!vehicle) return null;
 
+  console.log('VehicleMapCard - Veículo recebido:', {
+    plate: vehicle.plate,
+    renter: vehicle.renter,
+    fullVehicle: vehicle
+  });
+
   const formatDate = (dateString: string) => {
     if (!dateString) return 'N/A';
     try {
