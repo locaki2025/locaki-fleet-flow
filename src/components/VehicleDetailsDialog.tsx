@@ -51,6 +51,7 @@ const VehicleDetailsDialog = ({ open, onOpenChange, vehicle, onVehicleUpdate }: 
   useEffect(() => {
     const loadLocation = async () => {
       if (!open || !vehicle || !user?.id) return;
+      
       try {
         // Tenta sincronizar (mesma lógica do Map.tsx), mas não bloqueia em caso de erro
         try {
@@ -67,13 +68,7 @@ const VehicleDetailsDialog = ({ open, onOpenChange, vehicle, onVehicleUpdate }: 
           .eq('vehicle_plate', vehicle.plate)
           .maybeSingle();
 
-        if (error) {
-          console.warn('Erro ao buscar device para o mapa:', error);
-          setMapVehicle(null);
-          return;
-        }
-
-        if (device && device.latitude != null && device.longitude != null) {
+        if (!error && device && device.latitude != null && device.longitude != null) {
           const lat = Number(device.latitude);
           const lng = Number(device.longitude);
           if (Number.isFinite(lat) && Number.isFinite(lng)) {
@@ -91,6 +86,70 @@ const VehicleDetailsDialog = ({ open, onOpenChange, vehicle, onVehicleUpdate }: 
             return;
           }
         }
+
+        // FALLBACK: Busca diretamente no Rastrosystem (mesma lógica do Map.tsx)
+        console.log('Device não encontrado no banco, tentando fallback Rastrosystem...');
+        try {
+          const loginRes = await fetch('https://locaki.rastrosystem.com.br/api_v2/login/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ login: '54858795000100', senha: '123456', app: 9 })
+          });
+          
+          if (!loginRes.ok) throw new Error('Falha no login Rastrosystem');
+          
+          const login = await loginRes.json();
+          const token = login.token;
+          const cliente_id = login.cliente_id;
+
+          const vRes = await fetch(`https://locaki.rastrosystem.com.br/api_v2/veiculos/${cliente_id}/`, {
+            method: 'GET',
+            headers: { 
+              'Authorization': `token ${token}`, 
+              'Content-Type': 'application/json' 
+            }
+          });
+          
+          if (!vRes.ok) throw new Error('Falha ao buscar veículos no Rastrosystem');
+          
+          const vJson = await vRes.json();
+          const dispositivos = vJson.dispositivos || vJson || [];
+          
+          // Procura o dispositivo pela placa
+          const rastroDevice = dispositivos.find((d: any) => 
+            d.placa === vehicle.plate || 
+            d.name?.includes(vehicle.plate) ||
+            d.modelo?.includes(vehicle.plate)
+          );
+
+          if (rastroDevice) {
+            const lat = typeof rastroDevice.latitude === 'number' 
+              ? rastroDevice.latitude 
+              : Number(rastroDevice.latitude);
+            const lng = typeof rastroDevice.longitude === 'number' 
+              ? rastroDevice.longitude 
+              : Number(rastroDevice.longitude);
+
+            if (Number.isFinite(lat) && Number.isFinite(lng) && lat !== 0 && lng !== 0) {
+              console.log('Localização encontrada via Rastrosystem:', { lat, lng, placa: vehicle.plate });
+              setMapVehicle({
+                id: rastroDevice.unique_id || String(rastroDevice.id),
+                plate: rastroDevice.placa || vehicle.plate,
+                brand: vehicle.brand,
+                model: vehicle.model,
+                latitude: lat,
+                longitude: lng,
+                status: rastroDevice.status ? 'online' : 'offline',
+                last_update: rastroDevice.server_time || rastroDevice.time || new Date().toISOString(),
+                address: rastroDevice.address || undefined,
+              });
+              return;
+            }
+          }
+        } catch (fallbackError) {
+          console.error('Fallback Rastrosystem falhou:', fallbackError);
+        }
+
         setMapVehicle(null);
       } catch (e) {
         console.error('Falha ao carregar localização do veículo:', e);
@@ -99,7 +158,7 @@ const VehicleDetailsDialog = ({ open, onOpenChange, vehicle, onVehicleUpdate }: 
     };
 
     loadLocation();
-  }, [open, vehicle?.id, user?.id]);
+  }, [open, vehicle?.plate, user?.id]);
 
   if (!vehicle) return null;
 
