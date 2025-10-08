@@ -70,6 +70,7 @@ const Devices = () => {
   const [isDeviceDialogOpen, setIsDeviceDialogOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [deviceToDelete, setDeviceToDelete] = useState<string | null>(null);
+  const [deviceToEdit, setDeviceToEdit] = useState<any | null>(null);
 
   // Fetch devices from Supabase (vehicles table)
   useEffect(() => {
@@ -274,6 +275,24 @@ const Devices = () => {
       }
       
       if (action === "Editar") {
+        // Buscar dados do dispositivo do banco de dados
+        const { data, error } = await supabase
+          .from('devices')
+          .select('*')
+          .eq('id', deviceId)
+          .eq('user_id', user?.id)
+          .single();
+        
+        if (error || !data) {
+          toast({
+            title: "Erro",
+            description: "Não foi possível carregar os dados do dispositivo",
+            variant: "destructive",
+          });
+          return;
+        }
+        
+        setDeviceToEdit(data);
         setIsDeviceDialogOpen(true);
         return;
       }
@@ -311,11 +330,11 @@ const Devices = () => {
     }
   };
 
-  const handleDeviceCreated = () => {
-    // In a real app, this would refetch devices from the API
+  const handleDeviceCreated = async () => {
+    await fetchDevices();
     toast({
       title: "Sucesso",
-      description: "Dispositivo adicionado com sucesso!",
+      description: deviceToEdit ? "Dispositivo atualizado com sucesso!" : "Dispositivo adicionado com sucesso!",
     });
   };
 
@@ -642,8 +661,12 @@ const Devices = () => {
 
       <DeviceDialog 
         open={isDeviceDialogOpen}
-        onOpenChange={setIsDeviceDialogOpen}
+        onOpenChange={(open) => {
+          setIsDeviceDialogOpen(open);
+          if (!open) setDeviceToEdit(null);
+        }}
         onDeviceCreated={handleDeviceCreated}
+        device={deviceToEdit}
       />
 
       <AlertDialog open={!!deviceToDelete} onOpenChange={() => setDeviceToDelete(null)}>

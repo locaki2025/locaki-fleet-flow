@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -21,24 +21,59 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
+interface Device {
+  id: string;
+  name: string;
+  imei: string;
+  vehicle_plate: string;
+  chip_number?: string | null;
+  tracker_model?: string | null;
+  status: string;
+}
+
 interface DeviceDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onDeviceCreated: () => void;
+  device?: Device | null;
 }
 
-const DeviceDialog = ({ open, onOpenChange, onDeviceCreated }: DeviceDialogProps) => {
+const DeviceDialog = ({ open, onOpenChange, onDeviceCreated, device }: DeviceDialogProps) => {
   const { toast } = useToast();
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
-    name: "",
-    imei: "",
-    vehiclePlate: "",
-    chipNumber: "",
-    trackerModel: "",
-    status: "online",
+    name: device?.name || "",
+    imei: device?.imei || "",
+    vehiclePlate: device?.vehicle_plate || "",
+    chipNumber: device?.chip_number || "",
+    trackerModel: device?.tracker_model || "",
+    status: device?.status || "online",
   });
+
+  // Atualizar formData quando device mudar
+  useEffect(() => {
+    if (device) {
+      setFormData({
+        name: device.name,
+        imei: device.imei,
+        vehiclePlate: device.vehicle_plate,
+        chipNumber: device.chip_number || "",
+        trackerModel: device.tracker_model || "",
+        status: device.status,
+      });
+    } else {
+      setFormData({
+        name: "",
+        imei: "",
+        vehiclePlate: "",
+        chipNumber: "",
+        trackerModel: "",
+        status: "online",
+      });
+    }
+  }, [device]);
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,22 +99,46 @@ const DeviceDialog = ({ open, onOpenChange, onDeviceCreated }: DeviceDialogProps
     setIsLoading(true);
 
     try {
-      const { error } = await supabase.from('devices').insert({
-        user_id: user.id,
-        name: formData.name,
-        imei: formData.imei,
-        vehicle_plate: formData.vehiclePlate,
-        chip_number: formData.chipNumber || null,
-        tracker_model: formData.trackerModel || null,
-        status: formData.status,
-      });
+      if (device) {
+        // Atualizar dispositivo existente
+        const { error } = await supabase
+          .from('devices')
+          .update({
+            name: formData.name,
+            imei: formData.imei,
+            vehicle_plate: formData.vehiclePlate,
+            chip_number: formData.chipNumber || null,
+            tracker_model: formData.trackerModel || null,
+            status: formData.status,
+          })
+          .eq('id', device.id)
+          .eq('user_id', user.id);
 
-      if (error) throw error;
+        if (error) throw error;
 
-      toast({
-        title: "Dispositivo criado",
-        description: `${formData.name} foi adicionado com sucesso`,
-      });
+        toast({
+          title: "Dispositivo atualizado",
+          description: `${formData.name} foi atualizado com sucesso`,
+        });
+      } else {
+        // Criar novo dispositivo
+        const { error } = await supabase.from('devices').insert({
+          user_id: user.id,
+          name: formData.name,
+          imei: formData.imei,
+          vehicle_plate: formData.vehiclePlate,
+          chip_number: formData.chipNumber || null,
+          tracker_model: formData.trackerModel || null,
+          status: formData.status,
+        });
+
+        if (error) throw error;
+
+        toast({
+          title: "Dispositivo criado",
+          description: `${formData.name} foi adicionado com sucesso`,
+        });
+      }
 
       onDeviceCreated();
       onOpenChange(false);
@@ -94,7 +153,7 @@ const DeviceDialog = ({ open, onOpenChange, onDeviceCreated }: DeviceDialogProps
     } catch (error: any) {
       toast({
         title: "Erro",
-        description: error.message || "Erro ao criar dispositivo",
+        description: error.message || `Erro ao ${device ? 'atualizar' : 'criar'} dispositivo`,
         variant: "destructive",
       });
     } finally {
@@ -106,9 +165,9 @@ const DeviceDialog = ({ open, onOpenChange, onDeviceCreated }: DeviceDialogProps
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Adicionar Dispositivo</DialogTitle>
+          <DialogTitle>{device ? 'Editar Dispositivo' : 'Adicionar Dispositivo'}</DialogTitle>
           <DialogDescription>
-            Cadastre um novo rastreador GPS para a frota
+            {device ? 'Atualize as informações do rastreador GPS' : 'Cadastre um novo rastreador GPS para a frota'}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -188,7 +247,7 @@ const DeviceDialog = ({ open, onOpenChange, onDeviceCreated }: DeviceDialogProps
               className="bg-gradient-primary hover:opacity-90"
               disabled={isLoading}
             >
-              {isLoading ? "Criando..." : "Adicionar Dispositivo"}
+              {isLoading ? (device ? "Salvando..." : "Criando...") : (device ? "Salvar Alterações" : "Adicionar Dispositivo")}
             </Button>
           </DialogFooter>
         </form>
