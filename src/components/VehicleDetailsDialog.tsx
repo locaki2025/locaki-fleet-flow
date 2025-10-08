@@ -379,7 +379,7 @@ const VehicleDetailsDialog = ({ open, onOpenChange, vehicle, onVehicleUpdate }: 
                       <GoogleMapComponent
                         vehicles={[mapVehicle]}
                         initialCenter={{ lat: mapVehicle.latitude, lng: mapVehicle.longitude }}
-                        initialZoom={10}
+                        initialZoom={13}
                       />
                     </div>
                   </>
