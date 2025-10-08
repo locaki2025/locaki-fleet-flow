@@ -207,26 +207,48 @@ const Map = () => {
         .select('*')
         .eq('user_id', user.id);
 
-      // Fetch active contracts to get renter names
+      // Fetch active contracts with vehicle information to get renter names
       const { data: activeContracts } = await supabase
         .from('contratos')
-        .select('moto_id, cliente_nome, status')
+        .select(`
+          moto_id,
+          cliente_nome,
+          status
+        `)
         .eq('user_id', user.id)
         .eq('status', 'ativo');
 
       console.log('Contratos ativos encontrados:', activeContracts);
 
+      // Fetch vehicles to map moto_id to plate
+      const { data: vehiclesData } = await supabase
+        .from('vehicles')
+        .select('id, plate')
+        .eq('user_id', user.id);
+
+      console.log('Veículos da base:', vehiclesData);
+
+      // Create a map of vehicle id to plate
+      const vehicleIdToPlate: Record<string, string> = {};
+      if (vehiclesData) {
+        vehiclesData.forEach(v => {
+          vehicleIdToPlate[v.id] = v.plate;
+        });
+      }
+
       // Create a map of vehicle plate to renter name
       const renterMap: Record<string, string> = {};
       if (activeContracts) {
         activeContracts.forEach(contract => {
-          console.log('Processando contrato:', contract.moto_id, '->', contract.cliente_nome);
-          if (contract.moto_id && contract.cliente_nome) {
-            renterMap[contract.moto_id] = contract.cliente_nome;
+          // Try to match by moto_id (which could be vehicle id or plate)
+          const plate = vehicleIdToPlate[contract.moto_id] || contract.moto_id;
+          console.log('Processando contrato - moto_id:', contract.moto_id, '-> placa:', plate, '-> cliente:', contract.cliente_nome);
+          if (plate && contract.cliente_nome) {
+            renterMap[plate] = contract.cliente_nome;
           }
         });
       }
-      console.log('Mapa de locatários:', renterMap);
+      console.log('Mapa de locatários por placa:', renterMap);
         
       if (!updatedError && updatedDevices) {
         console.log('Dispositivos recebidos do banco:', updatedDevices);
