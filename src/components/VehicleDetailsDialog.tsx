@@ -1,5 +1,14 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -51,28 +60,34 @@ const VehicleDetailsDialog = ({ open, onOpenChange, vehicle, onVehicleUpdate }: 
   useEffect(() => {
     const loadLocation = async () => {
       if (!open || !vehicle || !user?.id) return;
-      console.log('[VehicleDetailsDialog] Carregando localização para placa:', vehicle.plate);
-      
+      console.log("[VehicleDetailsDialog] Carregando localização para placa:", vehicle.plate);
+
       try {
         // Tenta sincronizar (mesma lógica do Map.tsx), mas não bloqueia em caso de erro
         try {
-          await supabase.functions.invoke('rastrosystem-sync', {
-            body: { action: 'sync_devices', user_id: user.id },
+          await supabase.functions.invoke("rastrosystem-sync", {
+            body: { action: "sync_devices", user_id: user.id },
           });
         } catch (syncErr) {
-          console.warn('[VehicleDetailsDialog] Sync Rastrosystem falhou (segue com fallback):', syncErr);
+          console.warn("[VehicleDetailsDialog] Sync Rastrosystem falhou (segue com fallback):", syncErr);
         }
 
         // Busca o device correspondente pela placa
         const { data: device, error } = await supabase
-          .from('devices')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('vehicle_plate', vehicle.plate)
+          .from("devices")
+          .select("*")
+          .eq("user_id", user.id)
+          .eq("vehicle_plate", vehicle.plate)
           .maybeSingle();
 
         if (!error && device) {
-          console.log('[VehicleDetailsDialog] Device encontrado no banco:', device?.id, device?.vehicle_plate, device?.latitude, device?.longitude);
+          console.log(
+            "[VehicleDetailsDialog] Device encontrado no banco:",
+            device?.id,
+            device?.vehicle_plate,
+            device?.latitude,
+            device?.longitude,
+          );
         }
 
         if (!error && device && device.latitude != null && device.longitude != null) {
@@ -82,63 +97,61 @@ const VehicleDetailsDialog = ({ open, onOpenChange, vehicle, onVehicleUpdate }: 
             const mapped = {
               id: device.id,
               plate: device.vehicle_plate,
-              brand: (device.name || 'Veículo').split(' ')[0],
+              brand: (device.name || "Veículo").split(" ")[0],
               model: device.name || vehicle.model,
               latitude: lat,
               longitude: lng,
-              status: device.status === 'online' ? 'online' : 'offline',
+              status: device.status === "online" ? "online" : "offline",
               last_update: device.last_update || new Date().toISOString(),
               address: device.address || undefined,
             };
-            console.log('[VehicleDetailsDialog] Localização via DB:', mapped);
+            mapped.setZoom(10);
+            console.log("[VehicleDetailsDialog] Localização via DB:", mapped);
             setMapVehicle(mapped);
             return;
           }
         }
 
         // FALLBACK: Busca diretamente no Rastrosystem (mesma lógica do Map.tsx)
-        console.log('[VehicleDetailsDialog] Device não encontrado no banco, tentando fallback Rastrosystem...');
+        console.log("[VehicleDetailsDialog] Device não encontrado no banco, tentando fallback Rastrosystem...");
         try {
-          const loginRes = await fetch('https://locaki.rastrosystem.com.br/api_v2/login/', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ login: '54858795000100', senha: '123456', app: 9 })
+          const loginRes = await fetch("https://locaki.rastrosystem.com.br/api_v2/login/", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ login: "54858795000100", senha: "123456", app: 9 }),
           });
-          
-          if (!loginRes.ok) throw new Error('Falha no login Rastrosystem');
-          
+
+          if (!loginRes.ok) throw new Error("Falha no login Rastrosystem");
+
           const login = await loginRes.json();
           const token = login.token;
           const cliente_id = login.cliente_id;
 
           const vRes = await fetch(`https://locaki.rastrosystem.com.br/api_v2/veiculos/${cliente_id}/`, {
-            method: 'GET',
-            headers: { 
-              'Authorization': `token ${token}`, 
-              'Content-Type': 'application/json' 
-            }
+            method: "GET",
+            headers: {
+              Authorization: `token ${token}`,
+              "Content-Type": "application/json",
+            },
           });
-          
-          if (!vRes.ok) throw new Error('Falha ao buscar veículos no Rastrosystem');
-          
+
+          if (!vRes.ok) throw new Error("Falha ao buscar veículos no Rastrosystem");
+
           const vJson = await vRes.json();
           const dispositivos = vJson.dispositivos || vJson || [];
-          console.log('[VehicleDetailsDialog] Dispositivos recebidos (fallback):', dispositivos?.length);
-          
+          console.log("[VehicleDetailsDialog] Dispositivos recebidos (fallback):", dispositivos?.length);
+
           // Procura o dispositivo pela placa
-          const rastroDevice = dispositivos.find((d: any) => 
-            d.placa === vehicle.plate || 
-            d.name?.includes(vehicle.plate) ||
-            d.modelo?.includes(vehicle.plate)
+          const rastroDevice = dispositivos.find(
+            (d: any) =>
+              d.placa === vehicle.plate || d.name?.includes(vehicle.plate) || d.modelo?.includes(vehicle.plate),
           );
 
           if (rastroDevice) {
-            const lat = typeof rastroDevice.latitude === 'number' 
-              ? rastroDevice.latitude 
-              : Number(rastroDevice.latitude);
-            const lng = typeof rastroDevice.longitude === 'number' 
-              ? rastroDevice.longitude 
-              : Number(rastroDevice.longitude);
+            const lat =
+              typeof rastroDevice.latitude === "number" ? rastroDevice.latitude : Number(rastroDevice.latitude);
+            const lng =
+              typeof rastroDevice.longitude === "number" ? rastroDevice.longitude : Number(rastroDevice.longitude);
 
             if (Number.isFinite(lat) && Number.isFinite(lng) && lat !== 0 && lng !== 0) {
               const mapped = {
@@ -148,27 +161,34 @@ const VehicleDetailsDialog = ({ open, onOpenChange, vehicle, onVehicleUpdate }: 
                 model: vehicle.model,
                 latitude: lat,
                 longitude: lng,
-                status: rastroDevice.status ? 'online' : 'offline',
+                status: rastroDevice.status ? "online" : "offline",
                 last_update: rastroDevice.server_time || rastroDevice.time || new Date().toISOString(),
                 address: rastroDevice.address || undefined,
               };
-              console.log('[VehicleDetailsDialog] Localização via Rastrosystem (fallback):', mapped);
+              console.log("[VehicleDetailsDialog] Localização via Rastrosystem (fallback):", mapped);
               setMapVehicle(mapped);
               return;
             } else {
-              console.warn('[VehicleDetailsDialog] Coordenadas inválidas no fallback:', rastroDevice?.latitude, rastroDevice?.longitude);
+              console.warn(
+                "[VehicleDetailsDialog] Coordenadas inválidas no fallback:",
+                rastroDevice?.latitude,
+                rastroDevice?.longitude,
+              );
             }
           } else {
-            console.warn('[VehicleDetailsDialog] Nenhum dispositivo encontrado para a placa no fallback:', vehicle.plate);
+            console.warn(
+              "[VehicleDetailsDialog] Nenhum dispositivo encontrado para a placa no fallback:",
+              vehicle.plate,
+            );
           }
         } catch (fallbackError) {
-          console.error('[VehicleDetailsDialog] Fallback Rastrosystem falhou:', fallbackError);
+          console.error("[VehicleDetailsDialog] Fallback Rastrosystem falhou:", fallbackError);
         }
 
-        console.warn('[VehicleDetailsDialog] Localização não encontrada. mapVehicle = null');
+        console.warn("[VehicleDetailsDialog] Localização não encontrada. mapVehicle = null");
         setMapVehicle(null);
       } catch (e) {
-        console.error('[VehicleDetailsDialog] Falha ao carregar localização do veículo:', e);
+        console.error("[VehicleDetailsDialog] Falha ao carregar localização do veículo:", e);
         setMapVehicle(null);
       }
     };
@@ -179,7 +199,7 @@ const VehicleDetailsDialog = ({ open, onOpenChange, vehicle, onVehicleUpdate }: 
   if (!vehicle) return null;
 
   const handleViewOnMap = () => {
-    navigate('/map');
+    navigate("/map");
     onOpenChange(false);
     toast({
       title: "Redirecionando para o mapa",
@@ -188,7 +208,7 @@ const VehicleDetailsDialog = ({ open, onOpenChange, vehicle, onVehicleUpdate }: 
   };
 
   const handleCreateContract = () => {
-    navigate('/rentals');
+    navigate("/rentals");
     onOpenChange(false);
     toast({
       title: "Criando novo contrato",
@@ -215,11 +235,7 @@ const VehicleDetailsDialog = ({ open, onOpenChange, vehicle, onVehicleUpdate }: 
     if (!vehicle) return;
 
     try {
-      const { error } = await supabase
-        .from('vehicles')
-        .delete()
-        .eq('id', vehicle.id)
-        .eq('user_id', user?.id);
+      const { error } = await supabase.from("vehicles").delete().eq("id", vehicle.id).eq("user_id", user?.id);
 
       if (error) throw error;
 
@@ -233,7 +249,7 @@ const VehicleDetailsDialog = ({ open, onOpenChange, vehicle, onVehicleUpdate }: 
       onOpenChange(false);
       onVehicleUpdate?.();
     } catch (error) {
-      console.error('Error deleting vehicle:', error);
+      console.error("Error deleting vehicle:", error);
       toast({
         title: "Erro ao excluir",
         description: error instanceof Error ? error.message : "Não foi possível excluir o veículo",
@@ -262,7 +278,7 @@ const VehicleDetailsDialog = ({ open, onOpenChange, vehicle, onVehicleUpdate }: 
             {vehicle.brand} {vehicle.model} - {vehicle.plate}
           </DialogTitle>
         </DialogHeader>
-        
+
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Vehicle Info */}
@@ -277,21 +293,33 @@ const VehicleDetailsDialog = ({ open, onOpenChange, vehicle, onVehicleUpdate }: 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">Status</p>
-                    <Badge 
+                    <Badge
                       variant={
-                        vehicle.status === 'disponivel' ? 'default' :
-                        vehicle.status === 'alugado' ? 'secondary' :
-                        vehicle.status === 'manutencao' ? 'destructive' : 'outline'
+                        vehicle.status === "disponivel"
+                          ? "default"
+                          : vehicle.status === "alugado"
+                            ? "secondary"
+                            : vehicle.status === "manutencao"
+                              ? "destructive"
+                              : "outline"
                       }
                       className={
-                        vehicle.status === 'disponivel' ? 'bg-success text-success-foreground' :
-                        vehicle.status === 'alugado' ? 'bg-accent text-accent-foreground' :
-                        vehicle.status === 'manutencao' ? 'bg-warning text-warning-foreground' : ''
+                        vehicle.status === "disponivel"
+                          ? "bg-success text-success-foreground"
+                          : vehicle.status === "alugado"
+                            ? "bg-accent text-accent-foreground"
+                            : vehicle.status === "manutencao"
+                              ? "bg-warning text-warning-foreground"
+                              : ""
                       }
                     >
-                      {vehicle.status === 'disponivel' ? 'Disponível' :
-                       vehicle.status === 'alugado' ? 'Alugada' :
-                       vehicle.status === 'manutencao' ? 'Manutenção' : vehicle.status}
+                      {vehicle.status === "disponivel"
+                        ? "Disponível"
+                        : vehicle.status === "alugado"
+                          ? "Alugada"
+                          : vehicle.status === "manutencao"
+                            ? "Manutenção"
+                            : vehicle.status}
                     </Badge>
                   </div>
                   <div>
@@ -299,7 +327,7 @@ const VehicleDetailsDialog = ({ open, onOpenChange, vehicle, onVehicleUpdate }: 
                     <p className="font-medium">{vehicle.category}</p>
                   </div>
                 </div>
-                
+
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">Ano</p>
@@ -310,7 +338,7 @@ const VehicleDetailsDialog = ({ open, onOpenChange, vehicle, onVehicleUpdate }: 
                     <p className="font-medium">{vehicle.color}</p>
                   </div>
                 </div>
-                
+
                 <div>
                   <p className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                     <Gauge className="h-4 w-4" />
@@ -318,7 +346,7 @@ const VehicleDetailsDialog = ({ open, onOpenChange, vehicle, onVehicleUpdate }: 
                   </p>
                   <p className="font-medium">{vehicle.odometer.toLocaleString()} km</p>
                 </div>
-                
+
                 {vehicle.tracker && (
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">Rastreador</p>
@@ -341,17 +369,15 @@ const VehicleDetailsDialog = ({ open, onOpenChange, vehicle, onVehicleUpdate }: 
                   <>
                     <div className="p-3 bg-accent/10 rounded-lg">
                       <p className="text-sm font-medium">Última localização</p>
-                      {mapVehicle.address && (
-                        <p className="text-sm text-muted-foreground">{mapVehicle.address}</p>
-                      )}
+                      {mapVehicle.address && <p className="text-sm text-muted-foreground">{mapVehicle.address}</p>}
                       <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
                         <Calendar className="h-3 w-3" />
-                        {new Date(mapVehicle.last_update).toLocaleString('pt-BR')}
+                        {new Date(mapVehicle.last_update).toLocaleString("pt-BR")}
                       </p>
                     </div>
-                    
+
                     <div className="h-[200px] rounded-lg overflow-hidden border">
-                      <GoogleMapComponent 
+                      <GoogleMapComponent
                         vehicles={[mapVehicle]}
                         initialCenter={{ lat: mapVehicle.latitude, lng: mapVehicle.longitude }}
                         initialZoom={12}
@@ -363,43 +389,27 @@ const VehicleDetailsDialog = ({ open, onOpenChange, vehicle, onVehicleUpdate }: 
                     <p className="text-sm text-muted-foreground">Localização não disponível</p>
                   </div>
                 )}
-                
+
                 <div className="space-y-3">
-                  {vehicle.status === 'disponivel' && (
-                    <Button 
-                      variant="outline" 
-                      className="w-full"
-                      onClick={handleCreateContract}
-                    >
+                  {vehicle.status === "disponivel" && (
+                    <Button variant="outline" className="w-full" onClick={handleCreateContract}>
                       <FileText className="h-4 w-4 mr-2" />
                       Criar Contrato
                     </Button>
                   )}
-                  
-                  <Button 
-                    variant="outline" 
-                    className="w-full"
-                    onClick={handleScheduleMaintenance}
-                  >
+
+                  <Button variant="outline" className="w-full" onClick={handleScheduleMaintenance}>
                     <Settings className="h-4 w-4 mr-2" />
                     Agendar Manutenção
                   </Button>
-                  
+
                   <div className="flex gap-2">
-                    <Button 
-                      variant="outline" 
-                      className="flex-1"
-                      onClick={handleEdit}
-                    >
+                    <Button variant="outline" className="flex-1" onClick={handleEdit}>
                       <Edit className="h-4 w-4 mr-2" />
                       Editar
                     </Button>
-                    
-                    <Button 
-                      variant="destructive" 
-                      className="flex-1"
-                      onClick={handleDelete}
-                    >
+
+                    <Button variant="destructive" className="flex-1" onClick={handleDelete}>
                       <Trash2 className="h-4 w-4 mr-2" />
                       Excluir
                     </Button>
@@ -411,8 +421,8 @@ const VehicleDetailsDialog = ({ open, onOpenChange, vehicle, onVehicleUpdate }: 
         </div>
       </DialogContent>
 
-      <VehicleDialog 
-        open={editDialogOpen} 
+      <VehicleDialog
+        open={editDialogOpen}
         onOpenChange={setEditDialogOpen}
         vehicle={vehicle}
         onVehicleUpdated={handleVehicleUpdated}
@@ -423,8 +433,11 @@ const VehicleDetailsDialog = ({ open, onOpenChange, vehicle, onVehicleUpdate }: 
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir o veículo <strong>{vehicle.brand} {vehicle.model} - {vehicle.plate}</strong>? 
-              Esta ação não pode ser desfeita.
+              Tem certeza que deseja excluir o veículo{" "}
+              <strong>
+                {vehicle.brand} {vehicle.model} - {vehicle.plate}
+              </strong>
+              ? Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
