@@ -57,6 +57,7 @@ const VehicleDetailsDialog = ({ open, onOpenChange, vehicle, onVehicleUpdate }: 
   // Dados do mapa seguindo a mesma lógica da página de Mapa (devices)
   const [mapVehicle, setMapVehicle] = useState<any | null>(null);
 
+  // Carrega a localização inicial
   useEffect(() => {
     const loadLocation = async () => {
       if (!open || !vehicle || !user?.id) return;
@@ -193,6 +194,81 @@ const VehicleDetailsDialog = ({ open, onOpenChange, vehicle, onVehicleUpdate }: 
     };
 
     loadLocation();
+  }, [open, vehicle?.plate, user?.id]);
+
+  // Atualização periódica da localização (a cada 15 segundos) - mesma lógica do Map.tsx
+  useEffect(() => {
+    if (!open || !vehicle || !user?.id) return;
+
+    const updateLocation = async () => {
+      try {
+        console.log("[VehicleDetailsDialog] Atualizando localização para placa:", vehicle.plate);
+
+        // Login no Rastrosystem
+        const loginRes = await fetch("https://locaki.rastrosystem.com.br/api_v2/login/", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ login: "54858795000100", senha: "123456", app: 9 }),
+        });
+
+        if (!loginRes.ok) {
+          console.error("[VehicleDetailsDialog] Falha no login Rastrosystem");
+          return;
+        }
+
+        const login = await loginRes.json();
+        const token = login.token;
+        const cliente_id = login.cliente_id;
+
+        // Buscar veículos
+        const vRes = await fetch(`https://locaki.rastrosystem.com.br/api_v2/veiculos/${cliente_id}/`, {
+          method: "GET",
+          headers: {
+            Authorization: `token ${token}`,
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (!vRes.ok) {
+          console.error("[VehicleDetailsDialog] Falha ao buscar veículos no Rastrosystem");
+          return;
+        }
+
+        const vJson = await vRes.json();
+        const dispositivos = vJson.dispositivos || vJson || [];
+
+        // Procura o dispositivo pela placa
+        const device = dispositivos.find(
+          (d: any) => d.placa === vehicle.plate || d.name?.includes(vehicle.plate) || d.modelo?.includes(vehicle.plate),
+        );
+
+        if (device) {
+          const lat = typeof device.latitude === "number" ? device.latitude : Number(device.latitude);
+          const lng = typeof device.longitude === "number" ? device.longitude : Number(device.longitude);
+
+          // Só atualiza se as coordenadas forem válidas
+          if (Number.isFinite(lat) && Number.isFinite(lng) && lat !== 0 && lng !== 0) {
+            console.log("[VehicleDetailsDialog] Localização atualizada:", { lat, lng });
+
+            setMapVehicle((prev: any) => ({
+              ...prev,
+              latitude: lat,
+              longitude: lng,
+              status: device.status ? "online" : "offline",
+              last_update: device.server_time || device.time || new Date().toISOString(),
+              address: device.address || prev?.address,
+            }));
+          }
+        }
+      } catch (error) {
+        console.error("[VehicleDetailsDialog] Erro ao atualizar localização:", error);
+      }
+    };
+
+    // Atualiza a cada 15 segundos
+    const interval = setInterval(updateLocation, 15000);
+
+    return () => clearInterval(interval);
   }, [open, vehicle?.plate, user?.id]);
 
   if (!vehicle) return null;
