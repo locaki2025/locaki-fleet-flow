@@ -262,34 +262,52 @@ const Devices = () => {
   const handleDeviceAction = async (action: string, deviceId: string) => {
     try {
       if (action === "Ver localização") {
-        // Buscar a última posição do veículo
-        const device = devices.find(d => d.id === deviceId);
-        if (!device) return;
+        // Always try to open Traccar monitoring system
+        try {
+          // First try to sync and create default config if needed
+          const { data: syncData, error: syncError } = await supabase.functions.invoke('traccar-sync', {
+            body: { action: 'sync_devices' }
+          });
+          
+          // Now get the configuration
+          const { data: configData } = await supabase
+            .from('tenant_config')
+            .select('config_value')
+            .eq('user_id', user?.id)
+            .eq('config_key', 'traccar_settings')
+            .maybeSingle();
 
-        const { data: positionData, error: positionError } = await supabase
-          .from('vehicle_positions')
-          .select('latitude, longitude, timestamp')
-          .eq('device_id', deviceId)
-          .order('timestamp', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (positionError) {
-          console.error('Error fetching position:', positionError);
+          if (configData?.config_value && typeof configData.config_value === 'object') {
+            const traccarConfig = configData.config_value as any;
+            
+            if (traccarConfig.api_url) {
+              // Open Traccar web interface in new tab
+              const traccarWebUrl = traccarConfig.api_url.replace('/api', '');
+              window.open(traccarWebUrl, '_blank');
+              
+              toast({
+                title: "Abrindo Traccar",
+                description: "Sistema de monitoramento Traccar aberto em nova aba",
+              });
+              return;
+            }
+          }
+          
+          // If no Traccar configured, show message to configure it
+          toast({
+            title: "Traccar não configurado",
+            description: "Verifique se as configurações da API Traccar estão corretas nas integrações",
+            variant: "destructive",
+          });
+          
+        } catch (error) {
+          console.error('Error getting Traccar config:', error);
+          toast({
+            title: "Erro de configuração",
+            description: "Erro ao acessar configurações do Traccar",
+            variant: "destructive",
+          });
         }
-
-        // Se tiver posição, usar ela, senão usar coordenadas padrão de São Paulo
-        const lat = positionData?.latitude || -23.5505;
-        const lng = positionData?.longitude || -46.6333;
-
-        // Abrir Google Maps em nova aba
-        const mapsUrl = `https://www.google.com/maps?q=${lat},${lng}&z=15`;
-        window.open(mapsUrl, '_blank');
-
-        toast({
-          title: "Abrindo localização",
-          description: `Localização do veículo ${device.vehiclePlate} no Google Maps`,
-        });
         return;
       }
       
