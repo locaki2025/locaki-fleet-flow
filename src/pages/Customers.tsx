@@ -168,18 +168,10 @@ const Customers = () => {
     if (!selectedCustomer || !user?.id) return;
 
     try {
-      // Verifica se já existe URL salva no banco
-      if (selectedCustomer.cnh_attachment_url) {
-        window.open(selectedCustomer.cnh_attachment_url, '_blank');
-        return;
-      }
-
-      // Busca o arquivo no storage
+      // Busca todos os arquivos no diretório do usuário
       const { data: files, error: listError } = await supabase.storage
         .from('cnh-clientes')
-        .list(`${user.id}`, {
-          search: selectedCustomer.id
-        });
+        .list(`${user.id}`);
 
       if (listError) throw listError;
 
@@ -192,10 +184,22 @@ const Customers = () => {
         return;
       }
 
-      // Pega o arquivo encontrado e gera URL pública
-      const fileName = files[0].name;
-      const filePath = `${user.id}/${fileName}`;
-      
+      // Procura arquivo que comece com o ID do cliente
+      const cnhFile = files.find(file => 
+        file.name.startsWith(selectedCustomer.id)
+      );
+
+      if (!cnhFile) {
+        toast({
+          title: "CNH não encontrada",
+          description: "Nenhuma CNH salva no sistema foi encontrada para este cliente.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Gera URL pública do arquivo encontrado
+      const filePath = `${user.id}/${cnhFile.name}`;
       const { data: urlData } = supabase.storage
         .from('cnh-clientes')
         .getPublicUrl(filePath);
