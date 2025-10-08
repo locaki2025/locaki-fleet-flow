@@ -47,14 +47,9 @@ const Map = () => {
     const plateFromUrl = searchParams.get('plate');
     if (plateFromUrl) {
       setSearchPlate(plateFromUrl);
-      
-      // Seleciona o veículo correspondente quando os dados forem carregados
-      const vehicle = vehicles.find(v => v.plate === plateFromUrl);
-      if (vehicle) {
-        setSelectedVehicle(vehicle);
-      }
+      // Não seleciona o veículo automaticamente para evitar abrir o popup
     }
-  }, [searchParams, vehicles]);
+  }, [searchParams]);
 
   useEffect(() => {
     if (user) {
@@ -706,6 +701,16 @@ const Map = () => {
               <GoogleMapComponent 
                 vehicles={filteredVehicles} 
                 onVehicleClick={(vehicle) => setSelectedVehicle(vehicle)}
+                initialCenter={
+                  searchParams.get('plate') && filteredVehicles.length === 1
+                    ? { lat: filteredVehicles[0].latitude, lng: filteredVehicles[0].longitude }
+                    : undefined
+                }
+                initialZoom={
+                  searchParams.get('plate') && filteredVehicles.length === 1
+                    ? 17
+                    : 13
+                }
               />
               {selectedVehicle && (
                 <div className="absolute bottom-4 left-4 w-80 max-h-[calc(100%-2rem)] overflow-y-auto z-10">
