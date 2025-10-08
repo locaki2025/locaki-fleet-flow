@@ -100,16 +100,13 @@ const DeviceDialog = ({ open, onOpenChange, onDeviceCreated, device }: DeviceDia
 
     try {
       if (device) {
-        // Atualizar dispositivo existente
+        // Atualizar veículo existente na tabela vehicles
         const { error } = await supabase
-          .from('devices')
+          .from('vehicles')
           .update({
-            name: formData.name,
-            imei: formData.imei,
-            vehicle_plate: formData.vehiclePlate,
-            chip_number: formData.chipNumber || null,
-            tracker_model: formData.trackerModel || null,
-            status: formData.status,
+            tracker_id: formData.imei || null,
+            plate: formData.vehiclePlate,
+            status: formData.status === 'online' ? 'disponivel' : formData.status === 'maintenance' ? 'manutencao' : 'offline',
           })
           .eq('id', device.id)
           .eq('user_id', user.id);

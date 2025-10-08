@@ -275,9 +275,9 @@ const Devices = () => {
       }
       
       if (action === "Editar") {
-        // Buscar dados do dispositivo do banco de dados
+        // Buscar dados do veículo do banco de dados
         const { data, error } = await supabase
-          .from('devices')
+          .from('vehicles')
           .select('*')
           .eq('id', deviceId)
           .eq('user_id', user?.id)
@@ -292,7 +292,18 @@ const Devices = () => {
           return;
         }
         
-        setDeviceToEdit(data);
+        // Transformar dados do vehicle para formato de device
+        const deviceData = {
+          id: data.id,
+          name: `${data.brand} ${data.model}`,
+          imei: data.tracker_id || '',
+          vehicle_plate: data.plate,
+          chip_number: null,
+          tracker_model: null,
+          status: data.status === 'disponivel' ? 'online' : data.status === 'manutencao' ? 'maintenance' : 'offline'
+        };
+        
+        setDeviceToEdit(deviceData);
         setIsDeviceDialogOpen(true);
         return;
       }
