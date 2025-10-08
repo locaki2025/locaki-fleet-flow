@@ -6,10 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Car, MapPin, Gauge, Calendar, FileText, Settings, Edit, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import VehicleDialog from "./VehicleDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import GoogleMapComponent from "./GoogleMap";
 
 interface Vehicle {
   id: string;
@@ -131,146 +132,177 @@ const VehicleDetailsDialog = ({ open, onOpenChange, vehicle, onVehicleUpdate }: 
           </DialogTitle>
         </DialogHeader>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Vehicle Info */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                Informações do Veículo
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Status</p>
-                  <Badge 
-                    variant={
-                      vehicle.status === 'disponivel' ? 'default' :
-                      vehicle.status === 'alugado' ? 'secondary' :
-                      vehicle.status === 'manutencao' ? 'destructive' : 'outline'
-                    }
-                    className={
-                      vehicle.status === 'disponivel' ? 'bg-success text-success-foreground' :
-                      vehicle.status === 'alugado' ? 'bg-accent text-accent-foreground' :
-                      vehicle.status === 'manutencao' ? 'bg-warning text-warning-foreground' : ''
-                    }
-                  >
-                    {vehicle.status === 'disponivel' ? 'Disponível' :
-                     vehicle.status === 'alugado' ? 'Alugada' :
-                     vehicle.status === 'manutencao' ? 'Manutenção' : vehicle.status}
-                  </Badge>
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Vehicle Info */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  Informações do Veículo
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Status</p>
+                    <Badge 
+                      variant={
+                        vehicle.status === 'disponivel' ? 'default' :
+                        vehicle.status === 'alugado' ? 'secondary' :
+                        vehicle.status === 'manutencao' ? 'destructive' : 'outline'
+                      }
+                      className={
+                        vehicle.status === 'disponivel' ? 'bg-success text-success-foreground' :
+                        vehicle.status === 'alugado' ? 'bg-accent text-accent-foreground' :
+                        vehicle.status === 'manutencao' ? 'bg-warning text-warning-foreground' : ''
+                      }
+                    >
+                      {vehicle.status === 'disponivel' ? 'Disponível' :
+                       vehicle.status === 'alugado' ? 'Alugada' :
+                       vehicle.status === 'manutencao' ? 'Manutenção' : vehicle.status}
+                    </Badge>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Categoria</p>
+                    <p className="font-medium">{vehicle.category}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Categoria</p>
-                  <p className="font-medium">{vehicle.category}</p>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Ano</p>
-                  <p className="font-medium">{vehicle.year}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Cor</p>
-                  <p className="font-medium">{vehicle.color}</p>
-                </div>
-              </div>
-              
-              <div>
-                <p className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                  <Gauge className="h-4 w-4" />
-                  Odômetro
-                </p>
-                <p className="font-medium">{vehicle.odometer.toLocaleString()} km</p>
-              </div>
-              
-              {vehicle.tracker && (
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Rastreador</p>
-                  <p className="font-medium">{vehicle.tracker}</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Location & Actions */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <MapPin className="h-5 w-5" />
-                Localização e Ações
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {vehicle.lastLocation ? (
-                <div className="p-3 bg-accent/10 rounded-lg">
-                  <p className="text-sm font-medium">Última localização</p>
-                  <p className="text-sm text-muted-foreground">{vehicle.lastLocation.address}</p>
-                  <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                    <Calendar className="h-3 w-3" />
-                    {new Date(vehicle.lastLocation.updatedAt).toLocaleString('pt-BR')}
-                  </p>
-                </div>
-              ) : (
-                <div className="p-3 bg-muted/50 rounded-lg">
-                  <p className="text-sm text-muted-foreground">Localização não disponível</p>
-                </div>
-              )}
-              
-              <div className="space-y-3">
-                <Button 
-                  className="w-full bg-gradient-primary hover:opacity-90"
-                  onClick={handleViewOnMap}
-                  disabled={!vehicle.lastLocation}
-                >
-                  <MapPin className="h-4 w-4 mr-2" />
-                  Ver no Mapa
-                </Button>
                 
-                {vehicle.status === 'disponivel' && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Ano</p>
+                    <p className="font-medium">{vehicle.year}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Cor</p>
+                    <p className="font-medium">{vehicle.color}</p>
+                  </div>
+                </div>
+                
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                    <Gauge className="h-4 w-4" />
+                    Odômetro
+                  </p>
+                  <p className="font-medium">{vehicle.odometer.toLocaleString()} km</p>
+                </div>
+                
+                {vehicle.tracker && (
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Rastreador</p>
+                    <p className="font-medium">{vehicle.tracker}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Location & Actions */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MapPin className="h-5 w-5" />
+                  Localização e Ações
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {vehicle.lastLocation ? (
+                  <div className="p-3 bg-accent/10 rounded-lg">
+                    <p className="text-sm font-medium">Última localização</p>
+                    <p className="text-sm text-muted-foreground">{vehicle.lastLocation.address}</p>
+                    <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                      <Calendar className="h-3 w-3" />
+                      {new Date(vehicle.lastLocation.updatedAt).toLocaleString('pt-BR')}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="p-3 bg-muted/50 rounded-lg">
+                    <p className="text-sm text-muted-foreground">Localização não disponível</p>
+                  </div>
+                )}
+                
+                <div className="space-y-3">
+                  <Button 
+                    className="w-full bg-gradient-primary hover:opacity-90"
+                    onClick={handleViewOnMap}
+                    disabled={!vehicle.lastLocation}
+                  >
+                    <MapPin className="h-4 w-4 mr-2" />
+                    Ver no Mapa
+                  </Button>
+                  
+                  {vehicle.status === 'disponivel' && (
+                    <Button 
+                      variant="outline" 
+                      className="w-full"
+                      onClick={handleCreateContract}
+                    >
+                      <FileText className="h-4 w-4 mr-2" />
+                      Criar Contrato
+                    </Button>
+                  )}
+                  
                   <Button 
                     variant="outline" 
                     className="w-full"
-                    onClick={handleCreateContract}
+                    onClick={handleScheduleMaintenance}
                   >
-                    <FileText className="h-4 w-4 mr-2" />
-                    Criar Contrato
-                  </Button>
-                )}
-                
-                <Button 
-                  variant="outline" 
-                  className="w-full"
-                  onClick={handleScheduleMaintenance}
-                >
-                  <Settings className="h-4 w-4 mr-2" />
-                  Agendar Manutenção
-                </Button>
-                
-                <div className="flex gap-2">
-                  <Button 
-                    variant="outline" 
-                    className="flex-1"
-                    onClick={handleEdit}
-                  >
-                    <Edit className="h-4 w-4 mr-2" />
-                    Editar
+                    <Settings className="h-4 w-4 mr-2" />
+                    Agendar Manutenção
                   </Button>
                   
-                  <Button 
-                    variant="destructive" 
-                    className="flex-1"
-                    onClick={handleDelete}
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Excluir
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      className="flex-1"
+                      onClick={handleEdit}
+                    >
+                      <Edit className="h-4 w-4 mr-2" />
+                      Editar
+                    </Button>
+                    
+                    <Button 
+                      variant="destructive" 
+                      className="flex-1"
+                      onClick={handleDelete}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Excluir
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Map Section */}
+          {vehicle.lastLocation && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MapPin className="h-5 w-5" />
+                  Localização no Mapa
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[400px] rounded-lg overflow-hidden">
+                  <GoogleMapComponent 
+                    vehicles={[{
+                      id: vehicle.id,
+                      plate: vehicle.plate,
+                      brand: vehicle.brand,
+                      model: vehicle.model,
+                      latitude: vehicle.lastLocation.lat,
+                      longitude: vehicle.lastLocation.lng,
+                      status: vehicle.status,
+                      last_update: vehicle.lastLocation.updatedAt,
+                      address: vehicle.lastLocation.address
+                    }]}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </DialogContent>
 
