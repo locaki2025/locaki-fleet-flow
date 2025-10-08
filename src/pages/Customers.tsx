@@ -164,6 +164,57 @@ const Customers = () => {
     });
   };
 
+  const handleViewCNH = async () => {
+    if (!selectedCustomer || !user?.id) return;
+
+    try {
+      // Verifica se já existe URL salva no banco
+      if (selectedCustomer.cnh_attachment_url) {
+        window.open(selectedCustomer.cnh_attachment_url, '_blank');
+        return;
+      }
+
+      // Busca o arquivo no storage
+      const { data: files, error: listError } = await supabase.storage
+        .from('cnh-clientes')
+        .list(`${user.id}`, {
+          search: selectedCustomer.id
+        });
+
+      if (listError) throw listError;
+
+      if (!files || files.length === 0) {
+        toast({
+          title: "CNH não encontrada",
+          description: "Nenhuma CNH salva no sistema foi encontrada para este cliente.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Pega o arquivo encontrado e gera URL pública
+      const fileName = files[0].name;
+      const filePath = `${user.id}/${fileName}`;
+      
+      const { data: urlData } = supabase.storage
+        .from('cnh-clientes')
+        .getPublicUrl(filePath);
+
+      if (urlData.publicUrl) {
+        window.open(urlData.publicUrl, '_blank');
+      } else {
+        throw new Error("Não foi possível gerar URL do arquivo");
+      }
+    } catch (error) {
+      console.error('Error viewing CNH:', error);
+      toast({
+        title: "Erro ao visualizar CNH",
+        description: error instanceof Error ? error.message : "Não foi possível abrir o arquivo da CNH",
+        variant: "destructive",
+      });
+    }
+  };
+
   useEffect(() => {
     fetchCustomers();
   }, [user]);
@@ -463,15 +514,15 @@ const Customers = () => {
                       </div>
                     )}
                   </div>
-                  {selectedCustomer.cnh_attachment_url && (
-                    <div className="mt-2">
-                      <Button variant="outline" size="sm" asChild>
-                        <a href={selectedCustomer.cnh_attachment_url} target="_blank" rel="noopener noreferrer">
-                          Ver CNH Anexada
-                        </a>
-                      </Button>
-                    </div>
-                  )}
+                  <div className="mt-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={handleViewCNH}
+                    >
+                      Ver CNH Anexada
+                    </Button>
+                  </div>
                 </div>
               )}
 
