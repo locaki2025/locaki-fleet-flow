@@ -157,15 +157,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (!vehicle.placa || !vehicle.id) continue;
 
           // Usa upsert para inserir ou atualizar veículos baseado no rastrosystem_id único
-          const { error: vehicleError } = await supabase
-            .from("vehicles")
-            .upsert({
+          const { error: vehicleError } = await supabase.from("vehicles").upsert(
+            {
               user_id: currentUser.id,
               rastrosystem_id: vehicle.id.toString(),
               vehicle_id: vehicle.veiculo_id,
               plate: vehicle.placa,
               brand: "",
-              model: vehicle.modelo || vehicle.name || "Não informado",
+              model: vehicle.modelo,
+              name: vehicle.name,
               imei: vehicle.imei,
               color: "Não informado",
               year: new Date().getFullYear(),
@@ -174,10 +174,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               chip_number: vehicle.chip,
               odometer: parseInt(vehicle.odometer) || 0,
               observations: `Importado do Rastrosystem - IMEI: ${vehicle.imei}`,
-            }, {
-              onConflict: 'rastrosystem_id',
-              ignoreDuplicates: false
-            });
+            },
+            {
+              onConflict: "rastrosystem_id",
+              ignoreDuplicates: false,
+            },
+          );
 
           if (vehicleError) {
             console.error("Erro ao sincronizar veículo:", vehicleError);
@@ -186,26 +188,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
 
           // Também sincronizar o device correspondente
-          const { error: deviceError } = await supabase
-            .from("devices")
-            .upsert({
+          const { error: deviceError } = await supabase.from("devices").upsert(
+            {
               user_id: currentUser.id,
               rastrosystem_id: vehicle.id.toString(),
-              name: vehicle.name || `${vehicle.modelo} - ${vehicle.placa}`,
+              name: vehicle.name,
+              model: vehicle.modelo,
               vehicle_plate: vehicle.placa,
               chip_number: vehicle.chip,
               tracker_model: vehicle.modelo || "Rastrosystem",
               status: "online",
-              battery: 100,
+              battery: vehicle.attributes.battery,
               signal: 4,
               latitude: null,
               longitude: null,
               address: null,
               last_update: new Date().toISOString(),
-            }, {
-              onConflict: 'rastrosystem_id',
-              ignoreDuplicates: false
-            });
+            },
+            {
+              onConflict: "rastrosystem_id",
+              ignoreDuplicates: false,
+            },
+          );
 
           if (deviceError) {
             console.error("Erro ao sincronizar device:", deviceError);
@@ -232,9 +236,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (!cpfCnpj) continue;
 
           // Usa upsert para inserir ou atualizar baseado no cpf_cnpj e user_id
-          const { error } = await supabase
-            .from("customers")
-            .upsert({
+          const { error } = await supabase.from("customers").upsert(
+            {
               user_id: currentUser.id,
               name: customer.nome || customer.razao_social || "Não informado",
               type: customer.cpf ? "PF" : "PJ",
@@ -248,10 +251,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               zip_code: customer.cep || "00000-000",
               status: "ativo",
               observations: `Importado do Rastrosystem - ID: ${customer.id}`,
-            }, {
-              onConflict: 'cpf_cnpj,user_id',
-              ignoreDuplicates: false
-            });
+            },
+            {
+              onConflict: "cpf_cnpj,user_id",
+              ignoreDuplicates: false,
+            },
+          );
 
           if (error) {
             console.error("Erro ao sincronizar cliente:", error);
