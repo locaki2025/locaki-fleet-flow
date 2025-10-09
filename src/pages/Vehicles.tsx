@@ -414,7 +414,11 @@ const Vehicles = () => {
                     <Car className="h-8 w-8 text-primary" />
                   </div>
                   <div>
-                    <CardTitle className="text-lg">{vehicle.brand} {vehicle.model}</CardTitle>
+                    <CardTitle className="text-lg">
+                      {[vehicle.brand, vehicle.model]
+                        .filter(v => v && v !== "Não informado")
+                        .join(" ")}
+                    </CardTitle>
                     <CardDescription className="font-mono text-lg">{vehicle.plate}</CardDescription>
                   </div>
                 </div>
