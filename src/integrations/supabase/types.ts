@@ -394,6 +394,7 @@ export type Database = {
           last_update: string | null
           latitude: number | null
           longitude: number | null
+          model: string | null
           name: string
           rastrosystem_id: string | null
           signal: number | null
@@ -412,6 +413,7 @@ export type Database = {
           last_update?: string | null
           latitude?: number | null
           longitude?: number | null
+          model?: string | null
           name: string
           rastrosystem_id?: string | null
           signal?: number | null
@@ -430,6 +432,7 @@ export type Database = {
           last_update?: string | null
           latitude?: number | null
           longitude?: number | null
+          model?: string | null
           name?: string
           rastrosystem_id?: string | null
           signal?: number | null
@@ -818,6 +821,7 @@ export type Database = {
           id: string
           imei: string | null
           model: string
+          name: string | null
           observations: string | null
           odometer: number | null
           plate: string
@@ -841,6 +845,7 @@ export type Database = {
           id?: string
           imei?: string | null
           model: string
+          name?: string | null
           observations?: string | null
           odometer?: number | null
           plate: string
@@ -864,6 +869,7 @@ export type Database = {
           id?: string
           imei?: string | null
           model?: string
+          name?: string | null
           observations?: string | null
           odometer?: number | null
           plate?: string
