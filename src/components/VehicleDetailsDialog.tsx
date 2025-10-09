@@ -159,7 +159,7 @@ const VehicleDetailsDialog = ({ open, onOpenChange, vehicle, onVehicleUpdate }: 
                 id: rastroDevice.unique_id || String(rastroDevice.id),
                 plate: vehicle.plate,
                 brand: vehicle.brand,
-                model: `${vehicle.name} ${vehicle.model}`,
+                model: vehicle.model,
                 name: `${vehicle.name} ${vehicle.model}`,
                 latitude: lat,
                 longitude: lng,
