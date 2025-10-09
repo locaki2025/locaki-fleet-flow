@@ -114,6 +114,29 @@ const Devices = () => {
     });
   };
 
+  const clearAndResync = async () => {
+    if (!user?.id) return;
+    try {
+      setLoading(true);
+      // Excluir dados de rastreadores e veículos do usuário
+      await supabase.from('devices').delete().eq('user_id', user.id);
+      await supabase.from('vehicles').delete().eq('user_id', user.id);
+
+      // Disparar sincronização com a Rastrosystem
+      await supabase.functions.invoke('rastrosystem-sync', {
+        body: { action: 'sync_devices', user_id: user.id }
+      });
+
+      await fetchDevices();
+      toast({ title: 'Re-sincronizado', description: 'Dados baixados novamente.' });
+    } catch (error) {
+      console.error('Erro ao re-sincronizar:', error);
+      toast({ title: 'Erro ao re-sincronizar', description: error instanceof Error ? error.message : 'Falha ao limpar e baixar.', variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const fetchDevices = async () => {
     if (!user?.id) {
       console.warn('No user ID found, skipping devices fetch');
@@ -428,6 +451,18 @@ const Devices = () => {
               <Power className="h-4 w-4 mr-2" />
             )}
             Recarregar
+          </Button>
+          <Button
+            variant="outline"
+            onClick={clearAndResync}
+            disabled={loading}
+          >
+            {loading ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Trash2 className="h-4 w-4 mr-2" />
+            )}
+            Limpar e Re-sincronizar
           </Button>
           <Button 
             className="bg-gradient-primary hover:opacity-90"

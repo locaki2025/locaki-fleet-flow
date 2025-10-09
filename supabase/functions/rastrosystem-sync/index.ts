@@ -108,15 +108,48 @@ const syncDevicesFromRastrosystem = async (userId: string, config: RastrosystemC
         console.log(`Error fetching position for vehicle ${vehicle.device_id}:`, error);
       }
 
-      // Resolver vehicle_id a partir da placa
-      const { data: matchedVehicle } = await supabase
+      // Upsert vehicle no Supabase a partir da placa
+      const vehiclePayload: any = {
+        user_id: userId,
+        plate: vehicle.placa,
+        brand: 'Rastrosystem',
+        model: vehicle.name || vehicle.nome || vehicle.modelo || 'Veículo',
+        color: 'preto',
+        category: 'moto',
+        year: new Date().getFullYear(),
+        odometer: Number(vehicle.odometer) ? Math.round(Number(vehicle.odometer)) : 0,
+        chip_number: vehicle.chip ?? null,
+        tracker_model: vehicle.modelo || vehicle.modelo_equipamento || null,
+        tracker_id: String(vehicle.imei || vehicle.unique_id || vehicle.device_id || ''),
+        status: (vehicle.status_veiculo === 1 ? 'disponivel' : 'indisponivel'),
+        rastrosystem_id: String(vehicle.veiculo_id ?? vehicle.id ?? ''),
+        updated_at: new Date().toISOString(),
+      };
+
+      let vehicleId: string | null = null;
+      const { data: existingVehicle } = await supabase
         .from('vehicles')
         .select('id')
         .eq('user_id', userId)
         .eq('plate', vehicle.placa)
         .maybeSingle();
 
-      const vehicleId = matchedVehicle?.id ?? null;
+      if (existingVehicle?.id) {
+        const { data: updated } = await supabase
+          .from('vehicles')
+          .update(vehiclePayload)
+          .eq('id', existingVehicle.id)
+          .select('id')
+          .maybeSingle();
+        vehicleId = updated?.id ?? existingVehicle.id;
+      } else {
+        const { data: inserted } = await supabase
+          .from('vehicles')
+          .insert(vehiclePayload)
+          .select('id')
+          .maybeSingle();
+        vehicleId = inserted?.id ?? null;
+      }
 
       // Mapear sinal GSM (0-100) para barras (0-4)
       const gsm = (vehicle.attributes?.gsm ?? null) as number | null;
