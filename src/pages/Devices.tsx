@@ -170,7 +170,7 @@ const Devices = () => {
           .eq("user_id", user.id)
           .order("created_at", { ascending: false });
 
-        //console.log("vehiclesData:", vehiclesData);
+        console.log("vehiclesData:", vehiclesData);
 
         // Buscar devices para pegar bateria e sinal
         const vehicleIds = (vehiclesData || []).map((v: any) => v.id);
