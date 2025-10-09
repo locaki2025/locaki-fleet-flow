@@ -118,16 +118,16 @@ const Devices = () => {
     if (!user?.id) return;
     try {
       setLoading(true);
-      
+
       // Limpar cache de sincronização para forçar nova sincronização
       sessionStorage.removeItem(`rastrosystem_last_sync_${user.id}`);
-      
+
       // Excluir dados de rastreadores e veículos do usuário
       const { error: devicesError } = await supabase.from("devices").delete().eq("user_id", user.id);
       if (devicesError) {
         console.error("Erro ao excluir devices:", devicesError);
       }
-      
+
       const { error: vehiclesError } = await supabase.from("vehicles").delete().eq("user_id", user.id);
       if (vehiclesError) {
         console.error("Erro ao excluir veículos:", vehiclesError);
@@ -193,7 +193,7 @@ const Devices = () => {
           const device = deviceMap.get(vehicle.rastrosystem_id);
           return {
             id: vehicle.id,
-            name: [vehicle.brand, vehicle.model].filter((v: string) => v && v !== "Não informado").join(" "),
+            name: [vehicle.model, vehicle.name].filter((v: string) => v && v !== "Não informado").join(" "),
             imei: vehicle.imei || "N/A",
             vehiclePlate: vehicle.plate,
             status: vehicle.status === "disponivel" ? "online" : "offline",
