@@ -471,7 +471,7 @@ const Vehicles = () => {
 
                   <div className="flex items-center justify-between pt-3 border-t">
                     <span className="text-xs text-muted-foreground">
-                      {vehicle.tracker ? `Rastreador: ${vehicle.tracker}` : "Sem rastreador"}
+                      {vehicle.tracker ? "Com rastreador" : "Sem rastreador"}
                     </span>
                     <Button variant="outline" size="sm" onClick={() => handleViewDetails(vehicle)}>
                       Ver Detalhes
