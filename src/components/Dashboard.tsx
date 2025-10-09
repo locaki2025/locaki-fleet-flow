@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { 
-  Car, 
+  Bike, 
   Users, 
   DollarSign, 
   Wrench, 
@@ -138,7 +138,7 @@ const Dashboard = () => {
         <Card className="border-l-4 border-l-primary">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Frota Total</CardTitle>
-            <Car className="h-4 w-4 text-primary" />
+            <Bike className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{totalVehicles}</div>

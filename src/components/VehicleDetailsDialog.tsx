@@ -12,7 +12,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Car, MapPin, Gauge, Calendar, FileText, Settings, Edit, Trash2 } from "lucide-react";
+import { Bike, MapPin, Gauge, Calendar, FileText, Settings, Edit, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { useState, useMemo, useEffect } from "react";
@@ -160,7 +160,7 @@ const VehicleDetailsDialog = ({ open, onOpenChange, vehicle, onVehicleUpdate }: 
                 plate: rastroDevice.placa || vehicle.plate,
                 brand: vehicle.brand,
                 model: vehicle.model,
-                name: vehicle.name,
+                name: rastroDevice.name || `${vehicle.brand} ${vehicle.model}`,
                 latitude: lat,
                 longitude: lng,
                 status: rastroDevice.status ? "online" : "offline",
@@ -350,7 +350,7 @@ const VehicleDetailsDialog = ({ open, onOpenChange, vehicle, onVehicleUpdate }: 
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-lg bg-gradient-primary/10 flex items-center justify-center">
-              <Car className="h-6 w-6 text-primary" />
+              <Bike className="h-6 w-6 text-primary" />
             </div>
             {vehicle.brand} {vehicle.model} - {vehicle.plate}
           </DialogTitle>
