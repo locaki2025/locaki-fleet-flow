@@ -45,7 +45,8 @@ const VehicleDialog = ({ open, onOpenChange, vehicle, onVehicleUpdated }: Vehicl
     renavam: "",
     chassis: "",
     odometer: vehicle?.odometer?.toString() || "",
-    observations: ""
+    observations: "",
+    imei: ""
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -77,6 +78,7 @@ const VehicleDialog = ({ open, onOpenChange, vehicle, onVehicleUpdated }: Vehicl
             chassis: formData.chassis || null,
             odometer: parseInt(formData.odometer) || 0,
             observations: formData.observations || null,
+            imei: formData.imei || null,
           })
           .eq('id', vehicle?.id);
 
@@ -101,6 +103,7 @@ const VehicleDialog = ({ open, onOpenChange, vehicle, onVehicleUpdated }: Vehicl
             chassis: formData.chassis || null,
             odometer: parseInt(formData.odometer) || 0,
             observations: formData.observations || null,
+            imei: formData.imei || null,
             status: 'disponivel',
           });
 
@@ -121,7 +124,8 @@ const VehicleDialog = ({ open, onOpenChange, vehicle, onVehicleUpdated }: Vehicl
           renavam: "",
           chassis: "",
           odometer: "",
-          observations: ""
+          observations: "",
+          imei: ""
         });
       }
 
@@ -170,21 +174,31 @@ const VehicleDialog = ({ open, onOpenChange, vehicle, onVehicleUpdated }: Vehicl
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="category">Categoria *</Label>
-              <Select value={formData.category} onValueChange={(value) => handleInputChange('category', value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione a categoria" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="scooter">Scooter</SelectItem>
-                  <SelectItem value="street">Street</SelectItem>
-                  <SelectItem value="naked">Naked</SelectItem>
-                  <SelectItem value="sport">Sport</SelectItem>
-                  <SelectItem value="trail">Trail</SelectItem>
-                  <SelectItem value="custom">Custom</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label htmlFor="imei">IMEI do Rastreador</Label>
+              <Input
+                id="imei"
+                value={formData.imei}
+                onChange={(e) => handleInputChange('imei', e.target.value)}
+                placeholder="123456789012345"
+              />
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="category">Categoria *</Label>
+            <Select value={formData.category} onValueChange={(value) => handleInputChange('category', value)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione a categoria" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="scooter">Scooter</SelectItem>
+                <SelectItem value="street">Street</SelectItem>
+                <SelectItem value="naked">Naked</SelectItem>
+                <SelectItem value="sport">Sport</SelectItem>
+                <SelectItem value="trail">Trail</SelectItem>
+                <SelectItem value="custom">Custom</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="grid grid-cols-2 gap-4">

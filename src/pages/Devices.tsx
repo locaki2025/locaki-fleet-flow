@@ -405,7 +405,7 @@ const Devices = () => {
         const deviceData = {
           id: data.id,
           name: `${data.brand} ${data.model}`,
-          imei: deviceRecord?.imei || "",
+          imei: data.imei || "",
           vehicle_plate: data.plate,
           chip_number: data.chip_number || "",
           tracker_model: data.tracker_model || "",

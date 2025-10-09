@@ -24,7 +24,6 @@ import { useAuth } from "@/contexts/AuthContext";
 interface Device {
   id: string;
   name: string;
-  imei: string;
   vehicle_plate: string;
   chip_number?: string | null;
   tracker_model?: string | null;
@@ -44,7 +43,6 @@ const DeviceDialog = ({ open, onOpenChange, onDeviceCreated, device }: DeviceDia
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: device?.name || "",
-    imei: device?.imei || "",
     vehiclePlate: device?.vehicle_plate || "",
     chipNumber: device?.chip_number || "",
     trackerModel: device?.tracker_model || "",
@@ -57,7 +55,6 @@ const DeviceDialog = ({ open, onOpenChange, onDeviceCreated, device }: DeviceDia
     if (device) {
       setFormData({
         name: device.name || "",
-        imei: device.imei || "",
         vehiclePlate: device.vehicle_plate || "",
         chipNumber: device.chip_number || "",
         trackerModel: device.tracker_model || "",
@@ -65,7 +62,6 @@ const DeviceDialog = ({ open, onOpenChange, onDeviceCreated, device }: DeviceDia
       });
       console.log('FormData atualizado:', {
         name: device.name || "",
-        imei: device.imei || "",
         vehiclePlate: device.vehicle_plate || "",
         chipNumber: device.chip_number || "",
         trackerModel: device.tracker_model || "",
@@ -74,7 +70,6 @@ const DeviceDialog = ({ open, onOpenChange, onDeviceCreated, device }: DeviceDia
     } else {
       setFormData({
         name: "",
-        imei: "",
         vehiclePlate: "",
         chipNumber: "",
         trackerModel: "",
@@ -96,7 +91,7 @@ const DeviceDialog = ({ open, onOpenChange, onDeviceCreated, device }: DeviceDia
       return;
     }
     
-    if (!formData.name || !formData.imei || !formData.vehiclePlate) {
+    if (!formData.name || !formData.vehiclePlate) {
       toast({
         title: "Erro",
         description: "Preencha todos os campos obrigatórios",
@@ -109,15 +104,15 @@ const DeviceDialog = ({ open, onOpenChange, onDeviceCreated, device }: DeviceDia
 
     try {
       if (device) {
-        // Atualizar veículo existente na tabela vehicles
+        // Atualizar device existente
         const { error } = await supabase
-          .from('vehicles')
+          .from('devices')
           .update({
-            tracker_id: formData.imei || null,
-            plate: formData.vehiclePlate,
+            name: formData.name,
+            vehicle_plate: formData.vehiclePlate,
             chip_number: formData.chipNumber || null,
             tracker_model: formData.trackerModel || null,
-            status: formData.status === 'online' ? 'disponivel' : formData.status === 'maintenance' ? 'manutencao' : 'offline',
+            status: formData.status,
           })
           .eq('id', device.id)
           .eq('user_id', user.id);
@@ -133,7 +128,6 @@ const DeviceDialog = ({ open, onOpenChange, onDeviceCreated, device }: DeviceDia
         const { error } = await supabase.from('devices').insert({
           user_id: user.id,
           name: formData.name,
-          imei: formData.imei,
           vehicle_plate: formData.vehiclePlate,
           chip_number: formData.chipNumber || null,
           tracker_model: formData.trackerModel || null,
@@ -152,7 +146,6 @@ const DeviceDialog = ({ open, onOpenChange, onDeviceCreated, device }: DeviceDia
       onOpenChange(false);
       setFormData({
         name: "",
-        imei: "",
         vehiclePlate: "",
         chipNumber: "",
         trackerModel: "",
@@ -186,17 +179,6 @@ const DeviceDialog = ({ open, onOpenChange, onDeviceCreated, device }: DeviceDia
               placeholder="Ex: Rastreador Honda CG 160"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              required
-            />
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="imei">IMEI</Label>
-            <Input
-              id="imei"
-              placeholder="123456789012345"
-              value={formData.imei}
-              onChange={(e) => setFormData({ ...formData, imei: e.target.value })}
               required
             />
           </div>

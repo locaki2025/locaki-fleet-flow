@@ -288,21 +288,23 @@ const Map = () => {
 
       console.log('Contratos ativos encontrados:', activeContracts);
 
-      // Fetch vehicles to map moto_id to plate
+      // Fetch vehicles to map moto_id to plate and get IMEI
       const { data: vehiclesData } = await supabase
         .from('vehicles')
-        .select('id, plate')
+        .select('id, plate, imei')
         .eq('user_id', user.id);
 
       console.log('Veículos da base:', vehiclesData);
 
-      // Create bidirectional maps for vehicle id <-> plate
+      // Create bidirectional maps for vehicle id <-> plate and vehicle id <-> imei
       const vehicleIdToPlate: Record<string, string> = {};
       const plateToId: Record<string, string> = {};
+      const vehicleIdToImei: Record<string, string> = {};
       if (vehiclesData) {
         vehiclesData.forEach(v => {
           vehicleIdToPlate[v.id] = v.plate;
           plateToId[v.plate] = v.id;
+          if (v.imei) vehicleIdToImei[v.id] = v.imei;
         });
       }
 
@@ -361,7 +363,7 @@ const Map = () => {
           
           const vehicleData = {
             id: device.id,
-            imei: device.imei,
+            imei: vehicleIdToImei[device.vehicle_id] || '',
             plate: device.vehicle_plate,
             brand: device.name.split(' ')[0] || 'Veículo',
             model: device.name,
@@ -389,7 +391,7 @@ const Map = () => {
         // Use fallback data
         const mappedDevices = (devicesData || []).map(device => ({
           id: device.id,
-          imei: device.imei,
+          imei: vehicleIdToImei[device.vehicle_id] || '',
           plate: device.vehicle_plate,
           brand: device.name.split(' ')[0] || 'Veículo',
           model: device.name,

@@ -123,6 +123,7 @@ const syncDevicesFromRastrosystem = async (userId: string, config: RastrosystemC
         odometer: Number(vehicle.odometer) ? Math.round(Number(vehicle.odometer)) : 0,
         chip_number: vehicle.chip ?? null,
         tracker_model: vehicle.modelo || vehicle.modelo_equipamento || null,
+        imei: String(vehicle.imei || vehicle.unique_id || vehicle.device_id || ''),
         status: (vehicle.status_veiculo === 1 ? 'disponivel' : 'indisponivel'),
         rastrosystem_id: apiVehicleId,
         vehicle_id: apiVehicleId,
@@ -183,7 +184,6 @@ const syncDevicesFromRastrosystem = async (userId: string, config: RastrosystemC
       const deviceData: any = {
         user_id: userId,
         name: vehicle.name || vehicle.nome || vehicle.placa,
-        imei: String(vehicle.imei || vehicle.unique_id || vehicle.device_id || ''),
         vehicle_plate: vehicle.placa,
         chip_number: vehicle.chip ?? null,
         tracker_model: vehicle.modelo || vehicle.modelo_equipamento || vehicle.protocolo || null,

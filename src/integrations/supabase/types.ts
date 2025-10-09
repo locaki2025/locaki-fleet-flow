@@ -391,7 +391,6 @@ export type Database = {
           chip_number: string | null
           created_at: string
           id: string
-          imei: string
           last_update: string | null
           latitude: number | null
           longitude: number | null
@@ -410,7 +409,6 @@ export type Database = {
           chip_number?: string | null
           created_at?: string
           id?: string
-          imei: string
           last_update?: string | null
           latitude?: number | null
           longitude?: number | null
@@ -429,7 +427,6 @@ export type Database = {
           chip_number?: string | null
           created_at?: string
           id?: string
-          imei?: string
           last_update?: string | null
           latitude?: number | null
           longitude?: number | null
@@ -819,6 +816,7 @@ export type Database = {
           color: string
           created_at: string
           id: string
+          imei: string | null
           model: string
           observations: string | null
           odometer: number | null
@@ -841,6 +839,7 @@ export type Database = {
           color: string
           created_at?: string
           id?: string
+          imei?: string | null
           model: string
           observations?: string | null
           odometer?: number | null
@@ -863,6 +862,7 @@ export type Database = {
           color?: string
           created_at?: string
           id?: string
+          imei?: string | null
           model?: string
           observations?: string | null
           odometer?: number | null
