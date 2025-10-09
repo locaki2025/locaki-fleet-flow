@@ -172,7 +172,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               category: "moto",
               status: "disponivel",
               chip_number: vehicle.chip,
-              tracker: vehicle.attributes?.gps,
+              tracker_model: vehicle.attributes?.gps,
               odometer: parseInt(vehicle.odometer) || 0,
               observations: `Importado do Rastrosystem - IMEI: ${vehicle.imei}`,
             },
