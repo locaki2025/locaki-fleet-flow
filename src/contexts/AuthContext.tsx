@@ -174,7 +174,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               console.log('Veículo sincronizado:', vehicle.placa);
             }
           } else {
-            console.log('Veículo já existe no banco:', vehicle.placa);
+            // console.log('Veículo já existe no banco:', vehicle.placa);
           }
         }
       }
