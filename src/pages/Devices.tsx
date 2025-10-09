@@ -170,7 +170,7 @@ const Devices = () => {
           .eq("user_id", user.id)
           .order("created_at", { ascending: false });
 
-        console.log("vehiclesData:", vehiclesData);
+        //console.log("vehiclesData:", vehiclesData);
 
         // Buscar devices para pegar bateria e sinal
         const vehicleIds = (vehiclesData || []).map((v: any) => v.id);
@@ -182,26 +182,24 @@ const Devices = () => {
               .eq("user_id", user.id)
           : { data: [] };
 
-        const deviceMap = new Map(
-          (devicesData || []).map((d: any) => [d.vehicle_id, d])
-        );
+        const deviceMap = new Map((devicesData || []).map((d: any) => [d.vehicle_id, d]));
 
         const transformedDevices: Device[] = (vehiclesData || []).map((vehicle: any) => {
           const device = deviceMap.get(vehicle.id);
           return {
             id: vehicle.id,
             name: [vehicle.brand, vehicle.model].filter((v: string) => v && v !== "Não informado").join(" "),
-            imei: vehicle.imei || 'N/A',
+            imei: vehicle.imei || "N/A",
             vehiclePlate: vehicle.plate,
-            status: vehicle.status === 'disponivel' ? 'online' : 'offline',
+            status: vehicle.status === "disponivel" ? "online" : "offline",
             lastUpdate: device?.last_update || vehicle.updated_at || new Date().toISOString(),
             battery: device?.battery || 0,
             signal: device?.signal || 0,
-            location: { 
-              lat: device?.latitude || 0, 
-              lng: device?.longitude || 0, 
-              address: device?.address || vehicle.plate 
-            }
+            location: {
+              lat: device?.latitude || 0,
+              lng: device?.longitude || 0,
+              address: device?.address || vehicle.plate,
+            },
           };
         });
 
