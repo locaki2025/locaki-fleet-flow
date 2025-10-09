@@ -129,13 +129,12 @@ const syncDevicesFromRastrosystem = async (userId: string, config: RastrosystemC
         updated_at: new Date().toISOString(),
       };
 
-      let vehicleId: string | null = null;
+      let vehicleDbId: string | null = null;
       
-      // Buscar veículo existente pelo vehicle_id da API
+      // Buscar veículo existente APENAS pelo vehicle_id da API
       const { data: existingVehicle } = await supabase
         .from('vehicles')
         .select('id')
-        .eq('user_id', userId)
         .eq('vehicle_id', apiVehicleId)
         .maybeSingle();
 
@@ -143,21 +142,21 @@ const syncDevicesFromRastrosystem = async (userId: string, config: RastrosystemC
         const { data: updated } = await supabase
           .from('vehicles')
           .update(vehiclePayload)
-          .eq('id', existingVehicle.id)
+          .eq('vehicle_id', apiVehicleId)
           .select('id')
           .maybeSingle();
-        vehicleId = updated?.id ?? existingVehicle.id;
+        vehicleDbId = updated?.id ?? existingVehicle.id;
       } else {
         const { data: inserted } = await supabase
           .from('vehicles')
           .insert(vehiclePayload)
           .select('id')
           .maybeSingle();
-        vehicleId = inserted?.id ?? null;
+        vehicleDbId = inserted?.id ?? null;
       }
 
-      if (!vehicleId) {
-        console.error(`Failed to upsert vehicle: ${vehicle.placa}`);
+      if (!vehicleDbId) {
+        console.error(`Failed to upsert vehicle: ${vehicle.placa} (vehicle_id: ${apiVehicleId})`);
         continue;
       }
 
@@ -195,23 +194,22 @@ const syncDevicesFromRastrosystem = async (userId: string, config: RastrosystemC
         last_update: vehicle.server_time ? parseBrDate(vehicle.server_time) : (vehicle.time ? parseBrDate(vehicle.time) : new Date()),
         battery: (vehicle.attributes?.battery ?? lastPosition?.bateria ?? 100) as number,
         signal: signalBars,
-        vehicle_id: vehicleId, // FK para a tabela vehicles
+        vehicle_id: vehicleDbId, // FK para a tabela vehicles (UUID do Supabase)
         updated_at: new Date().toISOString(),
       };
 
-      // Verificar se já existe device para este veículo
+      // Verificar se já existe device APENAS pelo vehicle_id
       const { data: existingDevice } = await supabase
         .from('devices')
         .select('id')
-        .eq('user_id', userId)
-        .eq('vehicle_id', vehicleId)
+        .eq('vehicle_id', vehicleDbId)
         .maybeSingle();
 
       if (existingDevice) {
         await supabase
           .from('devices')
           .update(deviceData)
-          .eq('id', existingDevice.id);
+          .eq('vehicle_id', vehicleDbId);
       } else {
         await supabase
           .from('devices')
