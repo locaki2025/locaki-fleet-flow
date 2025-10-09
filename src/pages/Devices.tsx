@@ -319,11 +319,19 @@ const Devices = () => {
         
         console.log('Dados do veículo:', data);
         
+        // Buscar dados do device associado
+        const { data: deviceRecord } = await supabase
+          .from('devices')
+          .select('*')
+          .eq('vehicle_id', deviceId)
+          .eq('user_id', user?.id)
+          .maybeSingle();
+        
         // Transformar dados do vehicle para formato de device
         const deviceData = {
           id: data.id,
           name: `${data.brand} ${data.model}`,
-          imei: data.tracker_id || '',
+          imei: deviceRecord?.imei || '',
           vehicle_plate: data.plate,
           chip_number: data.chip_number || '',
           tracker_model: data.tracker_model || '',
