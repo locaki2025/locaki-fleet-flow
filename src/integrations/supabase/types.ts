@@ -441,11 +441,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "fk_devices_vehicles_rastrosystem"
-            columns: ["rastrosystem_id"]
+            foreignKeyName: "fk_devices_vehicles_user_rastrosystem"
+            columns: ["user_id", "rastrosystem_id"]
             isOneToOne: false
             referencedRelation: "vehicles"
-            referencedColumns: ["rastrosystem_id"]
+            referencedColumns: ["user_id", "rastrosystem_id"]
           },
         ]
       }

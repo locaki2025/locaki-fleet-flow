@@ -48,6 +48,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setSession(session);
           setUser(session?.user ?? null);
           console.log("Initial session loaded:", session ? "authenticated" : "not authenticated");
+          // Trigger sync on initial load as well (guarded by per-user key)
+          if (session?.user) {
+            performRastrosystemSync(session.user);
+          }
         }
       } catch (error) {
         console.error("Failed to get initial session:", error);
@@ -101,10 +105,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Rastrosystem sync function
   const performRastrosystemSync = async (currentUser: User) => {
-    // Check if sync was already done in this session
-    const lastSync = sessionStorage.getItem("rastrosystem_last_sync");
+    // Use per-user sync key to avoid conflicts between different users
+    const lastSyncKey = `rastrosystem_last_sync_${currentUser.id}`;
+    const lastSync = sessionStorage.getItem(lastSyncKey);
     if (lastSync) {
-      console.log("Sincronização Rastrosystem já realizada nesta sessão");
+      console.log("Sincronização Rastrosystem já realizada nesta sessão para este usuário");
       return;
     }
 
@@ -256,7 +261,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
 
-      sessionStorage.setItem("rastrosystem_last_sync", new Date().toISOString());
+      sessionStorage.setItem(`rastrosystem_last_sync_${currentUser.id}`, new Date().toISOString());
       console.log("✅ Sincronização Rastrosystem concluída com sucesso");
       console.log("📊 Verifique as páginas de Veículos e Clientes para ver os dados importados");
     } catch (error) {
