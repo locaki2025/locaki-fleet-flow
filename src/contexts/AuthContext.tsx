@@ -151,22 +151,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         for (const vehicle of vehicles) {
           if (!vehicle.placa || !vehicle.id) continue;
 
-          // Verifica se o veículo já existe usando o ID do Rastrosystem
-          const { data: existing } = await supabase
+          // Usa upsert para inserir ou atualizar baseado no rastrosystem_id único
+          const { error } = await supabase
             .from("vehicles")
-            .select("id")
-            .eq("user_id", currentUser.id)
-            .eq("rastrosystem_id", vehicle.id.toString())
-            .maybeSingle();
-
-          if (!existing) {
-            const { error } = await supabase.from("vehicles").insert({
+            .upsert({
               user_id: currentUser.id,
               rastrosystem_id: vehicle.id.toString(),
               vehicle_id: vehicle.veiculo_id,
               plate: vehicle.placa,
               brand: "",
-              model: `${vehicle.modelo} - ${vehicle.name}`,
+              model: vehicle.modelo || vehicle.name || "Não informado",
               imei: vehicle.imei,
               color: "Não informado",
               year: new Date().getFullYear(),
@@ -175,15 +169,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               chip_number: vehicle.chip,
               odometer: parseInt(vehicle.odometer) || 0,
               observations: `Importado do Rastrosystem - IMEI: ${vehicle.imei}`,
+            }, {
+              onConflict: 'rastrosystem_id',
+              ignoreDuplicates: false
             });
 
-            if (error) {
-              console.error("Erro ao inserir veículo:", error);
-            } else {
-              console.log("Veículo sincronizado:", vehicle.placa);
-            }
+          if (error) {
+            console.error("Erro ao sincronizar veículo:", error);
           } else {
-            // console.log('Veículo já existe no banco:', vehicle.placa);
+            console.log("Veículo sincronizado:", vehicle.placa);
           }
         }
       }
@@ -204,15 +198,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const cpfCnpj = customer.cpf || customer.cnpj || "";
           if (!cpfCnpj) continue;
 
-          const { data: existing } = await supabase
+          // Usa upsert para inserir ou atualizar baseado no cpf_cnpj e user_id
+          const { error } = await supabase
             .from("customers")
-            .select("id")
-            .eq("user_id", currentUser.id)
-            .eq("cpf_cnpj", cpfCnpj)
-            .maybeSingle();
-
-          if (!existing) {
-            const { error } = await supabase.from("customers").insert({
+            .upsert({
               user_id: currentUser.id,
               name: customer.nome || customer.razao_social || "Não informado",
               type: customer.cpf ? "PF" : "PJ",
@@ -226,13 +215,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               zip_code: customer.cep || "00000-000",
               status: "ativo",
               observations: `Importado do Rastrosystem - ID: ${customer.id}`,
+            }, {
+              onConflict: 'cpf_cnpj,user_id',
+              ignoreDuplicates: false
             });
 
-            if (error) {
-              console.error("Erro ao inserir cliente:", error);
-            } else {
-              console.log("Cliente sincronizado:", customer.nome);
-            }
+          if (error) {
+            console.error("Erro ao sincronizar cliente:", error);
+          } else {
+            console.log("Cliente sincronizado:", customer.nome);
           }
         }
       }

@@ -363,7 +363,7 @@ const Map = () => {
           
           const vehicleData = {
             id: device.id,
-            imei: vehicleIdToImei[device.vehicle_id] || '',
+            imei: vehicleIdToImei[device.rastrosystem_id] || '',
             plate: device.vehicle_plate,
             brand: device.name.split(' ')[0] || 'Veículo',
             model: device.name,
@@ -391,7 +391,7 @@ const Map = () => {
         // Use fallback data
         const mappedDevices = (devicesData || []).map(device => ({
           id: device.id,
-          imei: vehicleIdToImei[device.vehicle_id] || '',
+          imei: vehicleIdToImei[device.rastrosystem_id] || '',
           plate: device.vehicle_plate,
           brand: device.name.split(' ')[0] || 'Veículo',
           model: device.name,

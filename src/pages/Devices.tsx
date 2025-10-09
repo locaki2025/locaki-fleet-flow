@@ -172,20 +172,20 @@ const Devices = () => {
 
         console.log("vehiclesData:", vehiclesData);
 
-        // Buscar devices para pegar bateria e sinal
-        const vehicleIds = (vehiclesData || []).map((v: any) => v.id);
-        const { data: devicesData } = vehicleIds.length
+        // Buscar devices para pegar bateria e sinal usando rastrosystem_id
+        const rastrosystemIds = (vehiclesData || []).map((v: any) => v.rastrosystem_id).filter(Boolean);
+        const { data: devicesData } = rastrosystemIds.length
           ? await supabase
               .from("devices")
-              .select("vehicle_id, battery, signal, last_update, latitude, longitude, address")
-              .in("vehicle_id", vehicleIds)
+              .select("rastrosystem_id, battery, signal, last_update, latitude, longitude, address")
+              .in("rastrosystem_id", rastrosystemIds)
               .eq("user_id", user.id)
           : { data: [] };
 
-        const deviceMap = new Map((devicesData || []).map((d: any) => [d.vehicle_id, d]));
+        const deviceMap = new Map((devicesData || []).map((d: any) => [d.rastrosystem_id, d]));
 
         const transformedDevices: Device[] = (vehiclesData || []).map((vehicle: any) => {
-          const device = deviceMap.get(vehicle.id);
+          const device = deviceMap.get(vehicle.rastrosystem_id);
           return {
             id: vehicle.id,
             name: [vehicle.brand, vehicle.model].filter((v: string) => v && v !== "Não informado").join(" "),
@@ -391,11 +391,11 @@ const Devices = () => {
 
         console.log("Dados do veículo:", data);
 
-        // Buscar dados do device associado
+        // Buscar dados do device associado usando rastrosystem_id
         const { data: deviceRecord } = await supabase
           .from("devices")
           .select("*")
-          .eq("vehicle_id", deviceId)
+          .eq("rastrosystem_id", data.rastrosystem_id)
           // .eq('user_id', user?.id)
           .maybeSingle();
 
