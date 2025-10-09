@@ -124,7 +124,7 @@ const Devices = () => {
     try {
       setLoading(true);
       
-      // Buscar veículos do Supabase
+      // Buscar veículos do Supabase com seus dispositivos
       const { data: vehiclesData, error } = await supabase
         .from('vehicles')
         .select('*')
@@ -142,8 +142,26 @@ const Devices = () => {
         return;
       }
 
+      // Buscar dados dos dispositivos associados
+      const { data: devicesData, error: devicesError } = await supabase
+        .from('devices')
+        .select('*')
+        .eq('user_id', user.id);
+
+      if (devicesError) {
+        console.error('Error fetching devices:', devicesError);
+      }
+
+      // Criar um mapa de dispositivos por placa
+      const devicesByPlate = new Map();
+      devicesData?.forEach(device => {
+        devicesByPlate.set(device.vehicle_plate, device);
+      });
+
       // Transformar veículos em formato de dispositivos
-      const devicesData: Device[] = vehiclesData.map((vehicle) => {
+      const transformedDevices: Device[] = vehiclesData.map((vehicle) => {
+        const deviceData = devicesByPlate.get(vehicle.plate);
+        
         // Calcular status baseado em dados reais se disponível
         const status = vehicle.status === 'disponivel' ? 'online' : 
                       vehicle.status === 'manutencao' ? 'maintenance' : 'offline';
@@ -155,22 +173,22 @@ const Devices = () => {
         return {
           id: vehicle.id,
           name: vehicleName,
-          imei: vehicle.tracker_id || 'N/A',
+          imei: deviceData?.imei || 'N/A',
           vehiclePlate: vehicle.plate,
           status: status,
-          lastUpdate: vehicle.updated_at || new Date().toISOString(),
-          battery: 85, // Valor padrão - pode ser atualizado com dados reais
-          signal: 3,   // Valor padrão - pode ser atualizado com dados reais
+          lastUpdate: deviceData?.last_update || vehicle.updated_at || new Date().toISOString(),
+          battery: deviceData?.battery || 0,
+          signal: deviceData?.signal || 0,
           location: {
-            lat: 0,
-            lng: 0,
-            address: `${vehicleName} - ${vehicle.plate}`
+            lat: deviceData?.latitude || 0,
+            lng: deviceData?.longitude || 0,
+            address: deviceData?.address || `${vehicleName} - ${vehicle.plate}`
           }
         };
       });
 
-      setDevices(devicesData);
-      console.log('Devices loaded successfully:', devicesData.length);
+      setDevices(transformedDevices);
+      console.log('Devices loaded successfully:', transformedDevices.length);
     } catch (error) {
       console.error('Erro ao buscar dispositivos:', error);
       setDevices([]);
