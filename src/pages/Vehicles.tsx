@@ -387,7 +387,6 @@ const Vehicles = () => {
               const vehicleStatus = getVehicleStatus(vehicle);
               const matchesStatus = statusFilters.length === 0 || statusFilters.includes(vehicleStatus);
 
-              console.error("vehicle:", vehicle);
               return matchesSearch && matchesStatus;
             })
             .map((vehicle) => (
@@ -472,7 +471,7 @@ const Vehicles = () => {
 
                   <div className="flex items-center justify-between pt-3 border-t">
                     <span className="text-xs text-muted-foreground">
-                      {vehicle.tracker ? "Com rastreador" : "Sem rastreador"}
+                      {vehicle.tracker_model ? "Com rastreador" : "Sem rastreador"}
                     </span>
                     <Button variant="outline" size="sm" onClick={() => handleViewDetails(vehicle)}>
                       Ver Detalhes
