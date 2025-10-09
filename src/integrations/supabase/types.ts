@@ -395,12 +395,12 @@ export type Database = {
           latitude: number | null
           longitude: number | null
           name: string
+          rastrosystem_id: string | null
           signal: number | null
           status: string
           tracker_model: string | null
           updated_at: string
           user_id: string
-          vehicle_id: string | null
           vehicle_plate: string
         }
         Insert: {
@@ -413,12 +413,12 @@ export type Database = {
           latitude?: number | null
           longitude?: number | null
           name: string
+          rastrosystem_id?: string | null
           signal?: number | null
           status?: string
           tracker_model?: string | null
           updated_at?: string
           user_id: string
-          vehicle_id?: string | null
           vehicle_plate: string
         }
         Update: {
@@ -431,21 +431,21 @@ export type Database = {
           latitude?: number | null
           longitude?: number | null
           name?: string
+          rastrosystem_id?: string | null
           signal?: number | null
           status?: string
           tracker_model?: string | null
           updated_at?: string
           user_id?: string
-          vehicle_id?: string | null
           vehicle_plate?: string
         }
         Relationships: [
           {
-            foreignKeyName: "devices_vehicle_id_fkey"
-            columns: ["vehicle_id"]
+            foreignKeyName: "fk_devices_vehicles_rastrosystem"
+            columns: ["rastrosystem_id"]
             isOneToOne: false
             referencedRelation: "vehicles"
-            referencedColumns: ["id"]
+            referencedColumns: ["rastrosystem_id"]
           },
         ]
       }
