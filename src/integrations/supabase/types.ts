@@ -830,6 +830,7 @@ export type Database = {
           tracker_model: string | null
           updated_at: string
           user_id: string
+          vehicle_id: string | null
           year: number
         }
         Insert: {
@@ -851,6 +852,7 @@ export type Database = {
           tracker_model?: string | null
           updated_at?: string
           user_id: string
+          vehicle_id?: string | null
           year: number
         }
         Update: {
@@ -872,6 +874,7 @@ export type Database = {
           tracker_model?: string | null
           updated_at?: string
           user_id?: string
+          vehicle_id?: string | null
           year?: number
         }
         Relationships: []

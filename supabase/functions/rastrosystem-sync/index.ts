@@ -123,6 +123,7 @@ const syncDevicesFromRastrosystem = async (userId: string, config: RastrosystemC
         tracker_id: String(vehicle.imei || vehicle.unique_id || vehicle.device_id || ''),
         status: (vehicle.status_veiculo === 1 ? 'disponivel' : 'indisponivel'),
         rastrosystem_id: String(vehicle.veiculo_id ?? vehicle.id ?? ''),
+        vehicle_id: String(vehicle.veiculo_id ?? vehicle.id ?? ''),
         updated_at: new Date().toISOString(),
       };
 
