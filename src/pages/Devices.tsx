@@ -198,6 +198,8 @@ const Devices = () => {
         });
 
         console.log("Dados transformados:", transformedDevices);
+        console.log("imei:", transformedDevices.imei);
+        console.log("bateria:", transformedDevices.attributes.battery);
 
         setDevices(transformedDevices);
         return;
