@@ -216,7 +216,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               status: "online",
               battery: vehicle.attributes?.battery || 100,
               signal: 4,
-              tracker: vehicle.attributes?.gps,
               latitude: null,
               longitude: null,
               address: null,
