@@ -163,30 +163,47 @@ const Devices = () => {
 
       if (!config?.username || !config?.password) {
         console.warn("Rastrosystem não configurado, mostrando dados do banco");
-        // Fallback: buscar diretamente da tabela devices que já tem IMEI e bateria
-        const { data: devicesData } = await supabase
-          .from("devices")
+        // Buscar da tabela vehicles que contém o IMEI
+        const { data: vehiclesData } = await supabase
+          .from("vehicles")
           .select("*")
           .eq("user_id", user.id)
           .order("created_at", { ascending: false });
 
-        console.log("devicesData:", devicesData);
+        console.log("vehiclesData:", vehiclesData);
 
-        const transformedDevices: Device[] = (devicesData || []).map((device: any) => ({
-          id: device.id,
-          name: device.name,
-          imei: device.imei || 'N/A',
-          vehiclePlate: device.vehicle_plate,
-          status: device.status || 'offline',
-          lastUpdate: device.last_update || new Date().toISOString(),
-          battery: device.battery || 0,
-          signal: device.signal || 0,
-          location: { 
-            lat: device.latitude || 0, 
-            lng: device.longitude || 0, 
-            address: device.address || device.vehicle_plate 
-          }
-        }));
+        // Buscar devices para pegar bateria e sinal
+        const vehicleIds = (vehiclesData || []).map((v: any) => v.id);
+        const { data: devicesData } = vehicleIds.length
+          ? await supabase
+              .from("devices")
+              .select("vehicle_id, battery, signal, last_update, latitude, longitude, address")
+              .in("vehicle_id", vehicleIds)
+              .eq("user_id", user.id)
+          : { data: [] };
+
+        const deviceMap = new Map(
+          (devicesData || []).map((d: any) => [d.vehicle_id, d])
+        );
+
+        const transformedDevices: Device[] = (vehiclesData || []).map((vehicle: any) => {
+          const device = deviceMap.get(vehicle.id);
+          return {
+            id: vehicle.id,
+            name: [vehicle.brand, vehicle.model].filter((v: string) => v && v !== "Não informado").join(" "),
+            imei: vehicle.imei || 'N/A',
+            vehiclePlate: vehicle.plate,
+            status: vehicle.status === 'disponivel' ? 'online' : 'offline',
+            lastUpdate: device?.last_update || vehicle.updated_at || new Date().toISOString(),
+            battery: device?.battery || 0,
+            signal: device?.signal || 0,
+            location: { 
+              lat: device?.latitude || 0, 
+              lng: device?.longitude || 0, 
+              address: device?.address || vehicle.plate 
+            }
+          };
+        });
 
         setDevices(transformedDevices);
         return;
