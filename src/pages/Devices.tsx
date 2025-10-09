@@ -170,8 +170,6 @@ const Devices = () => {
           .eq("user_id", user.id)
           .order("created_at", { ascending: false });
 
-        console.log("vehiclesData:", vehiclesData);
-
         // Buscar devices vinculados aos veículos para obter IMEI e bateria
         const vehicleIds = (vehiclesData || []).map((v: any) => v.id);
         const { data: devicesRows } = vehicleIds.length
