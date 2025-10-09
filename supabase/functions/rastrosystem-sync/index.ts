@@ -50,11 +50,12 @@ const authenticateRastrosystem = async (config: RastrosystemConfig) => {
     }),
   });
 
+  console.log("testando...:");
+
   if (!response.ok) {
     throw new Error(`Rastrosystem authentication failed: ${response.statusText}`);
   }
 
-  console.log("testando...:");
   const data = await response.json();
   return data.token;
 };
