@@ -3,18 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import {
-  Search,
-  Filter,
-  FileText,
-  Calendar,
-  User,
-  Bike,
-  DollarSign,
-  Clock,
-  CheckCircle2,
-  Download,
-} from "lucide-react";
+import { Search, Filter, FileText, Calendar, User, Car, DollarSign, Clock, CheckCircle2, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
