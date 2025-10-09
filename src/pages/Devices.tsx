@@ -5,10 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  Cpu, 
-  Plus, 
-  MapPin, 
+import {
+  Cpu,
+  Plus,
+  MapPin,
   Battery,
   Wifi,
   AlertCircle,
@@ -20,7 +20,7 @@ import {
   Trash2,
   Power,
   Signal,
-  Loader2
+  Loader2,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -43,7 +43,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-const RASTROSYSTEM_API_URL = 'https://locaki.rastrosystem.com.br/api_v2';
+const RASTROSYSTEM_API_URL = "https://locaki.rastrosystem.com.br/api_v2";
 
 interface Device {
   id: string;
@@ -84,19 +84,19 @@ const Devices = () => {
     if (!user) return;
 
     const channel = supabase
-      .channel('devices-vehicles-changes')
+      .channel("devices-vehicles-changes")
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: '*',
-          schema: 'public',
-          table: 'vehicles',
-          filter: `user_id=eq.${user.id}`
+          event: "*",
+          schema: "public",
+          table: "vehicles",
+          filter: `user_id=eq.${user.id}`,
         },
         () => {
-          console.log('Veículo atualizado, recarregando dispositivos...');
+          console.log("Veículo atualizado, recarregando dispositivos...");
           fetchDevices();
-        }
+        },
       )
       .subscribe();
 
@@ -119,19 +119,23 @@ const Devices = () => {
     try {
       setLoading(true);
       // Excluir dados de rastreadores e veículos do usuário
-      await supabase.from('devices').delete().eq('user_id', user.id);
-      await supabase.from('vehicles').delete().eq('user_id', user.id);
+      await supabase.from("devices").delete().eq("user_id", user.id);
+      await supabase.from("vehicles").delete().eq("user_id", user.id);
 
       // Disparar sincronização com a Rastrosystem
-      await supabase.functions.invoke('rastrosystem-sync', {
-        body: { action: 'sync_devices', user_id: user.id }
+      await supabase.functions.invoke("rastrosystem-sync", {
+        body: { action: "sync_devices", user_id: user.id },
       });
 
       await fetchDevices();
-      toast({ title: 'Re-sincronizado', description: 'Dados baixados novamente.' });
+      toast({ title: "Re-sincronizado", description: "Dados baixados novamente." });
     } catch (error) {
-      console.error('Erro ao re-sincronizar:', error);
-      toast({ title: 'Erro ao re-sincronizar', description: error instanceof Error ? error.message : 'Falha ao limpar e baixar.', variant: 'destructive' });
+      console.error("Erro ao re-sincronizar:", error);
+      toast({
+        title: "Erro ao re-sincronizar",
+        description: error instanceof Error ? error.message : "Falha ao limpar e baixar.",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -139,42 +143,42 @@ const Devices = () => {
 
   const fetchDevices = async () => {
     if (!user?.id) {
-      console.warn('No user ID found, skipping devices fetch');
+      console.warn("No user ID found, skipping devices fetch");
       setLoading(false);
       return;
     }
 
     try {
       setLoading(true);
-      
+
       // Buscar configuração do Rastrosystem
       const { data: configData } = await supabase
-        .from('tenant_config')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('config_key', 'rastrosystem_settings')
+        .from("tenant_config")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("config_key", "rastrosystem_settings")
         .maybeSingle();
 
       const config = configData?.config_value as any;
 
       if (!config?.username || !config?.password) {
-        console.warn('Rastrosystem não configurado, mostrando dados do banco');
+        console.warn("Rastrosystem não configurado, mostrando dados do banco");
         // Fallback: buscar do banco
         const { data: vehiclesData } = await supabase
-          .from('vehicles')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false });
+          .from("vehicles")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false });
 
         // Buscar devices vinculados aos veículos para obter IMEI e bateria
         const vehicleIds = (vehiclesData || []).map((v: any) => v.id);
         const { data: devicesRows } = vehicleIds.length
           ? await supabase
-              .from('devices')
-              .select('id, vehicle_id, imei, battery, signal, last_update')
-              .in('vehicle_id', vehicleIds)
-              .eq('user_id', user.id)
-          : { data: [], error: null } as any;
+              .from("devices")
+              .select("id, vehicle_id, imei, battery, signal, last_update")
+              .in("vehicle_id", vehicleIds)
+              .eq("user_id", user.id)
+          : ({ data: [], error: null } as any);
 
         const deviceByVehicleId = new Map<string, any>((devicesRows || []).map((d: any) => [d.vehicle_id, d]));
 
@@ -182,16 +186,18 @@ const Devices = () => {
           const linked = deviceByVehicleId.get(vehicle.id);
           return {
             id: vehicle.id,
-            name: [vehicle.brand, vehicle.model].filter((v: string) => v && v !== 'Não informado').join(' '),
-            imei: (linked?.imei ?? '').toString() || 'N/A',
+            name: [vehicle.brand, vehicle.model].filter((v: string) => v && v !== "Não informado").join(" "),
+            imei: (linked?.imei ?? "").toString() || "N/A",
             vehiclePlate: vehicle.plate,
-            status: vehicle.status === 'disponivel' ? 'online' : 'offline',
+            status: vehicle.status === "disponivel" ? "online" : "offline",
             lastUpdate: linked?.last_update || vehicle.updated_at || new Date().toISOString(),
-            battery: typeof linked?.battery === 'number' ? linked.battery : 0,
-            signal: typeof linked?.signal === 'number' ? linked.signal : 0,
+            battery: typeof linked?.battery === "number" ? linked.battery : 0,
+            signal: typeof linked?.signal === "number" ? linked.signal : 0,
             location: { lat: 0, lng: 0, address: vehicle.plate },
           };
         });
+
+        console.log("Dados transformados:", transformedDevices);
 
         setDevices(transformedDevices);
         return;
@@ -199,127 +205,125 @@ const Devices = () => {
 
       // Autenticar no Rastrosystem
       const authResponse = await fetch(`${config.api_base_url}/api_v2/login/`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username: config.username, password: config.password }),
       });
 
       if (!authResponse.ok) {
-        throw new Error('Falha ao autenticar no Rastrosystem');
+        throw new Error("Falha ao autenticar no Rastrosystem");
       }
 
       const { token } = await authResponse.json();
 
       // Buscar veículos da API Rastrosystem
       const vehiclesResponse = await fetch(`${config.api_base_url}/api_v2/veiculos/${user.id}/`, {
-        method: 'GET',
+        method: "GET",
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
         },
       });
 
       if (!vehiclesResponse.ok) {
-        throw new Error('Falha ao buscar veículos do Rastrosystem');
+        throw new Error("Falha ao buscar veículos do Rastrosystem");
       }
 
       const vehicles = await vehiclesResponse.json();
 
       if (!vehicles || vehicles.length === 0) {
-        console.log('Nenhum veículo encontrado no Rastrosystem');
+        console.log("Nenhum veículo encontrado no Rastrosystem");
         setDevices([]);
         return;
       }
 
       // Transformar dados da API em formato de dispositivos
       const transformedDevices: Device[] = vehicles.map((vehicle: any) => {
-        const imei = vehicle.imei || vehicle.unique_id || '';
+        const imei = vehicle.imei || vehicle.unique_id || "";
         const battery = vehicle.attributes?.battery || 0;
         const gsm = vehicle.attributes?.gsm || 0;
         const signalBars = Math.max(0, Math.min(4, Math.round((Number(gsm) / 100) * 4)));
 
-        const vehicleName = vehicle.name || vehicle.placa || 'Veículo';
+        const vehicleName = vehicle.name || vehicle.placa || "Veículo";
 
         return {
           id: String(vehicle.veiculo_id || vehicle.id),
           name: vehicleName,
           imei: imei,
           vehiclePlate: vehicle.placa,
-          status: (vehicle.status === true || vehicle.status_veiculo === 1) ? 'online' : 'offline',
+          status: vehicle.status === true || vehicle.status_veiculo === 1 ? "online" : "offline",
           lastUpdate: vehicle.server_time || vehicle.time || new Date().toISOString(),
           battery: battery,
           signal: signalBars,
           location: {
             lat: vehicle.latitude || 0,
             lng: vehicle.longitude || 0,
-            address: vehicle.address || `${vehicleName} - ${vehicle.placa}`
-          }
+            address: vehicle.address || `${vehicleName} - ${vehicle.placa}`,
+          },
         };
       });
 
       setDevices(transformedDevices);
-      console.log('Devices loaded successfully from Rastrosystem API:', transformedDevices.length);
+      console.log("Devices loaded successfully from Rastrosystem API:", transformedDevices.length);
     } catch (error) {
-      console.error('Erro ao buscar dispositivos:', error);
+      console.error("Erro ao buscar dispositivos:", error);
       setDevices([]);
       toast({
         title: "Erro ao carregar dispositivos",
         description: error instanceof Error ? error.message : "Não foi possível carregar os dispositivos.",
-        variant: "destructive"
+        variant: "destructive",
       });
     } finally {
       setLoading(false);
     }
   };
 
-  const filteredDevices = devices.filter(device =>
-    device.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    device.vehiclePlate.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    device.imei.includes(searchTerm)
+  const filteredDevices = devices.filter(
+    (device) =>
+      device.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      device.vehiclePlate.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      device.imei.includes(searchTerm),
   );
 
-  const onlineDevices = devices.filter(d => d.status === 'online').length;
-  const offlineDevices = devices.filter(d => d.status === 'offline').length;
-  const maintenanceDevices = devices.filter(d => d.status === 'maintenance').length;
+  const onlineDevices = devices.filter((d) => d.status === "online").length;
+  const offlineDevices = devices.filter((d) => d.status === "offline").length;
+  const maintenanceDevices = devices.filter((d) => d.status === "maintenance").length;
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'online':
-        return 'bg-success text-success-foreground';
-      case 'offline':
-        return 'bg-destructive text-destructive-foreground';
-      case 'maintenance':
-        return 'bg-warning text-warning-foreground';
+      case "online":
+        return "bg-success text-success-foreground";
+      case "offline":
+        return "bg-destructive text-destructive-foreground";
+      case "maintenance":
+        return "bg-warning text-warning-foreground";
       default:
-        return 'bg-muted text-muted-foreground';
+        return "bg-muted text-muted-foreground";
     }
   };
 
   const getStatusText = (status: string) => {
     switch (status) {
-      case 'online':
-        return 'Online';
-      case 'offline':
-        return 'Offline';
-      case 'maintenance':
-        return 'Manutenção';
+      case "online":
+        return "Online";
+      case "offline":
+        return "Offline";
+      case "maintenance":
+        return "Manutenção";
       default:
         return status;
     }
   };
 
   const getBatteryColor = (battery: number) => {
-    if (battery > 50) return 'text-success';
-    if (battery > 20) return 'text-warning';
-    return 'text-destructive';
+    if (battery > 50) return "text-success";
+    if (battery > 20) return "text-warning";
+    return "text-destructive";
   };
 
   const getSignalBars = (signal: number) => {
     return Array.from({ length: 4 }, (_, i) => (
-      <div
-        key={i}
-        className={`w-1 h-3 ${i < signal ? 'bg-success' : 'bg-muted'} rounded-sm`}
-      />
+      <div key={i} className={`w-1 h-3 ${i < signal ? "bg-success" : "bg-muted"} rounded-sm`} />
     ));
   };
 
@@ -327,11 +331,7 @@ const Devices = () => {
     if (!deviceToDelete) return;
 
     try {
-      const { error } = await supabase
-        .from('vehicles')
-        .delete()
-        .eq('id', deviceToDelete)
-        .eq('user_id', user?.id);
+      const { error } = await supabase.from("vehicles").delete().eq("id", deviceToDelete).eq("user_id", user?.id);
 
       if (error) throw error;
 
@@ -343,7 +343,7 @@ const Devices = () => {
       // Recarregar a lista
       await fetchDevices();
     } catch (error) {
-      console.error('Error deleting device:', error);
+      console.error("Error deleting device:", error);
       toast({
         title: "Erro ao excluir",
         description: error instanceof Error ? error.message : "Não foi possível excluir o rastreador",
@@ -358,25 +358,25 @@ const Devices = () => {
     try {
       if (action === "Ver localização") {
         // Encontra o dispositivo selecionado
-        const device = devices.find(d => d.id === deviceId);
+        const device = devices.find((d) => d.id === deviceId);
         if (device) {
           // Navega para a página do mapa com a placa do veículo como parâmetro
           navigate(`/map?plate=${encodeURIComponent(device.vehiclePlate)}`);
         }
         return;
       }
-      
+
       if (action === "Editar") {
         // Buscar dados do veículo do banco de dados
         const { data, error } = await supabase
-          .from('vehicles')
-          .select('*')
-          .eq('id', deviceId)
-          .eq('user_id', user?.id)
+          .from("vehicles")
+          .select("*")
+          .eq("id", deviceId)
+          .eq("user_id", user?.id)
           .single();
-        
+
         if (error || !data) {
-          console.error('Erro ao carregar device:', error);
+          console.error("Erro ao carregar device:", error);
           toast({
             title: "Erro",
             description: "Não foi possível carregar os dados do dispositivo",
@@ -384,60 +384,60 @@ const Devices = () => {
           });
           return;
         }
-        
-        console.log('Dados do veículo:', data);
-        
+
+        console.log("Dados do veículo:", data);
+
         // Buscar dados do device associado
         const { data: deviceRecord } = await supabase
-          .from('devices')
-          .select('*')
-          .eq('vehicle_id', deviceId)
+          .from("devices")
+          .select("*")
+          .eq("vehicle_id", deviceId)
           // .eq('user_id', user?.id)
           .maybeSingle();
-        
+
         // Transformar dados do vehicle para formato de device
         const deviceData = {
           id: data.id,
           name: `${data.brand} ${data.model}`,
-          imei: deviceRecord?.imei || '',
+          imei: deviceRecord?.imei || "",
           vehicle_plate: data.plate,
-          chip_number: data.chip_number || '',
-          tracker_model: data.tracker_model || '',
-          status: data.status === 'disponivel' ? 'online' : data.status === 'manutencao' ? 'maintenance' : 'offline'
+          chip_number: data.chip_number || "",
+          tracker_model: data.tracker_model || "",
+          status: data.status === "disponivel" ? "online" : data.status === "manutencao" ? "maintenance" : "offline",
         };
-        
-        console.log('Device data transformado:', deviceData);
-        
+
+        console.log("Device data transformado:", deviceData);
+
         setDeviceToEdit(deviceData);
         setIsDeviceDialogOpen(true);
         return;
       }
-      
+
       if (action === "Remover") {
         setDeviceToDelete(deviceId);
         return;
       }
-      
+
       if (action === "Reiniciar") {
-        const { data, error } = await supabase.functions.invoke('rastrosystem-sync', {
-          body: { action: action.toLowerCase(), deviceId }
+        const { data, error } = await supabase.functions.invoke("rastrosystem-sync", {
+          body: { action: action.toLowerCase(), deviceId },
         });
-        
+
         if (error) throw error;
-        
+
         toast({
           title: "Sucesso",
           description: `${action} executado com sucesso no dispositivo ${deviceId}`,
         });
         return;
       }
-      
+
       toast({
         title: `${action} executado`,
         description: `Ação "${action}" executada no dispositivo ${deviceId}`,
       });
     } catch (error) {
-      console.error('Error executing device action:', error);
+      console.error("Error executing device action:", error);
       toast({
         title: "Erro",
         description: `Erro ao executar "${action}" no dispositivo ${deviceId}`,
@@ -485,34 +485,15 @@ const Devices = () => {
           </div>
         </div>
         <div className="flex gap-2">
-          <Button 
-            variant="outline"
-            onClick={clearAndReloadDevices}
-            disabled={loading}
-          >
-            {loading ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <Power className="h-4 w-4 mr-2" />
-            )}
+          <Button variant="outline" onClick={clearAndReloadDevices} disabled={loading}>
+            {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Power className="h-4 w-4 mr-2" />}
             Recarregar
           </Button>
-          <Button
-            variant="outline"
-            onClick={clearAndResync}
-            disabled={loading}
-          >
-            {loading ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <Trash2 className="h-4 w-4 mr-2" />
-            )}
+          <Button variant="outline" onClick={clearAndResync} disabled={loading}>
+            {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Trash2 className="h-4 w-4 mr-2" />}
             Limpar e Re-sincronizar
           </Button>
-          <Button 
-            className="bg-gradient-primary hover:opacity-90"
-            onClick={() => setIsDeviceDialogOpen(true)}
-          >
+          <Button className="bg-gradient-primary hover:opacity-90" onClick={() => setIsDeviceDialogOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Adicionar Dispositivo
           </Button>
@@ -577,12 +558,15 @@ const Devices = () => {
             className="pl-10"
           />
         </div>
-        <Button variant="outline" onClick={() => {
-          toast({
-            title: "Filtros",
-            description: "Funcionalidade de filtros em desenvolvimento",
-          });
-        }}>
+        <Button
+          variant="outline"
+          onClick={() => {
+            toast({
+              title: "Filtros",
+              description: "Funcionalidade de filtros em desenvolvimento",
+            });
+          }}
+        >
           <Filter className="h-4 w-4 mr-2" />
           Filtros
         </Button>
@@ -601,14 +585,15 @@ const Devices = () => {
           <Card>
             <CardHeader>
               <CardTitle>Todos os Dispositivos</CardTitle>
-              <CardDescription>
-                Visualize e gerencie todos os rastreadores cadastrados
-              </CardDescription>
+              <CardDescription>Visualize e gerencie todos os rastreadores cadastrados</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid gap-4">
                 {filteredDevices.map((device) => (
-                  <div key={device.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50">
+                  <div
+                    key={device.id}
+                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50"
+                  >
                     <div className="flex items-center gap-4">
                       <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
                         <Cpu className="h-6 w-6 text-primary" />
@@ -616,9 +601,7 @@ const Devices = () => {
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
                           <p className="font-medium">{device.name}</p>
-                          <Badge className={getStatusColor(device.status)}>
-                            {getStatusText(device.status)}
-                          </Badge>
+                          <Badge className={getStatusColor(device.status)}>{getStatusText(device.status)}</Badge>
                         </div>
                         <p className="text-sm text-muted-foreground">
                           {device.vehiclePlate} • IMEI: {device.imei}
@@ -634,20 +617,19 @@ const Devices = () => {
                           </div>
                           <div className="flex items-center gap-1">
                             <Signal className="h-3 w-3" />
-                            <div className="flex gap-px">
-                              {getSignalBars(device.signal)}
-                            </div>
+                            <div className="flex gap-px">{getSignalBars(device.signal)}</div>
                           </div>
                         </div>
                       </div>
                     </div>
-                    
+
                     <div className="flex items-center gap-2">
                       <div className="text-right text-xs text-muted-foreground">
-                        Última atualização:<br />
-                        {new Date(device.lastUpdate).toLocaleString('pt-BR')}
+                        Última atualização:
+                        <br />
+                        {new Date(device.lastUpdate).toLocaleString("pt-BR")}
                       </div>
-                      
+
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="sm">
@@ -667,7 +649,7 @@ const Devices = () => {
                             <Power className="h-4 w-4 mr-2" />
                             Reiniciar
                           </DropdownMenuItem>
-                          <DropdownMenuItem 
+                          <DropdownMenuItem
                             onClick={() => handleDeviceAction("Remover", device.id)}
                             className="text-destructive"
                           >
@@ -692,22 +674,30 @@ const Devices = () => {
             </CardHeader>
             <CardContent>
               <div className="grid gap-4">
-                {filteredDevices.filter(d => d.status === 'online').map((device) => (
-                  <div key={device.id} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="flex items-center gap-4">
-                      <div className="h-12 w-12 rounded-full bg-success/10 flex items-center justify-center">
-                        <CheckCircle2 className="h-6 w-6 text-success" />
+                {filteredDevices
+                  .filter((d) => d.status === "online")
+                  .map((device) => (
+                    <div key={device.id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div className="flex items-center gap-4">
+                        <div className="h-12 w-12 rounded-full bg-success/10 flex items-center justify-center">
+                          <CheckCircle2 className="h-6 w-6 text-success" />
+                        </div>
+                        <div>
+                          <p className="font-medium">{device.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {device.vehiclePlate} • IMEI: {device.imei}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium">{device.name}</p>
-                        <p className="text-sm text-muted-foreground">{device.vehiclePlate} • IMEI: {device.imei}</p>
-                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDeviceAction("Ver localização", device.id)}
+                      >
+                        Localizar
+                      </Button>
                     </div>
-                     <Button variant="outline" size="sm" onClick={() => handleDeviceAction("Ver localização", device.id)}>
-                       Localizar
-                     </Button>
-                  </div>
-                ))}
+                  ))}
               </div>
             </CardContent>
           </Card>
@@ -721,28 +711,42 @@ const Devices = () => {
             </CardHeader>
             <CardContent>
               <div className="grid gap-4">
-                {filteredDevices.filter(d => d.status === 'offline').map((device) => (
-                  <div key={device.id} className="flex items-center justify-between p-4 border rounded-lg bg-destructive/5">
-                    <div className="flex items-center gap-4">
-                      <div className="h-12 w-12 rounded-full bg-destructive/10 flex items-center justify-center">
-                        <AlertCircle className="h-6 w-6 text-destructive" />
+                {filteredDevices
+                  .filter((d) => d.status === "offline")
+                  .map((device) => (
+                    <div
+                      key={device.id}
+                      className="flex items-center justify-between p-4 border rounded-lg bg-destructive/5"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="h-12 w-12 rounded-full bg-destructive/10 flex items-center justify-center">
+                          <AlertCircle className="h-6 w-6 text-destructive" />
+                        </div>
+                        <div>
+                          <p className="font-medium">{device.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {device.vehiclePlate} • IMEI: {device.imei}
+                          </p>
+                          <p className="text-sm text-destructive">
+                            Sem comunicação há{" "}
+                            {Math.floor((Date.now() - new Date(device.lastUpdate).getTime()) / (1000 * 60 * 60))} horas
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium">{device.name}</p>
-                        <p className="text-sm text-muted-foreground">{device.vehiclePlate} • IMEI: {device.imei}</p>
-                        <p className="text-sm text-destructive">Sem comunicação há {Math.floor((Date.now() - new Date(device.lastUpdate).getTime()) / (1000 * 60 * 60))} horas</p>
-                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          toast({
+                            title: "Diagnóstico",
+                            description: `Executando diagnóstico do dispositivo ${device.name}...`,
+                          });
+                        }}
+                      >
+                        Diagnosticar
+                      </Button>
                     </div>
-                     <Button variant="outline" size="sm" onClick={() => {
-                       toast({
-                         title: "Diagnóstico",
-                         description: `Executando diagnóstico do dispositivo ${device.name}...`,
-                       });
-                     }}>
-                       Diagnosticar
-                     </Button>
-                  </div>
-                ))}
+                  ))}
               </div>
             </CardContent>
           </Card>
@@ -756,40 +760,51 @@ const Devices = () => {
             </CardHeader>
             <CardContent>
               <div className="grid gap-4">
-                {filteredDevices.filter(d => d.status === 'maintenance').map((device) => (
-                  <div key={device.id} className="flex items-center justify-between p-4 border rounded-lg bg-warning/5">
-                    <div className="flex items-center gap-4">
-                      <div className="h-12 w-12 rounded-full bg-warning/10 flex items-center justify-center">
-                        <AlertCircle className="h-6 w-6 text-warning" />
+                {filteredDevices
+                  .filter((d) => d.status === "maintenance")
+                  .map((device) => (
+                    <div
+                      key={device.id}
+                      className="flex items-center justify-between p-4 border rounded-lg bg-warning/5"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="h-12 w-12 rounded-full bg-warning/10 flex items-center justify-center">
+                          <AlertCircle className="h-6 w-6 text-warning" />
+                        </div>
+                        <div>
+                          <p className="font-medium">{device.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {device.vehiclePlate} • IMEI: {device.imei}
+                          </p>
+                          <p className="text-sm text-warning">Em manutenção programada</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium">{device.name}</p>
-                        <p className="text-sm text-muted-foreground">{device.vehiclePlate} • IMEI: {device.imei}</p>
-                        <p className="text-sm text-warning">Em manutenção programada</p>
-                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const newStatus = device.status === "maintenance" ? "online" : "maintenance";
+                          const updatedDevices = devices.map((d) =>
+                            d.id === device.id ? { ...d, status: newStatus } : d,
+                          );
+                          setDevices(updatedDevices);
+                          toast({
+                            title: "Status atualizado",
+                            description: `Status do dispositivo ${device.name} atualizado para ${newStatus}`,
+                          });
+                        }}
+                      >
+                        Atualizar Status
+                      </Button>
                     </div>
-                     <Button variant="outline" size="sm" onClick={() => {
-                       const newStatus = device.status === 'maintenance' ? 'online' : 'maintenance';
-                       const updatedDevices = devices.map(d => 
-                         d.id === device.id ? { ...d, status: newStatus } : d
-                       );
-                       setDevices(updatedDevices);
-                       toast({
-                         title: "Status atualizado",
-                         description: `Status do dispositivo ${device.name} atualizado para ${newStatus}`,
-                       });
-                     }}>
-                       Atualizar Status
-                     </Button>
-                  </div>
-                ))}
+                  ))}
               </div>
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
 
-      <DeviceDialog 
+      <DeviceDialog
         open={isDeviceDialogOpen}
         onOpenChange={(open) => {
           setIsDeviceDialogOpen(open);
@@ -809,7 +824,10 @@ const Devices = () => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteDevice} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            <AlertDialogAction
+              onClick={handleDeleteDevice}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
               Excluir
             </AlertDialogAction>
           </AlertDialogFooter>
