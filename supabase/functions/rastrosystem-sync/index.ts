@@ -82,7 +82,9 @@ const syncDevicesFromRastrosystem = async (userId: string, config: RastrosystemC
 
     const vehicles = await response.json();
 
-    console.log("vehicles:", vehicles);
+    console.log("📦 Retorno da API Rastrosystem - Veículos:");
+    console.log(`Total de veículos retornados: ${vehicles?.length || 0}`);
+    console.log("Dados completos:", JSON.stringify(vehicles, null, 2));
 
     await logIntegration(userId, "fetch_vehicles", { user_id: userId }, vehicles, "success");
 
