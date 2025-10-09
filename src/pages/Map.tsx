@@ -754,7 +754,7 @@ const Map = () => {
               </div>
             </CardHeader>
              <CardContent className="max-h-96 overflow-y-auto space-y-3">
-               {filteredVehicles.filter(v => v.latitude && v.longitude).map((vehicle) => (
+               {filteredVehicles.filter(v => v.latitude && v.longitude && v.status === 'online').map((vehicle) => (
                  <div key={vehicle.id} className="p-3 border rounded-lg hover:bg-muted/50 cursor-pointer">
                    <div className="flex items-center justify-between mb-2">
                      <div className="flex items-center gap-2">
@@ -795,7 +795,7 @@ const Map = () => {
                  </div>
                ))}
                
-               {vehicles.filter(v => v.latitude && v.longitude).length === 0 && (
+               {filteredVehicles.filter(v => v.latitude && v.longitude && v.status === 'online').length === 0 && (
                   <div className="text-center py-8">
                     <Car className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
                     <p className="text-sm text-muted-foreground">Nenhum veículo online encontrado</p>
