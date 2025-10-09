@@ -80,6 +80,8 @@ const syncDevicesFromRastrosystem = async (userId: string, config: RastrosystemC
 
     const vehicles = await response.json();
 
+    console.log("vehicles:", vehicles);
+
     await logIntegration(userId, "fetch_vehicles", { user_id: userId }, vehicles, "success");
 
     // Sync each vehicle to our vehicles and devices tables
@@ -123,8 +125,6 @@ const syncDevicesFromRastrosystem = async (userId: string, config: RastrosystemC
         vehicle_id: vehicle.veiculo_id,
         updated_at: new Date().toISOString(),
       };
-
-      console.log("vehiclePayload:", vehiclePayload);
 
       let vehicleDbId: string | null = null;
 
