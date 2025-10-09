@@ -399,7 +399,7 @@ const Vehicles = () => {
                       </div>
                       <div>
                         <CardTitle className="text-lg">
-                          {[vehicle.brand, vehicle.model].filter((v) => v && v !== "Não informado").join(" ")}
+                          {[vehicle.model, vehicle.name].filter((v) => v && v !== "Não informado").join(" ")}
                         </CardTitle>
                         <CardDescription className="font-mono text-lg">{vehicle.plate}</CardDescription>
                       </div>
@@ -438,7 +438,7 @@ const Vehicles = () => {
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
                       <p className="text-muted-foreground">Ano</p>
-                      <p className="font-medium">{}</p>
+                      <p className="font-medium">{vehicle.year}</p>
                     </div>
                     <div>
                       <p className="text-muted-foreground">Cor</p>
