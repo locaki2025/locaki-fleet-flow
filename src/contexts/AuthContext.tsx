@@ -151,8 +151,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         for (const vehicle of vehicles) {
           if (!vehicle.placa || !vehicle.id) continue;
 
-          // Usa upsert para inserir ou atualizar baseado no rastrosystem_id único
-          const { error } = await supabase
+          // Usa upsert para inserir ou atualizar veículos baseado no rastrosystem_id único
+          const { error: vehicleError } = await supabase
             .from("vehicles")
             .upsert({
               user_id: currentUser.id,
@@ -174,10 +174,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               ignoreDuplicates: false
             });
 
-          if (error) {
-            console.error("Erro ao sincronizar veículo:", error);
+          if (vehicleError) {
+            console.error("Erro ao sincronizar veículo:", vehicleError);
           } else {
             console.log("Veículo sincronizado:", vehicle.placa);
+          }
+
+          // Também sincronizar o device correspondente
+          const { error: deviceError } = await supabase
+            .from("devices")
+            .upsert({
+              user_id: currentUser.id,
+              rastrosystem_id: vehicle.id.toString(),
+              name: vehicle.name || `${vehicle.modelo} - ${vehicle.placa}`,
+              vehicle_plate: vehicle.placa,
+              chip_number: vehicle.chip,
+              tracker_model: vehicle.modelo || "Rastrosystem",
+              status: "online",
+              battery: 100,
+              signal: 4,
+              latitude: null,
+              longitude: null,
+              address: null,
+              last_update: new Date().toISOString(),
+            }, {
+              onConflict: 'rastrosystem_id',
+              ignoreDuplicates: false
+            });
+
+          if (deviceError) {
+            console.error("Erro ao sincronizar device:", deviceError);
+          } else {
+            console.log("Device sincronizado:", vehicle.placa);
           }
         }
       }
