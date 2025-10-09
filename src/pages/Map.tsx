@@ -513,6 +513,39 @@ const Map = () => {
     tryFallback();
   }, [vehicles, loading, user?.id]);
 
+  const handleDeleteAllVehicles = async () => {
+    if (!confirm('⚠️ ATENÇÃO: Esta ação irá deletar TODOS os veículos, dispositivos e histórico de posições do banco de dados. Esta operação é IRREVERSÍVEL. Deseja continuar?')) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const { data, error } = await supabase.functions.invoke('delete-all-vehicles');
+
+      if (error) {
+        throw error;
+      }
+
+      toast({
+        title: "✓ Dados excluídos",
+        description: "Todos os veículos e dispositivos foram removidos do banco de dados.",
+      });
+
+      // Limpa o estado local
+      setVehicles([]);
+      setSelectedVehicle(null);
+    } catch (error) {
+      console.error('Erro ao deletar veículos:', error);
+      toast({
+        title: "Erro ao deletar",
+        description: error instanceof Error ? error.message : "Erro desconhecido ao deletar veículos",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -536,6 +569,13 @@ const Map = () => {
           >
             <RefreshCw className="h-4 w-4 mr-2" />
             {loading ? 'Atualizando...' : 'Atualizar'}
+          </Button>
+          <Button 
+            variant="destructive" 
+            onClick={handleDeleteAllVehicles}
+            disabled={loading}
+          >
+            Limpar Tudo
           </Button>
         </div>
       </div>

@@ -65,6 +65,9 @@ verify_jwt = false
 [functions.rastrosystem-customers-sync]
 verify_jwt = false
 
+[functions.delete-all-vehicles]
+verify_jwt = true
+
 [edge-runtime]
 policy = "per_worker"
 inspector_port = 8083
