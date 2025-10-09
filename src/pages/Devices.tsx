@@ -166,17 +166,32 @@ const Devices = () => {
           .eq('user_id', user.id)
           .order('created_at', { ascending: false });
 
-        const transformedDevices: Device[] = (vehiclesData || []).map((vehicle: any) => ({
-          id: vehicle.id,
-          name: [vehicle.brand, vehicle.model].filter(v => v && v !== "Não informado").join(" "),
-          imei: vehicle.imei || 'N/A',
-          vehiclePlate: vehicle.plate,
-          status: vehicle.status === 'disponivel' ? 'online' : 'offline',
-          lastUpdate: vehicle.updated_at || new Date().toISOString(),
-          battery: vehicle.attributes?.battery || 0,
-          signal: 0,
-          location: { lat: 0, lng: 0, address: vehicle.plate }
-        }));
+        // Buscar devices vinculados aos veículos para obter IMEI e bateria
+        const vehicleIds = (vehiclesData || []).map((v: any) => v.id);
+        const { data: devicesRows } = vehicleIds.length
+          ? await supabase
+              .from('devices')
+              .select('id, vehicle_id, imei, battery, signal, last_update')
+              .in('vehicle_id', vehicleIds)
+              .eq('user_id', user.id)
+          : { data: [], error: null } as any;
+
+        const deviceByVehicleId = new Map<string, any>((devicesRows || []).map((d: any) => [d.vehicle_id, d]));
+
+        const transformedDevices: Device[] = (vehiclesData || []).map((vehicle: any) => {
+          const linked = deviceByVehicleId.get(vehicle.id);
+          return {
+            id: vehicle.id,
+            name: [vehicle.brand, vehicle.model].filter((v: string) => v && v !== 'Não informado').join(' '),
+            imei: (linked?.imei ?? '').toString() || 'N/A',
+            vehiclePlate: vehicle.plate,
+            status: vehicle.status === 'disponivel' ? 'online' : 'offline',
+            lastUpdate: linked?.last_update || vehicle.updated_at || new Date().toISOString(),
+            battery: typeof linked?.battery === 'number' ? linked.battery : 0,
+            signal: typeof linked?.signal === 'number' ? linked.signal : 0,
+            location: { lat: 0, lng: 0, address: vehicle.plate },
+          };
+        });
 
         setDevices(transformedDevices);
         return;
