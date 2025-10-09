@@ -173,7 +173,7 @@ const Devices = () => {
         return {
           id: vehicle.id,
           name: vehicleName,
-          imei: deviceData?.imei || 'N/A',
+          imei: deviceData?.imei || vehicle.tracker_id || 'N/A',
           vehiclePlate: vehicle.plate,
           status: status,
           lastUpdate: deviceData?.last_update || vehicle.updated_at || new Date().toISOString(),
