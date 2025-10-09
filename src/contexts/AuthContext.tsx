@@ -163,6 +163,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const { error } = await supabase.from("vehicles").insert({
               user_id: currentUser.id,
               rastrosystem_id: vehicle.id.toString(),
+              vehicle_id: vehicle.veiculo_id,
               plate: vehicle.placa,
               brand: "",
               model: `${vehicle.modelo} - ${vehicle.name}`,
