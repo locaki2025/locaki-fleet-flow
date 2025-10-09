@@ -324,7 +324,7 @@ const Devices = () => {
           .from('devices')
           .select('*')
           .eq('vehicle_id', deviceId)
-          .eq('user_id', user?.id)
+          // .eq('user_id', user?.id)
           .maybeSingle();
         
         // Transformar dados do vehicle para formato de device
