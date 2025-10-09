@@ -156,7 +156,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         for (const vehicle of vehicles) {
           if (!vehicle.placa || !vehicle.id) continue;
 
-          // Usa upsert para inserir ou atualizar veículos baseado no rastrosystem_id único
+          // Usa upsert para inserir ou atualizar veículos baseado no user_id + rastrosystem_id
           const { error: vehicleError } = await supabase.from("vehicles").upsert(
             {
               user_id: currentUser.id,
@@ -176,7 +176,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               observations: `Importado do Rastrosystem - IMEI: ${vehicle.imei}`,
             },
             {
-              onConflict: "rastrosystem_id",
+              onConflict: "user_id,rastrosystem_id",
               ignoreDuplicates: false,
             },
           );
@@ -198,7 +198,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               chip_number: vehicle.chip,
               tracker_model: vehicle.modelo || "Rastrosystem",
               status: "online",
-              battery: vehicle.attributes.battery,
+              battery: vehicle.attributes?.battery || 100,
               signal: 4,
               latitude: null,
               longitude: null,
@@ -206,7 +206,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               last_update: new Date().toISOString(),
             },
             {
-              onConflict: "rastrosystem_id",
+              onConflict: "user_id,rastrosystem_id",
               ignoreDuplicates: false,
             },
           );

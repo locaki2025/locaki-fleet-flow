@@ -118,25 +118,30 @@ const Devices = () => {
     if (!user?.id) return;
     try {
       setLoading(true);
+      
+      // Limpar cache de sincronização para forçar nova sincronização
+      sessionStorage.removeItem(`rastrosystem_last_sync_${user.id}`);
+      
       // Excluir dados de rastreadores e veículos do usuário
-      await supabase.from("devices").delete().eq("user_id", user.id);
-      await supabase.from("vehicles").delete().eq("user_id", user.id);
+      const { error: devicesError } = await supabase.from("devices").delete().eq("user_id", user.id);
+      if (devicesError) {
+        console.error("Erro ao excluir devices:", devicesError);
+      }
+      
+      const { error: vehiclesError } = await supabase.from("vehicles").delete().eq("user_id", user.id);
+      if (vehiclesError) {
+        console.error("Erro ao excluir veículos:", vehiclesError);
+      }
 
-      // Disparar sincronização com a Rastrosystem
-      await supabase.functions.invoke("rastrosystem-sync", {
-        body: { action: "sync_devices", user_id: user.id },
-      });
-
-      await fetchDevices();
-      toast({ title: "Re-sincronizado", description: "Dados baixados novamente." });
+      // Recarregar a página para triggerar a sincronização automática do AuthContext
+      window.location.reload();
     } catch (error) {
       console.error("Erro ao re-sincronizar:", error);
       toast({
-        title: "Erro ao re-sincronizar",
-        description: error instanceof Error ? error.message : "Falha ao limpar e baixar.",
+        title: "Erro ao limpar dados",
+        description: error instanceof Error ? error.message : "Falha ao limpar dados.",
         variant: "destructive",
       });
-    } finally {
       setLoading(false);
     }
   };
