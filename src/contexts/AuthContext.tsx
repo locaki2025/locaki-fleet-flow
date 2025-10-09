@@ -187,7 +187,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             console.log("Veículo sincronizado:", vehicle.placa);
           }
 
-          const rawBattery = vehicle.attributes?.battery ?? 100;
+          /*const rawBattery = vehicle.attributes?.battery ?? 100;
 
           let batteryLevel;
           if (rawBattery === 0) {
@@ -200,7 +200,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             batteryLevel = 3;
           } else {
             batteryLevel = 4;
-          }
+          }*/
 
           // Também sincronizar o device correspondente
           const { error: deviceError } = await supabase.from("devices").upsert(
@@ -214,7 +214,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               tracker_model: vehicle.modelo || "Rastrosystem",
               status: "online",
               battery: vehicle.attributes?.battery || 100,
-              signal: batteryLevel,
+              signal: 4,
               latitude: null,
               longitude: null,
               address: null,
