@@ -192,16 +192,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           let batteryLevel;
           if (rawBattery === 0) {
             batteryLevel = 0;
-          } else if (rawBattery <= 20) {
+          } else if (rawBattery <= 25) {
             batteryLevel = 1;
-          } else if (rawBattery <= 40) {
+          } else if (rawBattery <= 50) {
             batteryLevel = 2;
-          } else if (rawBattery <= 60) {
+          } else if (rawBattery <= 75) {
             batteryLevel = 3;
-          } else if (rawBattery <= 80) {
-            batteryLevel = 4;
           } else {
-            batteryLevel = 5;
+            batteryLevel = 4;
           }
 
           // Também sincronizar o device correspondente
