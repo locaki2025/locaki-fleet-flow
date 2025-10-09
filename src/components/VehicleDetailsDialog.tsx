@@ -155,7 +155,7 @@ const VehicleDetailsDialog = ({ open, onOpenChange, vehicle, onVehicleUpdate }: 
 
             if (Number.isFinite(lat) && Number.isFinite(lng) && lat !== 0 && lng !== 0) {
               const mapped = {
-                id: rastroDevice.unique_id || String(rastroDevice.id),
+                //id: rastroDevice.unique_id || String(rastroDevice.id),
                 plate: rastroDevice.placa || vehicle.plate,
                 brand: vehicle.brand,
                 model: vehicle.model,
@@ -451,7 +451,7 @@ const VehicleDetailsDialog = ({ open, onOpenChange, vehicle, onVehicleUpdate }: 
                       </p>
                     </div>
 
-                    	<div className="h-[200px] rounded-lg overflow-hidden border">
+                    <div className="h-[200px] rounded-lg overflow-hidden border">
                       <GoogleMapComponent
                         vehicles={[mapVehicle]}
                         initialCenter={{ lat: mapVehicle.latitude, lng: mapVehicle.longitude }}
