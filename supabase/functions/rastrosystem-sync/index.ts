@@ -108,39 +108,67 @@ const syncDevicesFromRastrosystem = async (userId: string, config: RastrosystemC
         console.log(`Error fetching position for vehicle ${vehicle.device_id}:`, error);
       }
 
-      // Upsert device data
-      const deviceData = {
-        user_id: userId,
-        name: vehicle.nome || vehicle.placa,
-        imei: vehicle.device_id || vehicle.imei,
-        vehicle_plate: vehicle.placa,
-        status: vehicle.status === 'online' ? 'online' : 'offline',
-        latitude: lastPosition?.latitude,
-        longitude: lastPosition?.longitude,
-        address: lastPosition?.endereco,
-        last_update: lastPosition?.data_gps ? new Date(lastPosition.data_gps) : new Date(),
-        battery: lastPosition?.bateria || 100,
-        signal: lastPosition?.sinal || 4,
-        tracker_model: vehicle.modelo_equipamento,
-        updated_at: new Date().toISOString(),
+      // Resolver vehicle_id a partir da placa
+      const { data: matchedVehicle } = await supabase
+        .from('vehicles')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('plate', vehicle.placa)
+        .maybeSingle();
+
+      const vehicleId = matchedVehicle?.id ?? null;
+
+      // Mapear sinal GSM (0-100) para barras (0-4)
+      const gsm = (vehicle.attributes?.gsm ?? null) as number | null;
+      const signalBars = gsm != null
+        ? Math.max(0, Math.min(4, Math.round((Number(gsm) / 100) * 4)))
+        : 0;
+
+      // Tentar parsear datas no formato dd/MM/yyyy HH:mm:ss
+      const parseBrDate = (s?: string) => {
+        try {
+          if (!s) return new Date();
+          const [datePart, timePart = '00:00:00'] = String(s).split(' ');
+          const [dd, mm, yyyy] = datePart.split('/').map(Number);
+          const [HH, II, SS] = timePart.split(':').map(Number);
+          return new Date(yyyy, (mm || 1) - 1, dd || 1, HH || 0, II || 0, SS || 0);
+        } catch (_) {
+          return new Date();
+        }
       };
 
-      // Check if device already exists
+      // Upsert device data
+      const deviceData: any = {
+        user_id: userId,
+        name: vehicle.name || vehicle.nome || vehicle.placa,
+        imei: String(vehicle.imei || vehicle.unique_id || vehicle.device_id || ''),
+        vehicle_plate: vehicle.placa,
+        status: (vehicle.status === true || vehicle.status_veiculo === 1) ? 'online' : 'offline',
+        latitude: vehicle.latitude ?? lastPosition?.latitude ?? null,
+        longitude: vehicle.longitude ?? lastPosition?.longitude ?? null,
+        address: vehicle.address ?? lastPosition?.endereco ?? null,
+        last_update: vehicle.server_time ? parseBrDate(vehicle.server_time) : (vehicle.time ? parseBrDate(vehicle.time) : new Date()),
+        battery: (vehicle.attributes?.battery ?? lastPosition?.bateria ?? 100) as number,
+        signal: signalBars,
+        tracker_model: vehicle.modelo || vehicle.modelo_equipamento || vehicle.protocolo || null,
+        updated_at: new Date().toISOString(),
+        vehicle_id: vehicleId,
+      };
+
+      // Verificar se já existe pelo IMEI
       const { data: existingDevice } = await supabase
         .from('devices')
         .select('id')
         .eq('user_id', userId)
         .eq('imei', deviceData.imei)
-        .single();
+        .maybeSingle();
 
       if (existingDevice) {
-        // Update existing device
         await supabase
           .from('devices')
           .update(deviceData)
           .eq('id', existingDevice.id);
       } else {
-        // Insert new device
         await supabase
           .from('devices')
           .insert(deviceData);
