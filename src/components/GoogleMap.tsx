@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useMemo } from 'react';
 import { GoogleMap, LoadScript, Marker } from '@react-google-maps/api';
 import { supabase } from '@/integrations/supabase/client';
-import { Car } from 'lucide-react';
+import { Bike } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -276,7 +276,7 @@ const GoogleMapComponent = ({ vehicles, initialCenter, initialZoom = 13, onVehic
     return (
       <div className="h-96 bg-muted/30 rounded-lg border-2 border-dashed border-muted-foreground/20 flex items-center justify-center">
         <div className="text-center space-y-2">
-          <Car className="h-12 w-12 text-muted-foreground mx-auto animate-pulse" />
+          <Bike className="h-12 w-12 text-muted-foreground mx-auto animate-pulse" />
           <p className="text-lg font-medium text-muted-foreground">Carregando mapa...</p>
           <p className="text-sm text-muted-foreground">
             Configurando Google Maps

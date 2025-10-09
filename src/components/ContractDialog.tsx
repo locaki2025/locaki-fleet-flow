@@ -13,7 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { CalendarIcon, User, Car, DollarSign } from "lucide-react";
+import { CalendarIcon, User, Bike, DollarSign } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -326,7 +326,7 @@ const ContractDialog = ({ open, onOpenChange }: ContractDialogProps) => {
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <Car className="h-5 w-5" />
+                      <Bike className="h-5 w-5" />
                       Veículo
                     </CardTitle>
                   </CardHeader>

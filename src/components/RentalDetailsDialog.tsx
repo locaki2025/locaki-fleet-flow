@@ -3,7 +3,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileText, User, Car, Calendar, DollarSign, MapPin, Printer } from "lucide-react";
+import { FileText, User, Bike, Calendar, DollarSign, MapPin, Printer } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useState } from "react";
@@ -263,7 +263,7 @@ const RentalDetailsDialog = ({ open, onOpenChange, rental }: RentalDetailsDialog
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base">
-                  <Car className="h-4 w-4" />
+                  <Bike className="h-4 w-4" />
                   Veículo
                 </CardTitle>
               </CardHeader>

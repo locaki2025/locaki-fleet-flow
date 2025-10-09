@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, Filter, Car, MapPin, Gauge, Calendar, X } from "lucide-react";
+import { Plus, Search, Filter, Bike, MapPin, Gauge, Calendar, X } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -230,7 +230,7 @@ const Vehicles = () => {
                 <p className="text-sm font-medium text-muted-foreground">Total</p>
                 <p className="text-2xl font-bold">{vehicles.length}</p>
               </div>
-              <Car className="h-8 w-8 text-primary" />
+              <Bike className="h-8 w-8 text-primary" />
             </div>
           </CardContent>
         </Card>
@@ -242,7 +242,7 @@ const Vehicles = () => {
                 <p className="text-2xl font-bold text-success">{vehicles.filter(v => getVehicleStatus(v) === 'disponivel').length}</p>
               </div>
               <div className="h-8 w-8 rounded-full bg-success/20 flex items-center justify-center">
-                <Car className="h-4 w-4 text-success" />
+                <Bike className="h-4 w-4 text-success" />
               </div>
             </div>
           </CardContent>
@@ -255,7 +255,7 @@ const Vehicles = () => {
                 <p className="text-2xl font-bold text-accent">{vehicles.filter(v => getVehicleStatus(v) === 'alugado').length}</p>
               </div>
               <div className="h-8 w-8 rounded-full bg-accent/20 flex items-center justify-center">
-                <Car className="h-4 w-4 text-accent" />
+                <Bike className="h-4 w-4 text-accent" />
               </div>
             </div>
           </CardContent>
@@ -268,7 +268,7 @@ const Vehicles = () => {
                 <p className="text-2xl font-bold text-warning">{vehicles.filter(v => getVehicleStatus(v) === 'manutencao').length}</p>
               </div>
               <div className="h-8 w-8 rounded-full bg-warning/20 flex items-center justify-center">
-                <Car className="h-4 w-4 text-warning" />
+                <Bike className="h-4 w-4 text-warning" />
               </div>
             </div>
           </CardContent>
@@ -376,7 +376,7 @@ const Vehicles = () => {
       ) : vehicles.length === 0 ? (
         <Card className="border-dashed">
           <CardContent className="py-12 text-center">
-            <Car className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <Bike className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-semibold mb-2">Nenhum veículo cadastrado</h3>
             <p className="text-muted-foreground mb-4">
               Cadastre seu primeiro veículo para começar
@@ -410,8 +410,8 @@ const Vehicles = () => {
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="h-16 w-16 rounded-lg bg-gradient-primary/10 flex items-center justify-center">
-                    <Car className="h-8 w-8 text-primary" />
+                <div className="h-16 w-16 rounded-lg bg-gradient-primary/10 flex items-center justify-center">
+                    <Bike className="h-8 w-8 text-primary" />
                   </div>
                   <div>
                     <CardTitle className="text-lg">

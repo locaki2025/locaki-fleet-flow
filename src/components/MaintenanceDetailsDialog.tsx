@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
   Wrench, 
-  Car, 
+  Bike, 
   Calendar, 
   DollarSign, 
   User, 
@@ -230,7 +230,7 @@ const MaintenanceDetailsDialog = ({ open, onOpenChange, order }: MaintenanceDeta
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base">
-                  <Car className="h-4 w-4" />
+                  <Bike className="h-4 w-4" />
                   Veículo
                 </CardTitle>
               </CardHeader>
