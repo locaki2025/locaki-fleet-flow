@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
-const RASTROSYSTEM_API_URL = 'https://locaki.rastrosystem.com.br/api_v2';
-const RASTROSYSTEM_LOGIN = '54858795000100';
-const RASTROSYSTEM_PASSWORD = '123456';
+const RASTROSYSTEM_API_URL = "https://locaki.rastrosystem.com.br/api_v2";
+const RASTROSYSTEM_LOGIN = "54858795000100";
+const RASTROSYSTEM_PASSWORD = "123456";
 const RASTROSYSTEM_APP = 9;
 
 interface RastrosystemToken {
@@ -21,9 +21,9 @@ export const useRastrosystemSync = () => {
   const authenticateRastrosystem = async (): Promise<RastrosystemToken | null> => {
     try {
       const response = await fetch(`${RASTROSYSTEM_API_URL}/login/`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           login: RASTROSYSTEM_LOGIN,
@@ -33,20 +33,20 @@ export const useRastrosystemSync = () => {
       });
 
       if (!response.ok) {
-        throw new Error('Falha na autenticação com Rastrosystem');
+        throw new Error("Falha na autenticação com Rastrosystem");
       }
 
       const data = await response.json();
-      
+
       // Save token and cliente_id to sessionStorage
-      sessionStorage.setItem('rastrosystem_token', data.token);
-      sessionStorage.setItem('rastrosystem_cliente_id', data.cliente_id);
-      
-      console.log('Autenticação Rastrosystem bem-sucedida');
+      sessionStorage.setItem("rastrosystem_token", data.token);
+      sessionStorage.setItem("rastrosystem_cliente_id", data.cliente_id);
+
+      console.log("Autenticação Rastrosystem bem-sucedida");
       return { token: data.token, cliente_id: data.cliente_id };
     } catch (err) {
-      console.error('Erro na autenticação Rastrosystem:', err);
-      setError(err instanceof Error ? err.message : 'Erro desconhecido');
+      console.error("Erro na autenticação Rastrosystem:", err);
+      setError(err instanceof Error ? err.message : "Erro desconhecido");
       return null;
     }
   };
@@ -55,39 +55,39 @@ export const useRastrosystemSync = () => {
   const syncVehicles = async (token: string, cliente_id: string) => {
     try {
       const response = await fetch(`${RASTROSYSTEM_API_URL}/veiculos/${cliente_id}/`, {
-        method: 'GET',
+        method: "GET",
         headers: {
-          'Authorization': `token ${token}`,
-          'Content-Type': 'application/json',
+          Authorization: `token ${token}`,
+          "Content-Type": "application/json",
         },
       });
 
       if (!response.ok) {
-        throw new Error('Falha ao buscar veículos do Rastrosystem');
+        throw new Error("Falha ao buscar veículos do Rastrosystem");
       }
 
       const vehicles = await response.json();
-      console.log('Veículos do Rastrosystem:', vehicles);
+      console.log("Veículos do Rastrosystem:", vehicles);
 
       // Sync each vehicle to database
       for (const vehicle of vehicles) {
         // Check if vehicle already exists
         const { data: existing } = await supabase
-          .from('vehicles')
-          .select('id')
-          .eq('user_id', user!.id)
-          .eq('plate', vehicle.placa)
+          .from("vehicles")
+          .select("id")
+          .eq("user_id", user!.id)
+          .eq("plate", vehicle.placa)
           .maybeSingle();
 
         const vehicleData = {
           user_id: user!.id,
-          plate: vehicle.placa || '',
-          brand: vehicle.marca || 'Não informado',
-          model: vehicle.modelo || 'Não informado',
-          color: vehicle.cor || 'Não informado',
+          plate: vehicle.placa || "",
+          brand: vehicle.marca || "",
+          model: vehicle.modelo || "Não informado",
+          color: vehicle.cor || "Não informado",
           year: vehicle.ano || new Date().getFullYear(),
-          category: 'carro',
-          status: 'disponivel',
+          category: "carro",
+          status: "disponivel",
           renavam: vehicle.renavam || null,
           chassis: vehicle.chassi || null,
           observations: `Importado do Rastrosystem - ID: ${vehicle.id}`,
@@ -95,23 +95,21 @@ export const useRastrosystemSync = () => {
 
         if (!existing) {
           // Insert new vehicle
-          const { error } = await supabase
-            .from('vehicles')
-            .insert(vehicleData);
+          const { error } = await supabase.from("vehicles").insert(vehicleData);
 
           if (error) {
-            console.error('Erro ao inserir veículo:', error);
+            console.error("Erro ao inserir veículo:", error);
           } else {
-            console.log('Veículo inserido:', vehicle.placa);
+            console.log("Veículo inserido:", vehicle.placa);
           }
         } else {
-          console.log('Veículo já existe:', vehicle.placa);
+          console.log("Veículo já existe:", vehicle.placa);
         }
       }
 
       console.log(`Sincronização de veículos concluída: ${vehicles.length} veículos processados`);
     } catch (err) {
-      console.error('Erro ao sincronizar veículos:', err);
+      console.error("Erro ao sincronizar veículos:", err);
       throw err;
     }
   };
@@ -120,68 +118,66 @@ export const useRastrosystemSync = () => {
   const syncCustomers = async (token: string) => {
     try {
       const response = await fetch(`${RASTROSYSTEM_API_URL}/list-pessoas`, {
-        method: 'GET',
+        method: "GET",
         headers: {
-          'Authorization': `token ${token}`,
-          'Content-Type': 'application/json',
+          Authorization: `token ${token}`,
+          "Content-Type": "application/json",
         },
       });
 
       if (!response.ok) {
-        throw new Error('Falha ao buscar clientes do Rastrosystem');
+        throw new Error("Falha ao buscar clientes do Rastrosystem");
       }
 
       const customers = await response.json();
-      console.log('Clientes do Rastrosystem:', customers);
+      console.log("Clientes do Rastrosystem:", customers);
 
       // Sync each customer to database
       for (const customer of customers) {
         // Check if customer already exists
-        const cpfCnpj = customer.cpf || customer.cnpj || '';
+        const cpfCnpj = customer.cpf || customer.cnpj || "";
         if (!cpfCnpj) continue;
 
         const { data: existing } = await supabase
-          .from('customers')
-          .select('id')
-          .eq('user_id', user!.id)
-          .eq('cpf_cnpj', cpfCnpj)
+          .from("customers")
+          .select("id")
+          .eq("user_id", user!.id)
+          .eq("cpf_cnpj", cpfCnpj)
           .maybeSingle();
 
         const customerData = {
           user_id: user!.id,
-          name: customer.nome || customer.razao_social || 'Não informado',
-          type: customer.cpf ? 'PF' : 'PJ',
+          name: customer.nome || customer.razao_social || "Não informado",
+          type: customer.cpf ? "PF" : "PJ",
           cpf_cnpj: cpfCnpj,
-          email: customer.email || 'nao-informado@email.com',
-          phone: customer.telefone || customer.celular || '(00) 00000-0000',
-          street: customer.endereco || 'Não informado',
-          number: customer.numero || 'S/N',
-          city: customer.cidade || 'Não informado',
-          state: customer.estado || 'XX',
-          zip_code: customer.cep || '00000-000',
-          status: 'ativo',
+          email: customer.email || "nao-informado@email.com",
+          phone: customer.telefone || customer.celular || "(00) 00000-0000",
+          street: customer.endereco || "Não informado",
+          number: customer.numero || "S/N",
+          city: customer.cidade || "Não informado",
+          state: customer.estado || "XX",
+          zip_code: customer.cep || "00000-000",
+          status: "ativo",
           observations: `Importado do Rastrosystem - ID: ${customer.id}`,
         };
 
         if (!existing) {
           // Insert new customer
-          const { error } = await supabase
-            .from('customers')
-            .insert(customerData);
+          const { error } = await supabase.from("customers").insert(customerData);
 
           if (error) {
-            console.error('Erro ao inserir cliente:', error);
+            console.error("Erro ao inserir cliente:", error);
           } else {
-            console.log('Cliente inserido:', customer.nome);
+            console.log("Cliente inserido:", customer.nome);
           }
         } else {
-          console.log('Cliente já existe:', customer.nome);
+          console.log("Cliente já existe:", customer.nome);
         }
       }
 
       console.log(`Sincronização de clientes concluída: ${customers.length} clientes processados`);
     } catch (err) {
-      console.error('Erro ao sincronizar clientes:', err);
+      console.error("Erro ao sincronizar clientes:", err);
       throw err;
     }
   };
@@ -189,19 +185,19 @@ export const useRastrosystemSync = () => {
   // Main sync function
   const performSync = async () => {
     if (!user?.id) {
-      console.log('Usuário não autenticado, pulando sincronização Rastrosystem');
+      console.log("Usuário não autenticado, pulando sincronização Rastrosystem");
       return;
     }
 
     if (syncing) {
-      console.log('Sincronização já em andamento');
+      console.log("Sincronização já em andamento");
       return;
     }
 
     // Check if sync was already done in this session
-    const lastSync = sessionStorage.getItem('rastrosystem_last_sync');
+    const lastSync = sessionStorage.getItem("rastrosystem_last_sync");
     if (lastSync) {
-      console.log('Sincronização Rastrosystem já realizada nesta sessão');
+      console.log("Sincronização Rastrosystem já realizada nesta sessão");
       return;
     }
 
@@ -209,12 +205,12 @@ export const useRastrosystemSync = () => {
     setError(null);
 
     try {
-      console.log('Iniciando sincronização com Rastrosystem...');
-      
+      console.log("Iniciando sincronização com Rastrosystem...");
+
       // Step 1: Authenticate
       const auth = await authenticateRastrosystem();
       if (!auth) {
-        throw new Error('Falha na autenticação');
+        throw new Error("Falha na autenticação");
       }
 
       // Step 2: Sync vehicles
@@ -224,12 +220,12 @@ export const useRastrosystemSync = () => {
       await syncCustomers(auth.token);
 
       // Mark sync as complete for this session
-      sessionStorage.setItem('rastrosystem_last_sync', new Date().toISOString());
-      
-      console.log('Sincronização Rastrosystem concluída com sucesso');
+      sessionStorage.setItem("rastrosystem_last_sync", new Date().toISOString());
+
+      console.log("Sincronização Rastrosystem concluída com sucesso");
     } catch (err) {
-      console.error('Erro na sincronização Rastrosystem:', err);
-      setError(err instanceof Error ? err.message : 'Erro desconhecido');
+      console.error("Erro na sincronização Rastrosystem:", err);
+      setError(err instanceof Error ? err.message : "Erro desconhecido");
     } finally {
       setSyncing(false);
     }
