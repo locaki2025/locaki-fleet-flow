@@ -142,27 +142,27 @@ const Devices = () => {
         return;
       }
 
-      // Buscar dados dos dispositivos associados via vehicle_id
-      const vehicleIds = vehiclesData.map(v => v.id);
+      // Buscar todos os dispositivos do usuário
       const { data: devicesData, error: devicesError } = await supabase
         .from('devices')
         .select('*')
-        .eq('user_id', user.id)
-        .in('vehicle_id', vehicleIds);
+        .eq('user_id', user.id);
 
       if (devicesError) {
         console.error('Error fetching devices:', devicesError);
       }
 
-      // Criar um mapa de dispositivos por vehicle_id
-      const devicesByVehicleId = new Map();
-      devicesData?.forEach(device => {
-        devicesByVehicleId.set(device.vehicle_id, device);
+      // Criar mapas de dispositivos por vehicle_id e por placa
+      const devicesByVehicleId = new Map<string, any>();
+      const devicesByPlate = new Map<string, any>();
+      devicesData?.forEach((device: any) => {
+        if (device.vehicle_id) devicesByVehicleId.set(device.vehicle_id, device);
+        if (device.vehicle_plate) devicesByPlate.set(device.vehicle_plate, device);
       });
 
       // Transformar veículos em formato de dispositivos
       const transformedDevices: Device[] = vehiclesData.map((vehicle) => {
-        const deviceData = devicesByVehicleId.get(vehicle.id);
+        const deviceData = devicesByVehicleId.get(vehicle.id) || devicesByPlate.get(vehicle.plate);
         
         // Calcular status baseado em dados reais se disponível
         const status = vehicle.status === 'disponivel' ? 'online' : 
