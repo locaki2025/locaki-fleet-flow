@@ -165,7 +165,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               rastrosystem_id: vehicle.id.toString(),
               plate: vehicle.placa,
               brand: "",
-              model: vehicle.name - vehicle.modelo,
+              model: vehicle.modelo || vehicle.name || "Não informado",
               imei: vehicle.imei,
               color: "Não informado",
               year: new Date().getFullYear(),
