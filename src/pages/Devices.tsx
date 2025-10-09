@@ -147,73 +147,103 @@ const Devices = () => {
     try {
       setLoading(true);
       
-      // Buscar veículos do Supabase com seus dispositivos usando a relação vehicle_id
-      const { data: vehiclesData, error } = await supabase
-        .from('vehicles')
+      // Buscar configuração do Rastrosystem
+      const { data: configData } = await supabase
+        .from('tenant_config')
         .select('*')
         .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+        .eq('config_key', 'rastrosystem_settings')
+        .maybeSingle();
 
-      if (error) {
-        console.error('Supabase error fetching vehicles:', error);
-        throw new Error(`Erro ao carregar dispositivos: ${error.message}`);
+      const config = configData?.config_value as any;
+
+      if (!config?.username || !config?.password) {
+        console.warn('Rastrosystem não configurado, mostrando dados do banco');
+        // Fallback: buscar do banco
+        const { data: vehiclesData } = await supabase
+          .from('vehicles')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+
+        const transformedDevices: Device[] = (vehiclesData || []).map((vehicle) => ({
+          id: vehicle.id,
+          name: [vehicle.brand, vehicle.model].filter(v => v && v !== "Não informado").join(" "),
+          imei: vehicle.tracker_id || 'N/A',
+          vehiclePlate: vehicle.plate,
+          status: vehicle.status === 'disponivel' ? 'online' : 'offline',
+          lastUpdate: vehicle.updated_at || new Date().toISOString(),
+          battery: 0,
+          signal: 0,
+          location: { lat: 0, lng: 0, address: vehicle.plate }
+        }));
+
+        setDevices(transformedDevices);
+        return;
       }
 
-      if (!vehiclesData || vehiclesData.length === 0) {
-        console.log('Nenhum veículo encontrado');
+      // Autenticar no Rastrosystem
+      const authResponse = await fetch(`${config.api_base_url}/api_v2/login/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: config.username, password: config.password }),
+      });
+
+      if (!authResponse.ok) {
+        throw new Error('Falha ao autenticar no Rastrosystem');
+      }
+
+      const { token } = await authResponse.json();
+
+      // Buscar veículos da API Rastrosystem
+      const vehiclesResponse = await fetch(`${config.api_base_url}/api_v2/veiculos/${user.id}/`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!vehiclesResponse.ok) {
+        throw new Error('Falha ao buscar veículos do Rastrosystem');
+      }
+
+      const vehicles = await vehiclesResponse.json();
+
+      if (!vehicles || vehicles.length === 0) {
+        console.log('Nenhum veículo encontrado no Rastrosystem');
         setDevices([]);
         return;
       }
 
-      // Buscar todos os dispositivos do usuário
-      const { data: devicesData, error: devicesError } = await supabase
-        .from('devices')
-        .select('*')
-        .eq('user_id', user.id);
+      // Transformar dados da API em formato de dispositivos
+      const transformedDevices: Device[] = vehicles.map((vehicle: any) => {
+        const imei = vehicle.imei || vehicle.unique_id || '';
+        const battery = vehicle.attributes?.battery || 0;
+        const gsm = vehicle.attributes?.gsm || 0;
+        const signalBars = Math.max(0, Math.min(4, Math.round((Number(gsm) / 100) * 4)));
 
-      if (devicesError) {
-        console.error('Error fetching devices:', devicesError);
-      }
-
-      // Criar mapas de dispositivos por vehicle_id e por placa
-      const devicesByVehicleId = new Map<string, any>();
-      const devicesByPlate = new Map<string, any>();
-      devicesData?.forEach((device: any) => {
-        if (device.vehicle_id) devicesByVehicleId.set(device.vehicle_id, device);
-        if (device.vehicle_plate) devicesByPlate.set(device.vehicle_plate, device);
-      });
-
-      // Transformar veículos em formato de dispositivos
-      const transformedDevices: Device[] = vehiclesData.map((vehicle) => {
-        const deviceData = devicesByVehicleId.get(vehicle.id) || devicesByPlate.get(vehicle.plate);
-        
-        // Calcular status baseado em dados reais se disponível
-        const status = vehicle.status === 'disponivel' ? 'online' : 
-                      vehicle.status === 'manutencao' ? 'maintenance' : 'offline';
-
-        const vehicleName = [vehicle.brand, vehicle.model]
-          .filter(v => v && v !== "Não informado")
-          .join(" ");
+        const vehicleName = vehicle.name || vehicle.placa || 'Veículo';
 
         return {
-          id: vehicle.id,
+          id: String(vehicle.veiculo_id || vehicle.id),
           name: vehicleName,
-          imei: deviceData?.imei || vehicle.tracker_id || 'N/A',
-          vehiclePlate: vehicle.plate,
-          status: status,
-          lastUpdate: deviceData?.last_update || vehicle.updated_at || new Date().toISOString(),
-          battery: deviceData?.battery || 0,
-          signal: deviceData?.signal || 0,
+          imei: imei,
+          vehiclePlate: vehicle.placa,
+          status: (vehicle.status === true || vehicle.status_veiculo === 1) ? 'online' : 'offline',
+          lastUpdate: vehicle.server_time || vehicle.time || new Date().toISOString(),
+          battery: battery,
+          signal: signalBars,
           location: {
-            lat: deviceData?.latitude || 0,
-            lng: deviceData?.longitude || 0,
-            address: deviceData?.address || `${vehicleName} - ${vehicle.plate}`
+            lat: vehicle.latitude || 0,
+            lng: vehicle.longitude || 0,
+            address: vehicle.address || `${vehicleName} - ${vehicle.placa}`
           }
         };
       });
 
       setDevices(transformedDevices);
-      console.log('Devices loaded successfully:', transformedDevices.length);
+      console.log('Devices loaded successfully from Rastrosystem API:', transformedDevices.length);
     } catch (error) {
       console.error('Erro ao buscar dispositivos:', error);
       setDevices([]);
