@@ -200,7 +200,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             batteryLevel = 3;
           } else if (rawBattery <= 80) {
             batteryLevel = 4;
-          else {
+          } else {
             batteryLevel = 5;
           }
 
