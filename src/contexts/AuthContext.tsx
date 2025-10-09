@@ -144,8 +144,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (vehiclesResponse.ok) {
         const vehiclesData = await vehiclesResponse.json();
         const vehicles = vehiclesData.dispositivos || [];
-        console.error("vehiclesData:", vehiclesData);
 
+        console.log("vehiclesData:", vehiclesData);
         console.log(`Sincronizando ${vehicles.length} veículos do Rastrosystem...`);
 
         for (const vehicle of vehicles) {
