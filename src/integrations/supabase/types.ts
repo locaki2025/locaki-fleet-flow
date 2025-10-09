@@ -401,6 +401,7 @@ export type Database = {
           tracker_model: string | null
           updated_at: string
           user_id: string
+          vehicle_id: string | null
           vehicle_plate: string
         }
         Insert: {
@@ -419,6 +420,7 @@ export type Database = {
           tracker_model?: string | null
           updated_at?: string
           user_id: string
+          vehicle_id?: string | null
           vehicle_plate: string
         }
         Update: {
@@ -437,9 +439,18 @@ export type Database = {
           tracker_model?: string | null
           updated_at?: string
           user_id?: string
+          vehicle_id?: string | null
           vehicle_plate?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "devices_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       expense_types: {
         Row: {
