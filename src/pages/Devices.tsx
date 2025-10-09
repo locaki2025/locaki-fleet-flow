@@ -163,41 +163,30 @@ const Devices = () => {
 
       if (!config?.username || !config?.password) {
         console.warn("Rastrosystem não configurado, mostrando dados do banco");
-        // Fallback: buscar do banco
-        const { data: vehiclesData } = await supabase
-          .from("vehicles")
+        // Fallback: buscar diretamente da tabela devices que já tem IMEI e bateria
+        const { data: devicesData } = await supabase
+          .from("devices")
           .select("*")
           .eq("user_id", user.id)
           .order("created_at", { ascending: false });
 
-        console.log("vehiclesData:", vehiclesData);
+        console.log("devicesData:", devicesData);
 
-        // Buscar devices vinculados aos veículos para obter IMEI e bateria
-        const vehicleIds = (vehiclesData || []).map((v: any) => v.id);
-        const { data: devicesRows } = vehicleIds.length
-          ? await supabase
-              .from("devices")
-              .select("id, vehicle_id, imei, battery, signal, last_update")
-              .in("vehicle_id", vehicleIds)
-              .eq("user_id", user.id)
-          : ({ data: [], error: null } as any);
-
-        const deviceByVehicleId = new Map<string, any>((devicesRows || []).map((d: any) => [d.vehicle_id, d]));
-
-        const transformedDevices: Device[] = (vehiclesData || []).map((vehicle: any) => {
-          const linked = deviceByVehicleId.get(vehicle.id);
-          return {
-            id: vehicle.id,
-            name: [vehicle.brand, vehicle.model].filter((v: string) => v && v !== "Não informado").join(" "),
-            imei: (linked?.imei ?? "").toString() || "N/A",
-            vehiclePlate: vehicle.plate,
-            status: vehicle.status === "disponivel" ? "online" : "offline",
-            lastUpdate: linked?.last_update || vehicle.updated_at || new Date().toISOString(),
-            battery: typeof linked?.battery === "number" ? linked.battery : 0,
-            signal: typeof linked?.signal === "number" ? linked.signal : 0,
-            location: { lat: 0, lng: 0, address: vehicle.plate },
-          };
-        });
+        const transformedDevices: Device[] = (devicesData || []).map((device: any) => ({
+          id: device.id,
+          name: device.name,
+          imei: device.imei || 'N/A',
+          vehiclePlate: device.vehicle_plate,
+          status: device.status || 'offline',
+          lastUpdate: device.last_update || new Date().toISOString(),
+          battery: device.battery || 0,
+          signal: device.signal || 0,
+          location: { 
+            lat: device.latitude || 0, 
+            lng: device.longitude || 0, 
+            address: device.address || device.vehicle_plate 
+          }
+        }));
 
         setDevices(transformedDevices);
         return;
