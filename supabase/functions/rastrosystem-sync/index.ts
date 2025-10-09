@@ -88,7 +88,7 @@ const syncDevicesFromRastrosystem = async (userId: string, config: RastrosystemC
       'success'
     );
 
-    // Sync each vehicle to our devices table
+    // Sync each vehicle to our vehicles and devices tables
     for (const vehicle of vehicles) {
       // Get latest position for this vehicle
       let lastPosition = null;
@@ -108,31 +108,35 @@ const syncDevicesFromRastrosystem = async (userId: string, config: RastrosystemC
         console.log(`Error fetching position for vehicle ${vehicle.device_id}:`, error);
       }
 
-      // Upsert vehicle no Supabase a partir da placa
+      // Extrair vehicle_id da API Rastrosystem
+      const apiVehicleId = String(vehicle.veiculo_id ?? vehicle.id ?? '');
+
+      // Upsert vehicle no Supabase usando vehicle_id como identificador único
       const vehiclePayload: any = {
         user_id: userId,
         plate: vehicle.placa,
-        brand: 'Rastrosystem',
+        brand: vehicle.marca || 'Rastrosystem',
         model: vehicle.name || vehicle.nome || vehicle.modelo || 'Veículo',
-        color: 'preto',
-        category: 'moto',
-        year: new Date().getFullYear(),
+        color: vehicle.cor || 'preto',
+        category: vehicle.categoria || 'moto',
+        year: vehicle.ano || new Date().getFullYear(),
         odometer: Number(vehicle.odometer) ? Math.round(Number(vehicle.odometer)) : 0,
         chip_number: vehicle.chip ?? null,
         tracker_model: vehicle.modelo || vehicle.modelo_equipamento || null,
-        tracker_id: String(vehicle.imei || vehicle.unique_id || vehicle.device_id || ''),
         status: (vehicle.status_veiculo === 1 ? 'disponivel' : 'indisponivel'),
-        rastrosystem_id: String(vehicle.veiculo_id ?? vehicle.id ?? ''),
-        vehicle_id: String(vehicle.veiculo_id ?? vehicle.id ?? ''),
+        rastrosystem_id: apiVehicleId,
+        vehicle_id: apiVehicleId,
         updated_at: new Date().toISOString(),
       };
 
       let vehicleId: string | null = null;
+      
+      // Buscar veículo existente pelo vehicle_id da API
       const { data: existingVehicle } = await supabase
         .from('vehicles')
         .select('id')
         .eq('user_id', userId)
-        .eq('plate', vehicle.placa)
+        .eq('vehicle_id', apiVehicleId)
         .maybeSingle();
 
       if (existingVehicle?.id) {
@@ -150,6 +154,11 @@ const syncDevicesFromRastrosystem = async (userId: string, config: RastrosystemC
           .select('id')
           .maybeSingle();
         vehicleId = inserted?.id ?? null;
+      }
+
+      if (!vehicleId) {
+        console.error(`Failed to upsert vehicle: ${vehicle.placa}`);
+        continue;
       }
 
       // Mapear sinal GSM (0-100) para barras (0-4)
@@ -171,12 +180,14 @@ const syncDevicesFromRastrosystem = async (userId: string, config: RastrosystemC
         }
       };
 
-      // Upsert device data
+      // Upsert device usando vehicle_id como chave estrangeira
       const deviceData: any = {
         user_id: userId,
         name: vehicle.name || vehicle.nome || vehicle.placa,
         imei: String(vehicle.imei || vehicle.unique_id || vehicle.device_id || ''),
         vehicle_plate: vehicle.placa,
+        chip_number: vehicle.chip ?? null,
+        tracker_model: vehicle.modelo || vehicle.modelo_equipamento || vehicle.protocolo || null,
         status: (vehicle.status === true || vehicle.status_veiculo === 1) ? 'online' : 'offline',
         latitude: vehicle.latitude ?? lastPosition?.latitude ?? null,
         longitude: vehicle.longitude ?? lastPosition?.longitude ?? null,
@@ -184,17 +195,16 @@ const syncDevicesFromRastrosystem = async (userId: string, config: RastrosystemC
         last_update: vehicle.server_time ? parseBrDate(vehicle.server_time) : (vehicle.time ? parseBrDate(vehicle.time) : new Date()),
         battery: (vehicle.attributes?.battery ?? lastPosition?.bateria ?? 100) as number,
         signal: signalBars,
-        tracker_model: vehicle.modelo || vehicle.modelo_equipamento || vehicle.protocolo || null,
+        vehicle_id: vehicleId, // FK para a tabela vehicles
         updated_at: new Date().toISOString(),
-        vehicle_id: vehicleId,
       };
 
-      // Verificar se já existe pelo IMEI
+      // Verificar se já existe device para este veículo
       const { data: existingDevice } = await supabase
         .from('devices')
         .select('id')
         .eq('user_id', userId)
-        .eq('imei', deviceData.imei)
+        .eq('vehicle_id', vehicleId)
         .maybeSingle();
 
       if (existingDevice) {
@@ -208,7 +218,7 @@ const syncDevicesFromRastrosystem = async (userId: string, config: RastrosystemC
           .insert(deviceData);
       }
 
-      console.log(`Synced device: ${deviceData.name} (${deviceData.imei})`);
+      console.log(`Synced vehicle and device: ${vehicle.placa} (vehicle_id: ${apiVehicleId})`);
     }
 
     return { success: true, count: vehicles.length };
