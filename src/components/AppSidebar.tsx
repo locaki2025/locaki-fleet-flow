@@ -1,7 +1,7 @@
 import { 
   LayoutDashboard, 
   Users, 
-  Car, 
+  Bike, 
   FileText, 
   Wrench, 
   DollarSign, 
@@ -39,7 +39,7 @@ const menuItems = [
   {
     title: "Veículos",
     url: "/vehicles",
-    icon: Car,
+    icon: Bike,
   },
   {
     title: "Rastreadores",
