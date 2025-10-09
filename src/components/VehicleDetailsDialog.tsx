@@ -160,7 +160,7 @@ const VehicleDetailsDialog = ({ open, onOpenChange, vehicle, onVehicleUpdate }: 
                 plate: rastroDevice.placa || vehicle.plate,
                 brand: vehicle.brand,
                 model: vehicle.model,
-                name: rastroDevice.name || `${vehicle.brand} ${vehicle.model}`,
+                name: rastroDevice.name || `${vehicle.name} ${vehicle.model}`,
                 latitude: lat,
                 longitude: lng,
                 status: rastroDevice.status ? "online" : "offline",
