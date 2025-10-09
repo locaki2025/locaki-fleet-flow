@@ -38,19 +38,19 @@ const Vehicles = () => {
     if (!user) return;
 
     const channel = supabase
-      .channel('vehicles-changes')
+      .channel("vehicles-changes")
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: '*',
-          schema: 'public',
-          table: 'vehicles',
-          filter: `user_id=eq.${user.id}`
+          event: "*",
+          schema: "public",
+          table: "vehicles",
+          filter: `user_id=eq.${user.id}`,
         },
         () => {
-          console.log('Veículo atualizado, recarregando lista...');
+          console.log("Veículo atualizado, recarregando lista...");
           fetchVehicles();
-        }
+        },
       )
       .subscribe();
 
@@ -61,27 +61,27 @@ const Vehicles = () => {
 
   const fetchVehicles = async () => {
     if (!user?.id) {
-      console.warn('No user ID found, skipping vehicles fetch');
+      console.warn("No user ID found, skipping vehicles fetch");
       setLoading(false);
       return;
     }
 
     try {
       const { data, error } = await supabase
-        .from('vehicles')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+        .from("vehicles")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
 
       if (error) {
-        console.error('Supabase error fetching vehicles:', error);
+        console.error("Supabase error fetching vehicles:", error);
         throw new Error(`Erro ao carregar veículos: ${error.message}`);
       }
-      
+
       setVehicles(data || []);
-      console.log('Vehicles loaded successfully:', data?.length || 0);
+      console.log("Vehicles loaded successfully:", data?.length || 0);
     } catch (error) {
-      console.error('Erro ao buscar veículos:', error);
+      console.error("Erro ao buscar veículos:", error);
       toast({
         title: "Erro no carregamento",
         description: error instanceof Error ? error.message : "Não foi possível carregar os veículos.",
@@ -96,20 +96,16 @@ const Vehicles = () => {
     if (!user?.id) return;
 
     try {
-      const { data, error } = await supabase
-        .from('contratos')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('status', 'ativo');
+      const { data, error } = await supabase.from("contratos").select("*").eq("user_id", user.id).eq("status", "ativo");
 
       if (error) {
-        console.error('Error fetching contracts:', error);
+        console.error("Error fetching contracts:", error);
         return;
       }
-      
+
       setContracts(data || []);
     } catch (error) {
-      console.error('Error fetching contracts:', error);
+      console.error("Error fetching contracts:", error);
     }
   };
 
@@ -120,15 +116,13 @@ const Vehicles = () => {
 
   const getVehicleStatus = (vehicle: any) => {
     // Verifica se existe um contrato ativo para esta placa
-    const activeContract = contracts.find(contract => 
-      contract.moto_id === vehicle.id && contract.status === 'ativo'
-    );
-    
-    return activeContract ? 'alugado' : vehicle.status;
+    const activeContract = contracts.find((contract) => contract.moto_id === vehicle.id && contract.status === "ativo");
+
+    return activeContract ? "alugado" : vehicle.status;
   };
 
   const handleViewOnMap = (vehicle: any) => {
-    navigate('/map');
+    navigate("/map");
     toast({
       title: "Redirecionando para o mapa",
       description: `Mostrando localização de ${vehicle.plate}`,
@@ -138,66 +132,65 @@ const Vehicles = () => {
   const handleViewDetails = async (vehicle: any) => {
     // Buscar localização do Rastrosystem se disponível
     let vehicleWithLocation = { ...vehicle };
-    
+
     if (vehicle.rastrosystem_id) {
       try {
         const { data: config } = await supabase
-          .from('tenant_config')
-          .select('config_value')
-          .eq('user_id', user?.id)
-          .eq('config_key', 'rastrosystem')
+          .from("tenant_config")
+          .select("config_value")
+          .eq("user_id", user?.id)
+          .eq("config_key", "rastrosystem")
           .single();
 
         if (config?.config_value) {
           const rastroConfig = config.config_value as any;
-          
+
           // Fazer login no Rastrosystem
-          const loginResponse = await fetch('https://rastrosystem.com.br/api/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+          const loginResponse = await fetch("https://rastrosystem.com.br/api/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               login: rastroConfig.username,
-              senha: rastroConfig.password
-            })
+              senha: rastroConfig.password,
+            }),
           });
-          
+
           if (loginResponse.ok) {
             const { token } = await loginResponse.json();
-            
+
             // Buscar posição do veículo
-            const positionResponse = await fetch(`https://rastrosystem.com.br/api/posicoes/${vehicle.rastrosystem_id}`, {
-              headers: { 'Authorization': `Bearer ${token}` }
-            });
-            
+            const positionResponse = await fetch(
+              `https://rastrosystem.com.br/api/posicoes/${vehicle.rastrosystem_id}`,
+              {
+                headers: { Authorization: `Bearer ${token}` },
+              },
+            );
+
             if (positionResponse.ok) {
               const position = await positionResponse.json();
-              
+
               if (position.latitude && position.longitude) {
                 vehicleWithLocation.lastLocation = {
                   lat: parseFloat(position.latitude),
                   lng: parseFloat(position.longitude),
-                  address: position.endereco || 'Endereço não disponível',
-                  updatedAt: position.data_hora || new Date().toISOString()
+                  address: position.endereco || "Endereço não disponível",
+                  updatedAt: position.data_hora || new Date().toISOString(),
                 };
               }
             }
           }
         }
       } catch (error) {
-        console.error('Erro ao buscar localização:', error);
+        console.error("Erro ao buscar localização:", error);
       }
     }
-    
+
     setSelectedVehicle(vehicleWithLocation);
     setIsDetailsDialogOpen(true);
   };
 
   const toggleStatusFilter = (status: string) => {
-    setStatusFilters(prev => 
-      prev.includes(status) 
-        ? prev.filter(s => s !== status)
-        : [...prev, status]
-    );
+    setStatusFilters((prev) => (prev.includes(status) ? prev.filter((s) => s !== status) : [...prev, status]));
   };
 
   const clearFilters = () => {
@@ -212,10 +205,7 @@ const Vehicles = () => {
           <h1 className="text-3xl font-bold text-foreground">Veículos</h1>
           <p className="text-muted-foreground">Gerencie sua frota de motocicletas</p>
         </div>
-        <Button 
-          className="bg-gradient-primary hover:opacity-90"
-          onClick={() => setIsVehicleDialogOpen(true)}
-        >
+        <Button className="bg-gradient-primary hover:opacity-90" onClick={() => setIsVehicleDialogOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />
           Novo Veículo
         </Button>
@@ -239,7 +229,9 @@ const Vehicles = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Disponíveis</p>
-                <p className="text-2xl font-bold text-success">{vehicles.filter(v => getVehicleStatus(v) === 'disponivel').length}</p>
+                <p className="text-2xl font-bold text-success">
+                  {vehicles.filter((v) => getVehicleStatus(v) === "disponivel").length}
+                </p>
               </div>
               <div className="h-8 w-8 rounded-full bg-success/20 flex items-center justify-center">
                 <Bike className="h-4 w-4 text-success" />
@@ -252,7 +244,9 @@ const Vehicles = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Alugadas</p>
-                <p className="text-2xl font-bold text-accent">{vehicles.filter(v => getVehicleStatus(v) === 'alugado').length}</p>
+                <p className="text-2xl font-bold text-accent">
+                  {vehicles.filter((v) => getVehicleStatus(v) === "alugado").length}
+                </p>
               </div>
               <div className="h-8 w-8 rounded-full bg-accent/20 flex items-center justify-center">
                 <Bike className="h-4 w-4 text-accent" />
@@ -265,7 +259,9 @@ const Vehicles = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Manutenção</p>
-                <p className="text-2xl font-bold text-warning">{vehicles.filter(v => getVehicleStatus(v) === 'manutencao').length}</p>
+                <p className="text-2xl font-bold text-warning">
+                  {vehicles.filter((v) => getVehicleStatus(v) === "manutencao").length}
+                </p>
               </div>
               <div className="h-8 w-8 rounded-full bg-warning/20 flex items-center justify-center">
                 <Bike className="h-4 w-4 text-warning" />
@@ -305,12 +301,7 @@ const Vehicles = () => {
                   <div className="flex items-center justify-between">
                     <h4 className="font-semibold text-sm">Filtrar por Status</h4>
                     {statusFilters.length > 0 && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={clearFilters}
-                        className="h-auto p-1 text-xs"
-                      >
+                      <Button variant="ghost" size="sm" onClick={clearFilters} className="h-auto p-1 text-xs">
                         <X className="h-3 w-3 mr-1" />
                         Limpar
                       </Button>
@@ -318,13 +309,13 @@ const Vehicles = () => {
                   </div>
                   <div className="space-y-3">
                     <div className="flex items-center space-x-2">
-                      <Checkbox 
+                      <Checkbox
                         id="disponivel"
-                        checked={statusFilters.includes('disponivel')}
-                        onCheckedChange={() => toggleStatusFilter('disponivel')}
+                        checked={statusFilters.includes("disponivel")}
+                        onCheckedChange={() => toggleStatusFilter("disponivel")}
                       />
-                      <Label 
-                        htmlFor="disponivel" 
+                      <Label
+                        htmlFor="disponivel"
                         className="text-sm font-normal cursor-pointer flex items-center gap-2"
                       >
                         <div className="h-2 w-2 rounded-full bg-success" />
@@ -332,27 +323,24 @@ const Vehicles = () => {
                       </Label>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <Checkbox 
+                      <Checkbox
                         id="alugado"
-                        checked={statusFilters.includes('alugado')}
-                        onCheckedChange={() => toggleStatusFilter('alugado')}
+                        checked={statusFilters.includes("alugado")}
+                        onCheckedChange={() => toggleStatusFilter("alugado")}
                       />
-                      <Label 
-                        htmlFor="alugado" 
-                        className="text-sm font-normal cursor-pointer flex items-center gap-2"
-                      >
+                      <Label htmlFor="alugado" className="text-sm font-normal cursor-pointer flex items-center gap-2">
                         <div className="h-2 w-2 rounded-full bg-accent" />
                         Alugados
                       </Label>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <Checkbox 
+                      <Checkbox
                         id="manutencao"
-                        checked={statusFilters.includes('manutencao')}
-                        onCheckedChange={() => toggleStatusFilter('manutencao')}
+                        checked={statusFilters.includes("manutencao")}
+                        onCheckedChange={() => toggleStatusFilter("manutencao")}
                       />
-                      <Label 
-                        htmlFor="manutencao" 
+                      <Label
+                        htmlFor="manutencao"
                         className="text-sm font-normal cursor-pointer flex items-center gap-2"
                       >
                         <div className="h-2 w-2 rounded-full bg-warning" />
@@ -378,13 +366,8 @@ const Vehicles = () => {
           <CardContent className="py-12 text-center">
             <Bike className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-semibold mb-2">Nenhum veículo cadastrado</h3>
-            <p className="text-muted-foreground mb-4">
-              Cadastre seu primeiro veículo para começar
-            </p>
-            <Button 
-              className="bg-gradient-primary hover:opacity-90"
-              onClick={() => setIsVehicleDialogOpen(true)}
-            >
+            <p className="text-muted-foreground mb-4">Cadastre seu primeiro veículo para começar</p>
+            <Button className="bg-gradient-primary hover:opacity-90" onClick={() => setIsVehicleDialogOpen(true)}>
               <Plus className="h-4 w-4 mr-2" />
               Cadastrar Veículo
             </Button>
@@ -395,117 +378,119 @@ const Vehicles = () => {
           {vehicles
             .filter((vehicle) => {
               const search = searchTerm.toLowerCase();
-              const matchesSearch = vehicle.plate.toLowerCase().includes(search) || 
-                     vehicle.brand.toLowerCase().includes(search) ||
-                     vehicle.model.toLowerCase().includes(search) ||
-                     (vehicle.category && vehicle.category.toLowerCase().includes(search));
-              
+              const matchesSearch =
+                vehicle.plate.toLowerCase().includes(search) ||
+                vehicle.brand.toLowerCase().includes(search) ||
+                vehicle.model.toLowerCase().includes(search) ||
+                (vehicle.category && vehicle.category.toLowerCase().includes(search));
+
               const vehicleStatus = getVehicleStatus(vehicle);
               const matchesStatus = statusFilters.length === 0 || statusFilters.includes(vehicleStatus);
-              
+
               return matchesSearch && matchesStatus;
             })
             .map((vehicle) => (
-          <Card key={vehicle.id} className="hover:shadow-md transition-shadow">
-            <CardHeader className="pb-3">
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                <div className="h-16 w-16 rounded-lg bg-gradient-primary/10 flex items-center justify-center">
-                    <Bike className="h-8 w-8 text-primary" />
+              <Card key={vehicle.id} className="hover:shadow-md transition-shadow">
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="h-16 w-16 rounded-lg bg-gradient-primary/10 flex items-center justify-center">
+                        <Bike className="h-8 w-8 text-primary" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-lg">
+                          {[vehicle.brand, vehicle.model].filter((v) => v && v !== "Não informado").join(" ")}
+                        </CardTitle>
+                        <CardDescription className="font-mono text-lg">{vehicle.plate}</CardDescription>
+                      </div>
+                    </div>
+                    <Badge
+                      variant={
+                        getVehicleStatus(vehicle) === "disponivel"
+                          ? "default"
+                          : getVehicleStatus(vehicle) === "alugado"
+                            ? "secondary"
+                            : getVehicleStatus(vehicle) === "manutencao"
+                              ? "destructive"
+                              : "outline"
+                      }
+                      className={
+                        getVehicleStatus(vehicle) === "disponivel"
+                          ? "bg-success text-success-foreground"
+                          : getVehicleStatus(vehicle) === "alugado"
+                            ? "bg-accent text-accent-foreground"
+                            : getVehicleStatus(vehicle) === "manutencao"
+                              ? "bg-warning text-warning-foreground"
+                              : ""
+                      }
+                    >
+                      {getVehicleStatus(vehicle) === "disponivel"
+                        ? "Disponível"
+                        : getVehicleStatus(vehicle) === "alugado"
+                          ? "Alugada"
+                          : getVehicleStatus(vehicle) === "manutencao"
+                            ? "Manutenção"
+                            : getVehicleStatus(vehicle)}
+                    </Badge>
                   </div>
-                  <div>
-                    <CardTitle className="text-lg">
-                      {[vehicle.brand, vehicle.model]
-                        .filter(v => v && v !== "Não informado")
-                        .join(" ")}
-                    </CardTitle>
-                    <CardDescription className="font-mono text-lg">{vehicle.plate}</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <p className="text-muted-foreground">Ano</p>
+                      <p className="font-medium">{}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Cor</p>
+                      <p className="font-medium">{vehicle.color}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Categoria</p>
+                      <p className="font-medium">{vehicle.category}</p>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Gauge className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm">{vehicle.odometer.toLocaleString()} km</span>
+                    </div>
                   </div>
-                </div>
-                 <Badge 
-                  variant={
-                    getVehicleStatus(vehicle) === 'disponivel' ? 'default' :
-                    getVehicleStatus(vehicle) === 'alugado' ? 'secondary' :
-                    getVehicleStatus(vehicle) === 'manutencao' ? 'destructive' : 'outline'
-                  }
-                  className={
-                    getVehicleStatus(vehicle) === 'disponivel' ? 'bg-success text-success-foreground' :
-                    getVehicleStatus(vehicle) === 'alugado' ? 'bg-accent text-accent-foreground' :
-                    getVehicleStatus(vehicle) === 'manutencao' ? 'bg-warning text-warning-foreground' : ''
-                  }
-                >
-                  {getVehicleStatus(vehicle) === 'disponivel' ? 'Disponível' :
-                   getVehicleStatus(vehicle) === 'alugado' ? 'Alugada' :
-                   getVehicleStatus(vehicle) === 'manutencao' ? 'Manutenção' : getVehicleStatus(vehicle)}
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <p className="text-muted-foreground">Ano</p>
-                  <p className="font-medium">{vehicle.year}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Cor</p>
-                  <p className="font-medium">{vehicle.color}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Categoria</p>
-                  <p className="font-medium">{vehicle.category}</p>
-                </div>
-                <div className="flex items-center gap-1">
-                  <Gauge className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">{vehicle.odometer.toLocaleString()} km</span>
-                </div>
-              </div>
-              
-              {vehicle.lastLocation && (
-                <div className="flex items-center gap-2 p-2 bg-accent/10 rounded-lg">
-                  <MapPin className="h-4 w-4 text-accent" />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">Última localização</p>
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(vehicle.lastLocation.updatedAt).toLocaleString('pt-BR')}
-                    </p>
-                  </div>
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    onClick={() => handleViewOnMap(vehicle)}
-                  >
-                    Ver no Mapa
-                  </Button>
-                </div>
-              )}
 
-              <div className="flex items-center justify-between pt-3 border-t">
-                <span className="text-xs text-muted-foreground">
-                  {vehicle.tracker ? `Rastreador: ${vehicle.tracker}` : 'Sem rastreador'}
-                </span>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => handleViewDetails(vehicle)}
-                >
-                  Ver Detalhes
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-          ))
-          }
+                  {vehicle.lastLocation && (
+                    <div className="flex items-center gap-2 p-2 bg-accent/10 rounded-lg">
+                      <MapPin className="h-4 w-4 text-accent" />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">Última localização</p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(vehicle.lastLocation.updatedAt).toLocaleString("pt-BR")}
+                        </p>
+                      </div>
+                      <Button variant="ghost" size="sm" onClick={() => handleViewOnMap(vehicle)}>
+                        Ver no Mapa
+                      </Button>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between pt-3 border-t">
+                    <span className="text-xs text-muted-foreground">
+                      {vehicle.tracker ? `Rastreador: ${vehicle.tracker}` : "Sem rastreador"}
+                    </span>
+                    <Button variant="outline" size="sm" onClick={() => handleViewDetails(vehicle)}>
+                      Ver Detalhes
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
         </div>
       )}
 
-      <VehicleDialog 
-        open={isVehicleDialogOpen} 
+      <VehicleDialog
+        open={isVehicleDialogOpen}
         onOpenChange={setIsVehicleDialogOpen}
         onVehicleUpdated={handleVehicleCreated}
       />
 
-      <VehicleDetailsDialog 
-        open={isDetailsDialogOpen} 
+      <VehicleDetailsDialog
+        open={isDetailsDialogOpen}
         onOpenChange={setIsDetailsDialogOpen}
         vehicle={selectedVehicle}
         onVehicleUpdate={handleVehicleCreated}
