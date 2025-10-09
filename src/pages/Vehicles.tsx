@@ -387,6 +387,7 @@ const Vehicles = () => {
               const vehicleStatus = getVehicleStatus(vehicle);
               const matchesStatus = statusFilters.length === 0 || statusFilters.includes(vehicleStatus);
 
+              console.error("vehicle:", vehicle);
               return matchesSearch && matchesStatus;
             })
             .map((vehicle) => (
