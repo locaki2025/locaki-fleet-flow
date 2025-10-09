@@ -166,14 +166,14 @@ const Devices = () => {
           .eq('user_id', user.id)
           .order('created_at', { ascending: false });
 
-        const transformedDevices: Device[] = (vehiclesData || []).map((vehicle) => ({
+        const transformedDevices: Device[] = (vehiclesData || []).map((vehicle: any) => ({
           id: vehicle.id,
           name: [vehicle.brand, vehicle.model].filter(v => v && v !== "Não informado").join(" "),
-          imei: vehicle.tracker_id || 'N/A',
+          imei: vehicle.imei || 'N/A',
           vehiclePlate: vehicle.plate,
           status: vehicle.status === 'disponivel' ? 'online' : 'offline',
           lastUpdate: vehicle.updated_at || new Date().toISOString(),
-          battery: 0,
+          battery: vehicle.attributes?.battery || 0,
           signal: 0,
           location: { lat: 0, lng: 0, address: vehicle.plate }
         }));
