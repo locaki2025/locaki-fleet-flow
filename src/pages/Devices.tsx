@@ -148,9 +148,13 @@ const Devices = () => {
         const status = vehicle.status === 'disponivel' ? 'online' : 
                       vehicle.status === 'manutencao' ? 'maintenance' : 'offline';
 
+        const vehicleName = [vehicle.brand, vehicle.model]
+          .filter(v => v && v !== "Não informado")
+          .join(" ");
+
         return {
           id: vehicle.id,
-          name: `${vehicle.brand} ${vehicle.model}`,
+          name: vehicleName,
           imei: vehicle.tracker_id || 'N/A',
           vehiclePlate: vehicle.plate,
           status: status,
@@ -160,7 +164,7 @@ const Devices = () => {
           location: {
             lat: 0,
             lng: 0,
-            address: `${vehicle.brand} ${vehicle.model} - ${vehicle.plate}`
+            address: `${vehicleName} - ${vehicle.plate}`
           }
         };
       });
