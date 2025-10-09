@@ -592,7 +592,7 @@ const Devices = () => {
                       </div>
                       <div>
                         <p className="font-medium">{device.name}</p>
-                        <p className="text-sm text-muted-foreground">{device.vehiclePlate}</p>
+                        <p className="text-sm text-muted-foreground">{device.vehiclePlate} • IMEI: {device.imei}</p>
                       </div>
                     </div>
                      <Button variant="outline" size="sm" onClick={() => handleDeviceAction("Ver localização", device.id)}>
@@ -621,6 +621,7 @@ const Devices = () => {
                       </div>
                       <div>
                         <p className="font-medium">{device.name}</p>
+                        <p className="text-sm text-muted-foreground">{device.vehiclePlate} • IMEI: {device.imei}</p>
                         <p className="text-sm text-destructive">Sem comunicação há {Math.floor((Date.now() - new Date(device.lastUpdate).getTime()) / (1000 * 60 * 60))} horas</p>
                       </div>
                     </div>
@@ -655,6 +656,7 @@ const Devices = () => {
                       </div>
                       <div>
                         <p className="font-medium">{device.name}</p>
+                        <p className="text-sm text-muted-foreground">{device.vehiclePlate} • IMEI: {device.imei}</p>
                         <p className="text-sm text-warning">Em manutenção programada</p>
                       </div>
                     </div>
