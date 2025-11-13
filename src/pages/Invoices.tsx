@@ -169,7 +169,29 @@ const Invoices = () => {
     }
   };
 
-  const filteredInvoices = invoices.filter(invoice =>
+  // Combine local invoices with Cora invoices
+  const allInvoices = [
+    ...invoices.map(inv => ({ ...inv, source: 'local' })),
+    ...coraInvoices.map(inv => ({
+      id: inv.id,
+      fatura_id: inv.code || inv.id,
+      cliente_nome: inv.customer?.name || 'Cliente não identificado',
+      descricao: inv.description || '',
+      valor: (inv.amount || 0) / 100,
+      vencimento: inv.due_date,
+      data_pagamento: inv.paid_at,
+      valor_pago: inv.paid_amount ? (inv.paid_amount / 100) : null,
+      status: inv.status === 'PAID' ? 'pago' : 
+              inv.status === 'PENDING' ? 'pendente' :
+              inv.status === 'CANCELLED' ? 'cancelado' : 'pendente',
+      placa: null,
+      codigo_barras: inv.barcode,
+      source: 'cora',
+      raw_cora_data: inv
+    }))
+  ];
+
+  const filteredInvoices = allInvoices.filter(invoice =>
     invoice.cliente_nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     invoice.fatura_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     invoice.descricao?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -478,7 +500,6 @@ const Invoices = () => {
           <TabsTrigger value="pending">Pendentes ({pendingInvoices.length})</TabsTrigger>
           <TabsTrigger value="paid">Pagas ({paidInvoices.length})</TabsTrigger>
           <TabsTrigger value="overdue">Vencidas ({overdueInvoices.length})</TabsTrigger>
-          <TabsTrigger value="cora">Boletos Cora ({coraInvoices.length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="all" className="space-y-4">
@@ -497,10 +518,14 @@ const Invoices = () => {
                   </div>
                 ) : (
                   filteredInvoices.map((invoice) => (
-                    <div key={invoice.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50">
+                    <div key={`${invoice.source}-${invoice.id}`} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50">
                       <div className="flex items-center gap-4">
-                        <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                          <Receipt className="h-6 w-6 text-primary" />
+                        <div className={`h-12 w-12 rounded-full flex items-center justify-center ${
+                          invoice.source === 'cora' ? 'bg-accent/10' : 'bg-primary/10'
+                        }`}>
+                          <Receipt className={`h-6 w-6 ${
+                            invoice.source === 'cora' ? 'text-accent' : 'text-primary'
+                          }`} />
                         </div>
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
@@ -508,6 +533,11 @@ const Invoices = () => {
                             <Badge className={getStatusColor(invoice.status)}>
                               {getStatusText(invoice.status)}
                             </Badge>
+                            {invoice.source === 'cora' && (
+                              <Badge variant="outline" className="text-xs">
+                                Banco Cora
+                              </Badge>
+                            )}
                           </div>
                           <p className="text-sm font-medium">{invoice.cliente_nome}</p>
                           <p className="text-sm text-muted-foreground">{invoice.descricao}</p>
@@ -729,113 +759,6 @@ const Invoices = () => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="cora" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>Boletos Cora</CardTitle>
-                  <CardDescription>
-                    Boletos consultados diretamente da API do Banco Cora
-                  </CardDescription>
-                </div>
-                <Button 
-                  onClick={fetchCoraInvoices}
-                  variant="outline"
-                  size="sm"
-                  disabled={loadingCoraInvoices}
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  {loadingCoraInvoices ? 'Carregando...' : 'Atualizar'}
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {loadingCoraInvoices ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    Carregando boletos do Cora...
-                  </div>
-                ) : coraInvoices.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    Nenhum boleto encontrado no Cora
-                  </div>
-                ) : (
-                  coraInvoices.map((invoice: any) => (
-                    <div key={invoice.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50">
-                      <div className="flex items-center gap-4">
-                        <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                          <Receipt className="h-6 w-6 text-primary" />
-                        </div>
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <p className="font-medium">{invoice.code || invoice.id}</p>
-                            <Badge className={
-                              invoice.status === 'PAID' ? 'bg-success text-white' :
-                              invoice.status === 'PENDING' ? 'bg-warning text-white' :
-                              invoice.status === 'CANCELLED' ? 'bg-muted text-muted-foreground' :
-                              'bg-muted text-muted-foreground'
-                            }>
-                              {invoice.status === 'PAID' ? 'Pago' :
-                               invoice.status === 'PENDING' ? 'Pendente' :
-                               invoice.status === 'CANCELLED' ? 'Cancelado' :
-                               invoice.status}
-                            </Badge>
-                          </div>
-                          {invoice.description && (
-                            <p className="text-sm text-muted-foreground">{invoice.description}</p>
-                          )}
-                          {invoice.customer?.name && (
-                            <p className="text-sm font-medium">{invoice.customer.name}</p>
-                          )}
-                          <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                            {invoice.due_date && (
-                              <div className="flex items-center gap-1">
-                                <Calendar className="h-3 w-3" />
-                                Venc: {new Date(invoice.due_date).toLocaleDateString('pt-BR')}
-                              </div>
-                            )}
-                            {invoice.paid_at && (
-                              <div className="flex items-center gap-1">
-                                <CheckCircle2 className="h-3 w-3 text-success" />
-                                Pago: {new Date(invoice.paid_at).toLocaleDateString('pt-BR')}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center gap-4">
-                        <div className="text-right">
-                          <p className="text-lg font-bold">
-                            R$ {((invoice.amount || 0) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                          </p>
-                          {invoice.paid_amount && invoice.paid_amount !== invoice.amount && (
-                            <p className="text-sm text-success">
-                              Pago: R$ {((invoice.paid_amount || 0) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                            </p>
-                          )}
-                        </div>
-                        
-                        {invoice.barcode && (
-                          <Button variant="outline" size="sm" onClick={() => {
-                            navigator.clipboard.writeText(invoice.barcode);
-                            toast({
-                              title: "Copiado!",
-                              description: "Código de barras copiado para a área de transferência",
-                            });
-                          }}>
-                            Copiar Código
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
       </Tabs>
 
       <InvoiceDialog 
