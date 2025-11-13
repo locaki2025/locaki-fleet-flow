@@ -32,8 +32,8 @@ const CoraConfigDialog = ({ open, onOpenChange }: CoraConfigDialogProps) => {
     client_id: '',
     certificate: '',
     private_key: '',
-    base_url: '',
-    environment: ''
+    base_url: 'https://matls-clients.api.stage.cora.com.br',
+    environment: 'stage'
   });
 
   const handleCertificateUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -107,14 +107,14 @@ const CoraConfigDialog = ({ open, onOpenChange }: CoraConfigDialogProps) => {
 
       if (data && data.config_value) {
         const loadedConfig = data.config_value as any as CoraConfig;
-        
-        // Fix base_url if it's incorrect based on environment
-        const correctBaseUrl = loadedConfig.environment === 'production'
+        // Normalize environment and base_url
+        const env: 'production' | 'stage' = loadedConfig.environment === 'production' ? 'production' : 'stage';
+        const correctBaseUrl = env === 'production'
           ? 'https://matls-clients.api.cora.com.br'
           : 'https://matls-clients.api.stage.cora.com.br';
-        
         setConfig({
           ...loadedConfig,
+          environment: env,
           base_url: correctBaseUrl
         });
       }
