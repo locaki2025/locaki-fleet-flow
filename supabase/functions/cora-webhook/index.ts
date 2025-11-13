@@ -415,6 +415,83 @@ const autoReconcileTransaction = async (userId: string, transaction: CoraTransac
   }
 };
 
+// Fetch invoices from Cora API
+const fetchCoraInvoices = async (userId: string, config: CoraConfig, filters?: {
+  start?: string;
+  end?: string;
+  state?: string;
+  page?: number;
+  perPage?: number;
+}) => {
+  try {
+    const PROXY_URL = 'https://cora-mtls-proxy.onrender.com';
+    const PROXY_SECRET = 'locakicoraproxy';
+    let accessToken = await getCoraAccessToken(userId, config);
+    
+    const invoicesResponse = await fetch(`${PROXY_URL}/cora/invoices`, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'X-Proxy-Secret': PROXY_SECRET
+      },
+      body: JSON.stringify({
+        access_token: accessToken,
+        certificate: config.certificate,
+        private_key: config.private_key,
+        base_url: config.base_url,
+        start: filters?.start || '',
+        end: filters?.end || '',
+        state: filters?.state || '',
+        page: filters?.page || 1,
+        perPage: filters?.perPage || 50
+      })
+    });
+
+    // If token expired, refresh and retry
+    if (invoicesResponse.status === 401 || invoicesResponse.status === 403) {
+      console.log('Token expired while fetching invoices, refreshing...');
+      await invalidateToken(userId);
+      accessToken = await getCoraAccessToken(userId, config, true);
+      
+      const retryResponse = await fetch(`${PROXY_URL}/cora/invoices`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Proxy-Secret': PROXY_SECRET
+        },
+        body: JSON.stringify({
+          access_token: accessToken,
+          certificate: config.certificate,
+          private_key: config.private_key,
+          base_url: config.base_url,
+          start: filters?.start || '',
+          end: filters?.end || '',
+          state: filters?.state || '',
+          page: filters?.page || 1,
+          perPage: filters?.perPage || 50
+        })
+      });
+
+      if (!retryResponse.ok) {
+        const errorText = await retryResponse.text();
+        throw new Error(`Erro ao buscar boletos: ${retryResponse.status} - ${errorText}`);
+      }
+
+      return await retryResponse.json();
+    }
+
+    if (!invoicesResponse.ok) {
+      const errorText = await invoicesResponse.text();
+      throw new Error(`Erro ao buscar boletos: ${invoicesResponse.status} - ${errorText}`);
+    }
+
+    return await invoicesResponse.json();
+  } catch (error) {
+    console.error('Error fetching Cora invoices:', error);
+    throw error;
+  }
+};
+
 // Test Cora API connection through proxy
 const testCoraConnection = async (userId: string, config: any) => {
   try {
@@ -478,6 +555,27 @@ const handler = async (req: Request): Promise<Response> => {
       }
 
       const result = await syncCoraTransactions(user_id, config, start_date, end_date);
+      return new Response(JSON.stringify(result), {
+        headers: { 
+          'Content-Type': 'application/json',
+          ...corsHeaders 
+        },
+      });
+    }
+
+    if (payload.action === 'fetch_invoices') {
+      const { user_id, config, filters } = payload;
+      
+      if (!user_id || !config) {
+        return new Response(JSON.stringify({
+          error: 'Missing required parameters: user_id, config'
+        }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders }
+        });
+      }
+
+      const result = await fetchCoraInvoices(user_id, config, filters);
       return new Response(JSON.stringify(result), {
         headers: { 
           'Content-Type': 'application/json',

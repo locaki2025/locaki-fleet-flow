@@ -42,13 +42,70 @@ const Invoices = () => {
   const [customers, setCustomers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [coraInvoices, setCoraInvoices] = useState<any[]>([]);
+  const [loadingCoraInvoices, setLoadingCoraInvoices] = useState(false);
 
   useEffect(() => {
     if (user) {
       fetchInvoices();
       fetchCustomers();
+      fetchCoraInvoices();
     }
   }, [user]);
+
+  const fetchCoraInvoices = async () => {
+    if (!user?.id) return;
+    
+    try {
+      setLoadingCoraInvoices(true);
+      
+      // Get Cora configuration
+      const { data: configData, error: configError } = await supabase
+        .from('tenant_config')
+        .select('config_value')
+        .eq('user_id', user.id)
+        .eq('config_key', 'cora_settings')
+        .maybeSingle();
+
+      if (configError || !configData) {
+        console.log('No Cora configuration found');
+        return;
+      }
+
+      // Fetch invoices from last 90 days
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - 90);
+
+      const { data, error } = await supabase.functions.invoke('cora-webhook', {
+        body: {
+          action: 'fetch_invoices',
+          user_id: user.id,
+          config: configData.config_value,
+          filters: {
+            start: startDate.toISOString().split('T')[0],
+            end: endDate.toISOString().split('T')[0],
+            page: 1,
+            perPage: 100
+          }
+        }
+      });
+
+      if (error) throw error;
+
+      setCoraInvoices(data?.invoices || []);
+      console.log('Cora invoices loaded:', data?.invoices?.length || 0);
+    } catch (error) {
+      console.error('Error fetching Cora invoices:', error);
+      toast({
+        title: "Erro ao buscar boletos do Cora",
+        description: error instanceof Error ? error.message : "Erro desconhecido",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingCoraInvoices(false);
+    }
+  };
 
   const fetchInvoices = async () => {
     if (!user?.id) {
@@ -421,6 +478,7 @@ const Invoices = () => {
           <TabsTrigger value="pending">Pendentes ({pendingInvoices.length})</TabsTrigger>
           <TabsTrigger value="paid">Pagas ({paidInvoices.length})</TabsTrigger>
           <TabsTrigger value="overdue">Vencidas ({overdueInvoices.length})</TabsTrigger>
+          <TabsTrigger value="cora">Boletos Cora ({coraInvoices.length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="all" className="space-y-4">
@@ -662,6 +720,114 @@ const Invoices = () => {
                         <Button variant="destructive" size="sm">
                           Cobrar Urgente
                         </Button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="cora" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Boletos Cora</CardTitle>
+                  <CardDescription>
+                    Boletos consultados diretamente da API do Banco Cora
+                  </CardDescription>
+                </div>
+                <Button 
+                  onClick={fetchCoraInvoices}
+                  variant="outline"
+                  size="sm"
+                  disabled={loadingCoraInvoices}
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  {loadingCoraInvoices ? 'Carregando...' : 'Atualizar'}
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {loadingCoraInvoices ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    Carregando boletos do Cora...
+                  </div>
+                ) : coraInvoices.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    Nenhum boleto encontrado no Cora
+                  </div>
+                ) : (
+                  coraInvoices.map((invoice: any) => (
+                    <div key={invoice.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50">
+                      <div className="flex items-center gap-4">
+                        <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+                          <Receipt className="h-6 w-6 text-primary" />
+                        </div>
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium">{invoice.code || invoice.id}</p>
+                            <Badge className={
+                              invoice.status === 'PAID' ? 'bg-success text-white' :
+                              invoice.status === 'PENDING' ? 'bg-warning text-white' :
+                              invoice.status === 'CANCELLED' ? 'bg-muted text-muted-foreground' :
+                              'bg-muted text-muted-foreground'
+                            }>
+                              {invoice.status === 'PAID' ? 'Pago' :
+                               invoice.status === 'PENDING' ? 'Pendente' :
+                               invoice.status === 'CANCELLED' ? 'Cancelado' :
+                               invoice.status}
+                            </Badge>
+                          </div>
+                          {invoice.description && (
+                            <p className="text-sm text-muted-foreground">{invoice.description}</p>
+                          )}
+                          {invoice.customer?.name && (
+                            <p className="text-sm font-medium">{invoice.customer.name}</p>
+                          )}
+                          <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                            {invoice.due_date && (
+                              <div className="flex items-center gap-1">
+                                <Calendar className="h-3 w-3" />
+                                Venc: {new Date(invoice.due_date).toLocaleDateString('pt-BR')}
+                              </div>
+                            )}
+                            {invoice.paid_at && (
+                              <div className="flex items-center gap-1">
+                                <CheckCircle2 className="h-3 w-3 text-success" />
+                                Pago: {new Date(invoice.paid_at).toLocaleDateString('pt-BR')}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-4">
+                        <div className="text-right">
+                          <p className="text-lg font-bold">
+                            R$ {((invoice.amount || 0) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </p>
+                          {invoice.paid_amount && invoice.paid_amount !== invoice.amount && (
+                            <p className="text-sm text-success">
+                              Pago: R$ {((invoice.paid_amount || 0) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            </p>
+                          )}
+                        </div>
+                        
+                        {invoice.barcode && (
+                          <Button variant="outline" size="sm" onClick={() => {
+                            navigator.clipboard.writeText(invoice.barcode);
+                            toast({
+                              title: "Copiado!",
+                              description: "Código de barras copiado para a área de transferência",
+                            });
+                          }}>
+                            Copiar Código
+                          </Button>
+                        )}
                       </div>
                     </div>
                   ))
