@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, Save, TestTube, CreditCard } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -210,111 +211,115 @@ const CoraConfigDialog = ({ open, onOpenChange }: CoraConfigDialogProps) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <CreditCard className="h-5 w-5" />
-            Configurações do Banco Cora
-          </DialogTitle>
-          <DialogDescription>
-            Configure sua integração com o Banco Cora para automatizar a geração de boletos e PIX
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="grid gap-4 py-4">
-          <div className="space-y-2">
-            <Label htmlFor="client_id">Client ID</Label>
-            <Input
-              id="client_id"
-              placeholder="Seu Client ID da API Cora"
-              value={config.client_id}
-              onChange={(e) => setConfig({ ...config, client_id: e.target.value })}
-            />
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="certificate">Certificado (arquivo .pem ou .crt)</Label>
-            <div className="flex flex-col gap-2">
-              <Input
-                id="certificate"
-                type="file"
-                accept=".pem,.crt"
-                onChange={handleCertificateUpload}
-                className="cursor-pointer"
-              />
-              {config.certificate && (
-                <div className="text-xs text-muted-foreground bg-muted p-2 rounded">
-                  ✓ Certificado carregado ({config.certificate.length} caracteres)
-                </div>
-              )}
-            </div>
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="private_key">Chave Privada (arquivo .key ou .pem)</Label>
-            <div className="flex flex-col gap-2">
-              <Input
-                id="private_key"
-                type="file"
-                accept=".key,.pem"
-                onChange={handlePrivateKeyUpload}
-                className="cursor-pointer"
-              />
-              {config.private_key && (
-                <div className="text-xs text-muted-foreground bg-muted p-2 rounded">
-                  ✓ Chave privada carregada ({config.private_key.length} caracteres)
-                </div>
-              )}
-            </div>
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="environment">Ambiente</Label>
-            <select
-              id="environment"
-              className="w-full p-2 border rounded-md bg-background"
-              value={config.environment}
-              onChange={(e) => {
-                const env = e.target.value as 'production' | 'stage';
-                setConfig({ 
-                  ...config, 
-                  environment: env,
-                  base_url: env === 'production' 
-                    ? 'https://matls-clients.api.cora.com.br'
-                    : 'https://matls-clients.api.stage.cora.com.br'
-                });
-              }}
-            >
-              <option value="stage">Stage (Testes)</option>
-              <option value="production">Produção</option>
-            </select>
-          </div>
-
-          <div className="bg-muted/50 p-3 rounded-md text-xs space-y-1">
-            <p className="font-semibold">ℹ️ Informação</p>
-            <p className="text-muted-foreground">
-              Os certificados são enviados ao proxy mTLS para autenticação com a API do Cora.
-            </p>
-          </div>
-
-          <div className="flex gap-2 pt-2">
-            <Button
-              variant="outline"
-              onClick={testConnection}
-              disabled={testing || !config.client_id || !config.certificate || !config.private_key}
-              className="flex-1"
-            >
-              {testing ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <TestTube className="mr-2 h-4 w-4" />
-              )}
-              Testar Conexão
-            </Button>
-          </div>
+      <DialogContent className="sm:max-w-[500px] max-h-[85vh] flex flex-col p-0">
+        <div className="px-6 pt-6">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CreditCard className="h-5 w-5" />
+              Configurações do Banco Cora
+            </DialogTitle>
+            <DialogDescription>
+              Configure sua integração com o Banco Cora para automatizar a geração de boletos e PIX
+            </DialogDescription>
+          </DialogHeader>
         </div>
 
-        <div className="flex justify-end gap-2">
+        <ScrollArea className="flex-1 px-6">
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="client_id">Client ID</Label>
+              <Input
+                id="client_id"
+                placeholder="Seu Client ID da API Cora"
+                value={config.client_id}
+                onChange={(e) => setConfig({ ...config, client_id: e.target.value })}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="certificate">Certificado (arquivo .pem ou .crt)</Label>
+              <div className="flex flex-col gap-2">
+                <Input
+                  id="certificate"
+                  type="file"
+                  accept=".pem,.crt"
+                  onChange={handleCertificateUpload}
+                  className="cursor-pointer"
+                />
+                {config.certificate && (
+                  <div className="text-xs text-muted-foreground bg-muted p-2 rounded">
+                    ✓ Certificado carregado ({config.certificate.length} caracteres)
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="private_key">Chave Privada (arquivo .key ou .pem)</Label>
+              <div className="flex flex-col gap-2">
+                <Input
+                  id="private_key"
+                  type="file"
+                  accept=".key,.pem"
+                  onChange={handlePrivateKeyUpload}
+                  className="cursor-pointer"
+                />
+                {config.private_key && (
+                  <div className="text-xs text-muted-foreground bg-muted p-2 rounded">
+                    ✓ Chave privada carregada ({config.private_key.length} caracteres)
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="environment">Ambiente</Label>
+              <select
+                id="environment"
+                className="w-full p-2 border rounded-md bg-background"
+                value={config.environment}
+                onChange={(e) => {
+                  const env = e.target.value as 'production' | 'stage';
+                  setConfig({ 
+                    ...config, 
+                    environment: env,
+                    base_url: env === 'production' 
+                      ? 'https://matls-clients.api.cora.com.br'
+                      : 'https://matls-clients.api.stage.cora.com.br'
+                  });
+                }}
+              >
+                <option value="stage">Stage (Testes)</option>
+                <option value="production">Produção</option>
+              </select>
+            </div>
+
+            <div className="bg-muted/50 p-3 rounded-md text-xs space-y-1">
+              <p className="font-semibold">ℹ️ Informação</p>
+              <p className="text-muted-foreground">
+                Os certificados são enviados ao proxy mTLS para autenticação com a API do Cora.
+              </p>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <Button
+                variant="outline"
+                onClick={testConnection}
+                disabled={testing || !config.client_id || !config.certificate || !config.private_key}
+                className="flex-1"
+              >
+                {testing ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <TestTube className="mr-2 h-4 w-4" />
+                )}
+                Testar Conexão
+              </Button>
+            </div>
+          </div>
+        </ScrollArea>
+
+        <div className="flex justify-end gap-2 px-6 pb-6 pt-4 border-t">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
