@@ -36,6 +36,17 @@ const CoraConfigDialog = ({ open, onOpenChange }: CoraConfigDialogProps) => {
     environment: 'production'
   });
 
+  // Update base_url when environment changes
+  useEffect(() => {
+    const newBaseUrl = config.environment === 'production' 
+      ? 'https://matls-clients.api.cora.com.br'
+      : 'https://matls-clients.api.stage.cora.com.br';
+    
+    if (config.base_url !== newBaseUrl) {
+      setConfig(prev => ({ ...prev, base_url: newBaseUrl }));
+    }
+  }, [config.environment]);
+
   const handleCertificateUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
@@ -106,7 +117,17 @@ const CoraConfigDialog = ({ open, onOpenChange }: CoraConfigDialogProps) => {
       }
 
       if (data && data.config_value) {
-        setConfig(data.config_value as any as CoraConfig);
+        const loadedConfig = data.config_value as any as CoraConfig;
+        
+        // Fix base_url if it's incorrect based on environment
+        const correctBaseUrl = loadedConfig.environment === 'production'
+          ? 'https://matls-clients.api.cora.com.br'
+          : 'https://matls-clients.api.stage.cora.com.br';
+        
+        setConfig({
+          ...loadedConfig,
+          base_url: correctBaseUrl
+        });
       }
     } catch (error) {
       console.error('Error loading Cora config:', error);

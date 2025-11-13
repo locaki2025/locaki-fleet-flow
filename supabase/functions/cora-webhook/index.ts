@@ -157,7 +157,11 @@ const getCoraAccessToken = async (userId: string, config: CoraConfig, forceRefre
       }
     }
 
-    console.log('Fetching new Cora token from proxy');
+    console.log('Fetching new Cora token from proxy', { 
+      base_url: config.base_url,
+      client_id: config.client_id 
+    });
+    
     const response = await fetch(`${PROXY_URL}/cora/token`, {
       method: 'POST',
       headers: { 
@@ -172,12 +176,17 @@ const getCoraAccessToken = async (userId: string, config: CoraConfig, forceRefre
       })
     });
 
+    const responseText = await response.text();
+    console.log('Proxy token response:', { 
+      status: response.status, 
+      body: responseText 
+    });
+
     if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Erro ao obter token: ${response.status} - ${errorText}`);
+      throw new Error(`Erro ao obter token: ${response.status} - ${responseText}`);
     }
 
-    const data = await response.json();
+    const data = JSON.parse(responseText);
     const accessToken = data.access_token;
     const expiresIn = data.expires_in || 3600; // Default 1 hour
 
