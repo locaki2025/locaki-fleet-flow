@@ -180,6 +180,7 @@ const CoraConfigDialog = ({ open, onOpenChange }: CoraConfigDialogProps) => {
       const { data, error } = await supabase.functions.invoke('cora-webhook', {
         body: {
           action: 'test_connection',
+          user_id: user.id,
           config
         }
       });
