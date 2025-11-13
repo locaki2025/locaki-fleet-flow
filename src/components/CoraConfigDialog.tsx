@@ -138,11 +138,14 @@ const CoraConfigDialog = ({ open, onOpenChange }: CoraConfigDialogProps) => {
     try {
       const { error } = await supabase
         .from('tenant_config')
-        .upsert({
-          user_id: user.id,
-          config_key: 'cora_settings',
-          config_value: config as any
-        });
+        .upsert(
+          {
+            user_id: user.id,
+            config_key: 'cora_settings',
+            config_value: config as any,
+          },
+          { onConflict: 'user_id,config_key' }
+        );
 
       if (error) throw error;
 
