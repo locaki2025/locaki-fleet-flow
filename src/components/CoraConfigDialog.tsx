@@ -100,9 +100,9 @@ const CoraConfigDialog = ({ open, onOpenChange }: CoraConfigDialogProps) => {
         .select('config_value')
         .eq('user_id', user.id)
         .eq('config_key', 'cora_settings')
-        .single();
+        .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') { // Not found error is ok
+      if (error) {
         throw error;
       }
 
@@ -136,13 +136,32 @@ const CoraConfigDialog = ({ open, onOpenChange }: CoraConfigDialogProps) => {
 
     setSaving(true);
     try {
+      // Preserve previously saved certificate/private_key if user didn't reupload
+      const payload: CoraConfig = { ...config } as CoraConfig;
+
+      if (!payload.certificate || payload.certificate.trim() === '' ||
+          !payload.private_key || payload.private_key.trim() === '') {
+        const { data: existing } = await supabase
+          .from('tenant_config')
+          .select('config_value')
+          .eq('user_id', user.id)
+          .eq('config_key', 'cora_settings')
+          .maybeSingle();
+
+        if (existing?.config_value) {
+          const saved = existing.config_value as any as CoraConfig;
+          payload.certificate = payload.certificate?.trim() ? payload.certificate : saved.certificate || '';
+          payload.private_key = payload.private_key?.trim() ? payload.private_key : saved.private_key || '';
+        }
+      }
+
       const { error } = await supabase
         .from('tenant_config')
         .upsert(
           {
             user_id: user.id,
             config_key: 'cora_settings',
-            config_value: config as any,
+            config_value: payload as any,
           },
           { onConflict: 'user_id,config_key' }
         );
