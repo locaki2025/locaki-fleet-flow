@@ -19,7 +19,8 @@ import {
   CheckCircle2,
   Clock,
   Send,
-  Settings
+  Settings,
+  Loader2
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -49,7 +50,7 @@ const Invoices = () => {
     if (user) {
       fetchInvoices();
       fetchCustomers();
-      fetchCoraInvoices();
+      // Removed automatic Cora fetch - user will click button to fetch
     }
   }, [user]);
 
@@ -68,7 +69,11 @@ const Invoices = () => {
         .maybeSingle();
 
       if (configError || !configData) {
-        console.log('No Cora configuration found');
+        toast({
+          title: "Configuração não encontrada",
+          description: "Configure a integração com o Cora antes de consultar boletos",
+          variant: "destructive",
+        });
         return;
       }
 
@@ -76,6 +81,11 @@ const Invoices = () => {
       const endDate = new Date();
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - 90);
+
+      console.log('Fetching Cora invoices...', {
+        start: startDate.toISOString().split('T')[0],
+        end: endDate.toISOString().split('T')[0]
+      });
 
       const { data, error } = await supabase.functions.invoke('cora-webhook', {
         body: {
@@ -91,10 +101,17 @@ const Invoices = () => {
         }
       });
 
+      console.log('Cora invoices response:', { data, error });
+
       if (error) throw error;
 
       setCoraInvoices(data?.invoices || []);
       console.log('Cora invoices loaded:', data?.invoices?.length || 0);
+      
+      toast({
+        title: "Boletos consultados",
+        description: `${data?.invoices?.length || 0} boletos encontrados no Banco Cora`,
+      });
     } catch (error) {
       console.error('Error fetching Cora invoices:', error);
       toast({
@@ -375,20 +392,37 @@ const Invoices = () => {
           </div>
         </div>
         <div className="flex gap-2">
-        <Button 
-          className="bg-gradient-primary hover:opacity-90"
-          onClick={() => setIsInvoiceDialogOpen(true)}
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Nova Fatura
-        </Button>
-        <Button 
-          variant="outline"
-          onClick={() => setIsCoraConfigOpen(true)}
-        >
-          <Settings className="h-4 w-4 mr-2" />
-          Config. Cora
-        </Button>
+          <Button 
+            className="bg-gradient-primary hover:opacity-90"
+            onClick={() => setIsInvoiceDialogOpen(true)}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Nova Fatura
+          </Button>
+          <Button 
+            variant="outline"
+            onClick={fetchCoraInvoices}
+            disabled={loadingCoraInvoices}
+          >
+            {loadingCoraInvoices ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Consultando...
+              </>
+            ) : (
+              <>
+                <Download className="h-4 w-4 mr-2" />
+                Consultar Boletos Cora
+              </>
+            )}
+          </Button>
+          <Button 
+            variant="outline"
+            onClick={() => setIsCoraConfigOpen(true)}
+          >
+            <Settings className="h-4 w-4 mr-2" />
+            Config. Cora
+          </Button>
         </div>
       </div>
 
