@@ -32,8 +32,8 @@ const CoraConfigDialog = ({ open, onOpenChange }: CoraConfigDialogProps) => {
     client_id: '',
     certificate: '',
     private_key: '',
-    base_url: 'https://matls-clients.api.cora.com.br',
-    environment: 'production'
+    base_url: '',
+    environment: ''
   });
 
   const handleCertificateUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
