@@ -712,6 +712,36 @@ export type Database = {
           },
         ]
       }
+      profiles: {
+        Row: {
+          created_at: string
+          full_name: string | null
+          id: string
+          mobile_access: boolean | null
+          phone: string | null
+          require_mfa: boolean | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          full_name?: string | null
+          id: string
+          mobile_access?: boolean | null
+          phone?: string | null
+          require_mfa?: boolean | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          mobile_access?: boolean | null
+          phone?: string | null
+          require_mfa?: boolean | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       tenant_config: {
         Row: {
           config_key: string
@@ -935,10 +965,7 @@ export type Database = {
         }
         Returns: boolean
       }
-      is_admin: {
-        Args: { _user_id: string }
-        Returns: boolean
-      }
+      is_admin: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "user"

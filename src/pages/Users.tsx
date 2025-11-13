@@ -31,12 +31,10 @@ interface UserData {
   email: string;
   created_at: string;
   role?: string;
-  raw_user_meta_data?: {
-    full_name?: string;
-    phone?: string;
-    mobile_access?: boolean;
-    require_mfa?: boolean;
-  };
+  full_name?: string;
+  phone?: string;
+  mobile_access?: boolean;
+  require_mfa?: boolean;
 }
 
 export default function Users() {
@@ -75,7 +73,26 @@ export default function Users() {
 
       if (error) throw error;
 
-      setUsers(data.users);
+      // Fetch profiles data
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('*');
+
+      if (profilesError) throw profilesError;
+
+      // Merge user data with profiles
+      const usersWithProfiles = data.users.map((user: any) => {
+        const profile = profiles?.find(p => p.id === user.id);
+        return {
+          ...user,
+          full_name: profile?.full_name,
+          phone: profile?.phone,
+          mobile_access: profile?.mobile_access,
+          require_mfa: profile?.require_mfa,
+        };
+      });
+
+      setUsers(usersWithProfiles);
     } catch (error: any) {
       console.error("Error fetching users:", error);
       toast({
@@ -189,7 +206,7 @@ export default function Users() {
   const filteredUsers = users.filter((u) => {
     const matchesSearch =
       u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.raw_user_meta_data?.full_name?.toLowerCase().includes(searchTerm.toLowerCase());
+      u.full_name?.toLowerCase().includes(searchTerm.toLowerCase());
 
     return matchesSearch;
   });
@@ -399,7 +416,7 @@ export default function Users() {
                   filteredUsers.map((userData) => (
                     <TableRow key={userData.id}>
                       <TableCell className="font-medium">
-                        {userData.raw_user_meta_data?.full_name || "-"}
+                        {userData.full_name || "-"}
                       </TableCell>
                       <TableCell>{userData.email}</TableCell>
                       <TableCell>
