@@ -512,10 +512,34 @@ const fetchCoraInvoices = async (userId: string, config: CoraConfig, filters?: {
   }
 };
 
+// Get Cora config from database
+const getCoraConfig = async (userId: string): Promise<CoraConfig | null> => {
+  const { data, error } = await supabase
+    .from('tenant_config')
+    .select('config_value')
+    .eq('user_id', userId)
+    .eq('config_key', 'cora_settings')
+    .single();
+
+  if (error || !data) {
+    console.error('Error fetching Cora config:', error);
+    return null;
+  }
+
+  return data.config_value as CoraConfig;
+};
+
 // Test Cora API connection through proxy
-const testCoraConnection = async (userId: string, config: any) => {
+const testCoraConnection = async (userId: string, config?: any) => {
   try {
-    const { client_id, certificate, private_key, base_url } = config;
+    // Fetch config from database if not provided
+    const coraConfig = config || await getCoraConfig(userId);
+    
+    if (!coraConfig) {
+      throw new Error('Configuração do Cora não encontrada. Por favor, configure a integração primeiro.');
+    }
+
+    const { client_id, certificate, private_key } = coraConfig;
     
     if (!client_id || !certificate || !private_key) {
       throw new Error('Configuração incompleta: client_id, certificado e chave privada são obrigatórios');
@@ -525,7 +549,7 @@ const testCoraConnection = async (userId: string, config: any) => {
     const PROXY_SECRET = 'locakicoraproxy';
     
     // Test by getting a token (will cache it for future use)
-    await getCoraAccessToken(userId, config as CoraConfig, true);
+    await getCoraAccessToken(userId, coraConfig as CoraConfig, true);
     
     return { success: true, message: 'Conexão com Cora estabelecida com sucesso através do proxy mTLS' };
 
@@ -546,14 +570,14 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Handle different actions
     if (payload.action === 'test_connection') {
-      const { user_id, config } = payload;
+      const { user_id } = payload;
       if (!user_id) {
         return new Response(JSON.stringify({ error: 'Missing user_id' }), {
           status: 400,
           headers: { 'Content-Type': 'application/json', ...corsHeaders }
         });
       }
-      const result = await testCoraConnection(user_id, config);
+      const result = await testCoraConnection(user_id);
       return new Response(JSON.stringify(result), {
         headers: { 
           'Content-Type': 'application/json',
@@ -563,13 +587,23 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     if (payload.action === 'sync_transactions') {
-      const { user_id, config, start_date, end_date } = payload;
+      const { user_id, start_date, end_date } = payload;
       
-      if (!user_id || !config || !start_date || !end_date) {
+      if (!user_id || !start_date || !end_date) {
         return new Response(JSON.stringify({
-          error: 'Missing required parameters: user_id, config, start_date, end_date'
+          error: 'Missing required parameters: user_id, start_date, end_date'
         }), {
           status: 400,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders }
+        });
+      }
+
+      const config = await getCoraConfig(user_id);
+      if (!config) {
+        return new Response(JSON.stringify({
+          error: 'Configuração do Cora não encontrada'
+        }), {
+          status: 404,
           headers: { 'Content-Type': 'application/json', ...corsHeaders }
         });
       }
@@ -584,13 +618,23 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     if (payload.action === 'fetch_invoices') {
-      const { user_id, config, filters } = payload;
+      const { user_id, filters } = payload;
       
-      if (!user_id || !config) {
+      if (!user_id) {
         return new Response(JSON.stringify({
-          error: 'Missing required parameters: user_id, config'
+          error: 'Missing required parameter: user_id'
         }), {
           status: 400,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders }
+        });
+      }
+
+      const config = await getCoraConfig(user_id);
+      if (!config) {
+        return new Response(JSON.stringify({
+          error: 'Configuração do Cora não encontrada'
+        }), {
+          status: 404,
           headers: { 'Content-Type': 'application/json', ...corsHeaders }
         });
       }
