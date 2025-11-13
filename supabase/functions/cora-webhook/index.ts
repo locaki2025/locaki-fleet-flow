@@ -24,6 +24,11 @@ interface CoraConfig {
   environment: 'production' | 'stage';
 }
 
+interface CachedToken {
+  access_token: string;
+  expires_at: string; // ISO timestamp
+}
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -82,12 +87,77 @@ const updateInvoiceStatus = async (coraChargeId: string, status: string, paidAmo
   return invoice;
 };
 
-// Get Cora access token using mTLS proxy
-const getCoraAccessToken = async (config: CoraConfig) => {
+// Get cached token from database
+const getCachedToken = async (userId: string): Promise<CachedToken | null> => {
+  const { data, error } = await supabase
+    .from('tenant_config')
+    .select('config_value')
+    .eq('user_id', userId)
+    .eq('config_key', 'cora_access_token')
+    .single();
+
+  if (error || !data) {
+    return null;
+  }
+
+  const cachedToken = data.config_value as CachedToken;
+  const expiresAt = new Date(cachedToken.expires_at);
+  const now = new Date();
+
+  // Check if token is still valid (with 5 minute buffer)
+  if (expiresAt.getTime() - now.getTime() > 5 * 60 * 1000) {
+    return cachedToken;
+  }
+
+  return null;
+};
+
+// Save token to cache
+const cacheToken = async (userId: string, accessToken: string, expiresIn: number = 3600) => {
+  const expiresAt = new Date();
+  expiresAt.setSeconds(expiresAt.getSeconds() + expiresIn);
+
+  const cachedToken: CachedToken = {
+    access_token: accessToken,
+    expires_at: expiresAt.toISOString()
+  };
+
+  await supabase
+    .from('tenant_config')
+    .upsert({
+      user_id: userId,
+      config_key: 'cora_access_token',
+      config_value: cachedToken
+    }, {
+      onConflict: 'user_id,config_key'
+    });
+};
+
+// Invalidate cached token
+const invalidateToken = async (userId: string) => {
+  await supabase
+    .from('tenant_config')
+    .delete()
+    .eq('user_id', userId)
+    .eq('config_key', 'cora_access_token');
+};
+
+// Get Cora access token using mTLS proxy (with caching)
+const getCoraAccessToken = async (userId: string, config: CoraConfig, forceRefresh: boolean = false) => {
   const PROXY_URL = 'https://cora-mtls-proxy.onrender.com';
   const PROXY_SECRET = 'locakicoraproxy';
   
   try {
+    // Check cache first unless forced refresh
+    if (!forceRefresh) {
+      const cachedToken = await getCachedToken(userId);
+      if (cachedToken) {
+        console.log('Using cached Cora token');
+        return cachedToken.access_token;
+      }
+    }
+
+    console.log('Fetching new Cora token from proxy');
     const response = await fetch(`${PROXY_URL}/cora/token`, {
       method: 'POST',
       headers: { 
@@ -108,7 +178,13 @@ const getCoraAccessToken = async (config: CoraConfig) => {
     }
 
     const data = await response.json();
-    return data.access_token;
+    const accessToken = data.access_token;
+    const expiresIn = data.expires_in || 3600; // Default 1 hour
+
+    // Cache the token
+    await cacheToken(userId, accessToken, expiresIn);
+
+    return accessToken;
   } catch (error) {
     console.error('Error getting Cora access token:', error);
     throw error;
@@ -127,12 +203,12 @@ const syncCoraTransactions = async (userId: string, config: CoraConfig, startDat
     
     const PROXY_URL = 'https://cora-mtls-proxy.onrender.com';
     const PROXY_SECRET = 'locakicoraproxy';
-    const accessToken = await getCoraAccessToken(config);
+    let accessToken = await getCoraAccessToken(userId, config);
     
     // Fetch transactions through proxy
     console.log(`Fetching transactions from ${startDate} to ${endDate}`);
     
-    const transactionsResponse = await fetch(`${PROXY_URL}/cora/transactions`, {
+    let transactionsResponse = await fetch(`${PROXY_URL}/cora/transactions`, {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
@@ -147,6 +223,29 @@ const syncCoraTransactions = async (userId: string, config: CoraConfig, startDat
         end_date: endDate
       })
     });
+
+    // If token expired, refresh and retry
+    if (transactionsResponse.status === 401 || transactionsResponse.status === 403) {
+      console.log('Token expired, refreshing...');
+      await invalidateToken(userId);
+      accessToken = await getCoraAccessToken(userId, config, true);
+      
+      transactionsResponse = await fetch(`${PROXY_URL}/cora/transactions`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Proxy-Secret': PROXY_SECRET
+        },
+        body: JSON.stringify({
+          access_token: accessToken,
+          certificate: config.certificate,
+          private_key: config.private_key,
+          base_url: config.base_url,
+          start_date: startDate,
+          end_date: endDate
+        })
+      });
+    }
 
     if (!transactionsResponse.ok) {
       const errorText = await transactionsResponse.text();
@@ -317,7 +416,7 @@ const autoReconcileTransaction = async (userId: string, transaction: CoraTransac
 };
 
 // Test Cora API connection through proxy
-const testCoraConnection = async (config: any) => {
+const testCoraConnection = async (userId: string, config: any) => {
   try {
     const { client_id, certificate, private_key, base_url } = config;
     
@@ -328,31 +427,9 @@ const testCoraConnection = async (config: any) => {
     const PROXY_URL = 'https://cora-mtls-proxy.onrender.com';
     const PROXY_SECRET = 'locakicoraproxy';
     
-    const testResponse = await fetch(`${PROXY_URL}/cora/test`, {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'X-Proxy-Secret': PROXY_SECRET
-      },
-      body: JSON.stringify({
-        client_id,
-        certificate,
-        private_key,
-        base_url
-      })
-    });
-
-    if (!testResponse.ok) {
-      const errorText = await testResponse.text();
-      throw new Error(`Erro ao testar conexão: ${testResponse.status} - ${errorText}`);
-    }
-
-    const result = await testResponse.json();
+    // Test by getting a token (will cache it for future use)
+    await getCoraAccessToken(userId, config as CoraConfig, true);
     
-    if (!result.success) {
-      throw new Error(result.error || 'Erro desconhecido ao testar conexão');
-    }
-
     return { success: true, message: 'Conexão com Cora estabelecida com sucesso através do proxy mTLS' };
 
   } catch (error) {
@@ -372,7 +449,14 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Handle different actions
     if (payload.action === 'test_connection') {
-      const result = await testCoraConnection(payload.config);
+      const { user_id, config } = payload;
+      if (!user_id) {
+        return new Response(JSON.stringify({ error: 'Missing user_id' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders }
+        });
+      }
+      const result = await testCoraConnection(user_id, config);
       return new Response(JSON.stringify(result), {
         headers: { 
           'Content-Type': 'application/json',
