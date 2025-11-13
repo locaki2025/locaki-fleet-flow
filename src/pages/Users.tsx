@@ -66,28 +66,16 @@ export default function Users() {
 
   const fetchUsers = async () => {
     try {
-      const { data: { users: authUsers }, error: authError } = await supabase.auth.admin.listUsers();
-      
-      if (authError) throw authError;
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Não autenticado");
 
-      // Buscar roles dos usuários
-      const { data: rolesData, error: rolesError } = await supabase
-        .from("user_roles")
-        .select("user_id, role");
+      const { data, error } = await supabase.functions.invoke('manage-users', {
+        body: { action: 'list' },
+      });
 
-      if (rolesError) throw rolesError;
+      if (error) throw error;
 
-      const rolesMap = new Map(rolesData?.map(r => [r.user_id, r.role]) || []);
-
-      const usersWithRoles = authUsers?.map(u => ({
-        id: u.id,
-        email: u.email || "",
-        created_at: u.created_at,
-        role: rolesMap.get(u.id) || "user",
-        raw_user_meta_data: u.user_metadata,
-      })) || [];
-
-      setUsers(usersWithRoles);
+      setUsers(data.users);
     } catch (error: any) {
       console.error("Error fetching users:", error);
       toast({
@@ -133,32 +121,22 @@ export default function Users() {
     setLoading(true);
 
     try {
-      // Criar usuário
-      const { data: newUser, error: signUpError } = await supabase.auth.admin.createUser({
-        email,
-        password,
-        email_confirm: true,
-        user_metadata: {
-          full_name: fullName,
-          phone,
-          mobile_access: mobileAccess,
-          require_mfa: requireMfa,
+      const { data, error } = await supabase.functions.invoke('manage-users', {
+        body: {
+          action: 'create',
+          email,
+          password,
+          metadata: {
+            full_name: fullName,
+            phone,
+            mobile_access: mobileAccess,
+            require_mfa: requireMfa,
+          },
+          role: userType,
         },
       });
 
-      if (signUpError) throw signUpError;
-
-      // Adicionar role
-      if (newUser.user) {
-        const { error: roleError } = await supabase
-          .from("user_roles")
-          .insert([{
-            user_id: newUser.user.id,
-            role: userType as any,
-          }]);
-
-        if (roleError) throw roleError;
-      }
+      if (error) throw error;
 
       toast({
         title: "Sucesso",
@@ -183,8 +161,13 @@ export default function Users() {
     if (!confirm("Tem certeza que deseja deletar este usuário?")) return;
 
     try {
-      const { error } = await supabase.auth.admin.deleteUser(userId);
-      
+      const { data, error } = await supabase.functions.invoke('manage-users', {
+        body: {
+          action: 'delete',
+          userId,
+        },
+      });
+
       if (error) throw error;
 
       toast({
