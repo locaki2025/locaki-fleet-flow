@@ -224,7 +224,7 @@ const CoraConfigDialog = ({ open, onOpenChange }: CoraConfigDialogProps) => {
           </DialogHeader>
         </div>
 
-        <ScrollArea className="flex-1 px-6">
+        <ScrollArea className="max-h-[50vh] overflow-y-auto px-6">
           <div className="grid gap-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="client_id">Client ID</Label>
