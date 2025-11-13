@@ -299,9 +299,8 @@ export default function Users() {
                     <SelectValue placeholder="Selecione..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="admin">Admin</SelectItem>
-                    <SelectItem value="moderator">Moderador</SelectItem>
-                    <SelectItem value="user">Usuário</SelectItem>
+                    <SelectItem value="admin">Administrador</SelectItem>
+                    <SelectItem value="user">Funcionário</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -405,7 +404,7 @@ export default function Users() {
                       <TableCell>{userData.email}</TableCell>
                       <TableCell>
                         <Badge variant={userData.role === "admin" ? "default" : "secondary"}>
-                          {userData.role === "admin" ? "Admin" : userData.role === "moderator" ? "Moderador" : "Usuário"}
+                          {userData.role === "admin" ? "Administrador" : "Funcionário"}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">

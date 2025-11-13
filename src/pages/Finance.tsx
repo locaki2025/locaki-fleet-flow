@@ -35,15 +35,33 @@ const Finance = () => {
   const [financialEntries, setFinancialEntries] = useState<any[]>([]);
   const [financialExpenses, setFinancialExpenses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [userRole, setUserRole] = useState<string>('user');
 
   useEffect(() => {
     if (user) {
+      fetchUserRole();
       fetchInvoices();
       fetchCustomers();
       fetchFinancialEntries();
       fetchFinancialExpenses();
     }
   }, [user]);
+
+  const fetchUserRole = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user?.id)
+        .single();
+
+      if (error) throw error;
+      setUserRole(data?.role || 'user');
+    } catch (error) {
+      console.error('Error fetching user role:', error);
+      setUserRole('user');
+    }
+  };
 
   const fetchInvoices = async () => {
     if (!user?.id) {
@@ -192,69 +210,71 @@ const Finance = () => {
         </Button>
       </div>
 
-      {/* Financial KPIs */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card className="border-l-4 border-l-success">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Receita Total</CardTitle>
-            <DollarSign className="h-4 w-4 text-success" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              R$ {totalRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-            </div>
-            <div className="flex items-center gap-1 mt-1">
-              <TrendingUp className="h-3 w-3 text-success" />
-              <span className="text-xs text-success">+12% no mês</span>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Financial KPIs - Apenas para Administradores */}
+      {userRole === 'admin' && (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <Card className="border-l-4 border-l-success">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Receita Total</CardTitle>
+              <DollarSign className="h-4 w-4 text-success" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                R$ {totalRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </div>
+              <div className="flex items-center gap-1 mt-1">
+                <TrendingUp className="h-3 w-3 text-success" />
+                <span className="text-xs text-success">+12% no mês</span>
+              </div>
+            </CardContent>
+          </Card>
 
-        <Card className="border-l-4 border-l-accent">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Recebido</CardTitle>
-            <CheckCircle2 className="h-4 w-4 text-accent" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              R$ {paidAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {paidInvoices.length} faturas pagas
-            </p>
-          </CardContent>
-        </Card>
+          <Card className="border-l-4 border-l-accent">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Recebido</CardTitle>
+              <CheckCircle2 className="h-4 w-4 text-accent" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                R$ {paidAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {paidInvoices.length} faturas pagas
+              </p>
+            </CardContent>
+          </Card>
 
-        <Card className="border-l-4 border-l-warning">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Em Aberto</CardTitle>
-            <Clock className="h-4 w-4 text-warning" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              R$ {pendingAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {pendingInvoices.length} faturas pendentes
-            </p>
-          </CardContent>
-        </Card>
+          <Card className="border-l-4 border-l-warning">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Em Aberto</CardTitle>
+              <Clock className="h-4 w-4 text-warning" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                R$ {pendingAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {pendingInvoices.length} faturas pendentes
+              </p>
+            </CardContent>
+          </Card>
 
-        <Card className="border-l-4 border-l-destructive">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Em Atraso</CardTitle>
-            <AlertCircle className="h-4 w-4 text-destructive" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              R$ {overdueAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {overdueInvoices.length} faturas vencidas
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+          <Card className="border-l-4 border-l-destructive">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Em Atraso</CardTitle>
+              <AlertCircle className="h-4 w-4 text-destructive" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                R$ {overdueAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {overdueInvoices.length} faturas vencidas
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Forms for Adding Entries and Expenses */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
