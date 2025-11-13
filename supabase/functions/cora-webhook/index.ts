@@ -18,6 +18,8 @@ interface CoraTransaction {
 
 interface CoraConfig {
   client_id: string;
+  certificate: string;
+  private_key: string;
   base_url: string;
   environment: 'production' | 'stage';
 }
@@ -94,6 +96,8 @@ const getCoraAccessToken = async (config: CoraConfig) => {
       },
       body: JSON.stringify({
         client_id: config.client_id,
+        certificate: config.certificate,
+        private_key: config.private_key,
         base_url: config.base_url
       })
     });
@@ -136,6 +140,8 @@ const syncCoraTransactions = async (userId: string, config: CoraConfig, startDat
       },
       body: JSON.stringify({
         access_token: accessToken,
+        certificate: config.certificate,
+        private_key: config.private_key,
         base_url: config.base_url,
         start_date: startDate,
         end_date: endDate
@@ -313,10 +319,10 @@ const autoReconcileTransaction = async (userId: string, transaction: CoraTransac
 // Test Cora API connection through proxy
 const testCoraConnection = async (config: any) => {
   try {
-    const { client_id, base_url } = config;
+    const { client_id, certificate, private_key, base_url } = config;
     
-    if (!client_id) {
-      throw new Error('Configuração incompleta: client_id é obrigatório');
+    if (!client_id || !certificate || !private_key) {
+      throw new Error('Configuração incompleta: client_id, certificado e chave privada são obrigatórios');
     }
 
     const PROXY_URL = 'https://cora-mtls-proxy.onrender.com';
@@ -330,6 +336,8 @@ const testCoraConnection = async (config: any) => {
       },
       body: JSON.stringify({
         client_id,
+        certificate,
+        private_key,
         base_url
       })
     });

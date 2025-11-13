@@ -15,6 +15,8 @@ interface CoraConfigDialogProps {
 
 interface CoraConfig {
   client_id: string;
+  certificate: string;
+  private_key: string;
   base_url: string;
   environment: 'production' | 'stage';
 }
@@ -28,9 +30,57 @@ const CoraConfigDialog = ({ open, onOpenChange }: CoraConfigDialogProps) => {
   
   const [config, setConfig] = useState<CoraConfig>({
     client_id: '',
+    certificate: '',
+    private_key: '',
     base_url: 'https://matls-clients.api.cora.com.br',
     environment: 'production'
   });
+
+  const handleCertificateUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const content = e.target?.result as string;
+        setConfig({ ...config, certificate: content });
+        toast({
+          title: "Certificado carregado",
+          description: "O certificado foi carregado com sucesso",
+        });
+      };
+      reader.onerror = () => {
+        toast({
+          title: "Erro ao carregar certificado",
+          description: "Não foi possível ler o arquivo do certificado",
+          variant: "destructive",
+        });
+      };
+      reader.readAsText(file);
+    }
+  };
+
+  const handlePrivateKeyUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const content = e.target?.result as string;
+        setConfig({ ...config, private_key: content });
+        toast({
+          title: "Chave privada carregada",
+          description: "A chave privada foi carregada com sucesso",
+        });
+      };
+      reader.onerror = () => {
+        toast({
+          title: "Erro ao carregar chave privada",
+          description: "Não foi possível ler o arquivo da chave privada",
+          variant: "destructive",
+        });
+      };
+      reader.readAsText(file);
+    }
+  };
 
   // Load configuration when dialog opens
   useEffect(() => {
@@ -172,6 +222,42 @@ const CoraConfigDialog = ({ open, onOpenChange }: CoraConfigDialogProps) => {
           </div>
           
           <div className="space-y-2">
+            <Label htmlFor="certificate">Certificado (arquivo .pem ou .crt)</Label>
+            <div className="flex flex-col gap-2">
+              <Input
+                id="certificate"
+                type="file"
+                accept=".pem,.crt"
+                onChange={handleCertificateUpload}
+                className="cursor-pointer"
+              />
+              {config.certificate && (
+                <div className="text-xs text-muted-foreground bg-muted p-2 rounded">
+                  ✓ Certificado carregado ({config.certificate.length} caracteres)
+                </div>
+              )}
+            </div>
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="private_key">Chave Privada (arquivo .key ou .pem)</Label>
+            <div className="flex flex-col gap-2">
+              <Input
+                id="private_key"
+                type="file"
+                accept=".key,.pem"
+                onChange={handlePrivateKeyUpload}
+                className="cursor-pointer"
+              />
+              {config.private_key && (
+                <div className="text-xs text-muted-foreground bg-muted p-2 rounded">
+                  ✓ Chave privada carregada ({config.private_key.length} caracteres)
+                </div>
+              )}
+            </div>
+          </div>
+          
+          <div className="space-y-2">
             <Label htmlFor="environment">Ambiente</Label>
             <select
               id="environment"
@@ -196,8 +282,7 @@ const CoraConfigDialog = ({ open, onOpenChange }: CoraConfigDialogProps) => {
           <div className="bg-muted/50 p-3 rounded-md text-xs space-y-1">
             <p className="font-semibold">ℹ️ Informação</p>
             <p className="text-muted-foreground">
-              A autenticação mTLS é gerenciada automaticamente através do proxy configurado.
-              Você precisa apenas fornecer seu Client ID e selecionar o ambiente.
+              Os certificados são enviados ao proxy mTLS para autenticação com a API do Cora.
             </p>
           </div>
 
@@ -205,7 +290,7 @@ const CoraConfigDialog = ({ open, onOpenChange }: CoraConfigDialogProps) => {
             <Button
               variant="outline"
               onClick={testConnection}
-              disabled={testing || !config.client_id}
+              disabled={testing || !config.client_id || !config.certificate || !config.private_key}
               className="flex-1"
             >
               {testing ? (

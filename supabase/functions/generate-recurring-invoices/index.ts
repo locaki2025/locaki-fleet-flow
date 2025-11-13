@@ -13,6 +13,8 @@ const corsHeaders = {
 
 interface CoraConfig {
   client_id: string;
+  certificate: string;
+  private_key: string;
   base_url: string;
   environment: 'production' | 'stage';
   payment_types?: string[];
@@ -33,6 +35,8 @@ const getCoraAccessToken = async (config: CoraConfig) => {
       },
       body: JSON.stringify({
         client_id: config.client_id,
+        certificate: config.certificate,
+        private_key: config.private_key,
         base_url: config.base_url
       })
     });
@@ -80,6 +84,8 @@ const createCoraInvoice = async (invoiceData: any, config: CoraConfig) => {
       },
       body: JSON.stringify({
         access_token: accessToken,
+        certificate: config.certificate,
+        private_key: config.private_key,
         base_url: config.base_url,
         payload: coraPayload
       })
@@ -131,6 +137,8 @@ const generateInvoicesForUser = async (userId: string) => {
 
   const config: CoraConfig = configData?.config_value || {
     client_id: '',
+    certificate: '',
+    private_key: '',
     base_url: 'https://matls-clients.api.cora.com.br',
     environment: 'production',
     payment_types: ['pix'],
@@ -138,7 +146,7 @@ const generateInvoicesForUser = async (userId: string) => {
     cora_account_id: '',
   };
 
-  if (!config.cora_account_id || !config.client_id) {
+  if (!config.cora_account_id || !config.client_id || !config.certificate || !config.private_key) {
     console.log(`No Cora account configured for user ${userId}`);
     return;
   }
