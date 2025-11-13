@@ -142,6 +142,14 @@ const invalidateToken = async (userId: string) => {
     .eq('config_key', 'cora_access_token');
 };
 
+// Normalize Cora base URL based on environment (ensures mTLS host)
+const resolveCoraBaseUrl = (config: CoraConfig): string => {
+  if (config?.base_url && config.base_url.includes('matls-clients.')) return config.base_url;
+  return config.environment === 'production'
+    ? 'https://matls-clients.api.cora.com.br'
+    : 'https://matls-clients.api.stage.cora.com.br';
+};
+
 // Get Cora access token using mTLS proxy (with caching)
 const getCoraAccessToken = async (userId: string, config: CoraConfig, forceRefresh: boolean = false) => {
   const PROXY_URL = 'https://cora-mtls-proxy.onrender.com';
@@ -157,8 +165,9 @@ const getCoraAccessToken = async (userId: string, config: CoraConfig, forceRefre
       }
     }
 
+    const baseUrl = resolveCoraBaseUrl(config);
     console.log('Fetching new Cora token from proxy', { 
-      base_url: config.base_url,
+      base_url: baseUrl,
       client_id: config.client_id 
     });
     
@@ -172,7 +181,7 @@ const getCoraAccessToken = async (userId: string, config: CoraConfig, forceRefre
         client_id: config.client_id,
         certificate: config.certificate,
         private_key: config.private_key,
-        base_url: config.base_url
+        base_url: baseUrl
       })
     });
 
@@ -213,6 +222,7 @@ const syncCoraTransactions = async (userId: string, config: CoraConfig, startDat
     const PROXY_URL = 'https://cora-mtls-proxy.onrender.com';
     const PROXY_SECRET = 'locakicoraproxy';
     let accessToken = await getCoraAccessToken(userId, config);
+    const baseUrl = resolveCoraBaseUrl(config);
     
     // Fetch transactions through proxy
     console.log(`Fetching transactions from ${startDate} to ${endDate}`);
@@ -227,7 +237,7 @@ const syncCoraTransactions = async (userId: string, config: CoraConfig, startDat
         access_token: accessToken,
         certificate: config.certificate,
         private_key: config.private_key,
-        base_url: config.base_url,
+        base_url: baseUrl,
         start_date: startDate,
         end_date: endDate
       })
@@ -249,7 +259,7 @@ const syncCoraTransactions = async (userId: string, config: CoraConfig, startDat
           access_token: accessToken,
           certificate: config.certificate,
           private_key: config.private_key,
-          base_url: config.base_url,
+          base_url: baseUrl,
           start_date: startDate,
           end_date: endDate
         })
@@ -436,6 +446,7 @@ const fetchCoraInvoices = async (userId: string, config: CoraConfig, filters?: {
     const PROXY_URL = 'https://cora-mtls-proxy.onrender.com';
     const PROXY_SECRET = 'locakicoraproxy';
     let accessToken = await getCoraAccessToken(userId, config);
+    const baseUrl = resolveCoraBaseUrl(config);
     
     const invoicesResponse = await fetch(`${PROXY_URL}/cora/invoices`, {
       method: 'POST',
@@ -447,7 +458,7 @@ const fetchCoraInvoices = async (userId: string, config: CoraConfig, filters?: {
         access_token: accessToken,
         certificate: config.certificate,
         private_key: config.private_key,
-        base_url: config.base_url,
+        base_url: baseUrl,
         start: filters?.start || '',
         end: filters?.end || '',
         state: filters?.state || '',
@@ -472,7 +483,7 @@ const fetchCoraInvoices = async (userId: string, config: CoraConfig, filters?: {
           access_token: accessToken,
           certificate: config.certificate,
           private_key: config.private_key,
-          base_url: config.base_url,
+          base_url: baseUrl,
           start: filters?.start || '',
           end: filters?.end || '',
           state: filters?.state || '',
