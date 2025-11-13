@@ -87,6 +87,11 @@ const menuItems = [
     icon: BarChart3,
   },
   {
+    title: "Usuários",
+    url: "/users",
+    icon: Users,
+  },
+  {
     title: "Configurações",
     url: "/settings",
     icon: Settings,

@@ -18,6 +18,7 @@ import Settings from "@/pages/Settings";
 import Map from "@/pages/Map";
 import Reports from "@/pages/Reports";
 import TrafficFines from "@/pages/TrafficFines";
+import Users from "@/pages/Users";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -44,6 +45,7 @@ const App = () => (
               <Route path="/map" element={<Map />} />
               <Route path="/reports" element={<Reports />} />
               <Route path="/traffic-fines" element={<TrafficFines />} />
+              <Route path="/users" element={<Users />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
