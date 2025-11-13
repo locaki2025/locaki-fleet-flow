@@ -3,7 +3,6 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const coraApiKey = Deno.env.get('CORA_API_KEY')!;
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -12,11 +11,92 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface TenantConfig {
-  payment_types: string[];
-  billing_start_day: number;
-  cora_account_id: string;
+interface CoraConfig {
+  client_id: string;
+  base_url: string;
+  environment: 'production' | 'stage';
+  payment_types?: string[];
+  billing_start_day?: number;
+  cora_account_id?: string;
 }
+
+const getCoraAccessToken = async (config: CoraConfig) => {
+  const PROXY_URL = 'https://cora-mtls-proxy.onrender.com';
+  const PROXY_SECRET = 'locakicoraproxy';
+  
+  try {
+    const response = await fetch(`${PROXY_URL}/cora/token`, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'X-Proxy-Secret': PROXY_SECRET
+      },
+      body: JSON.stringify({
+        client_id: config.client_id,
+        base_url: config.base_url
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Erro ao obter token: ${response.status} - ${errorText}`);
+    }
+
+    const data = await response.json();
+    return data.access_token;
+  } catch (error) {
+    console.error('Error getting Cora access token:', error);
+    throw error;
+  }
+};
+
+const createCoraInvoice = async (invoiceData: any, config: CoraConfig) => {
+  const PROXY_URL = 'https://cora-mtls-proxy.onrender.com';
+  const PROXY_SECRET = 'locakicoraproxy';
+
+  try {
+    // Get access token
+    const accessToken = await getCoraAccessToken(config);
+
+    const coraPayload = {
+      amount: Math.round(invoiceData.valor * 100), // Cora expects amount in cents
+      description: invoiceData.descricao,
+      due_date: invoiceData.vencimento,
+      payer: {
+        name: invoiceData.cliente_nome,
+        email: invoiceData.cliente_email,
+        document: invoiceData.cliente_cpf?.replace(/\D/g, ''),
+      },
+      payment_methods: config.payment_types?.includes('pix') ? ['pix'] : ['boleto'],
+      account_id: config.cora_account_id,
+    };
+
+    // Call Cora API through proxy
+    const response = await fetch(`${PROXY_URL}/cora/charges`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Proxy-Secret': PROXY_SECRET
+      },
+      body: JSON.stringify({
+        access_token: accessToken,
+        base_url: config.base_url,
+        payload: coraPayload
+      })
+    });
+
+    const responseData = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(`Cora API error: ${responseData.message || 'Unknown error'}`);
+    }
+
+    return responseData;
+  } catch (error) {
+    console.error('Error creating Cora invoice:', error);
+    throw error;
+  }
+};
 
 const logIntegration = async (
   userId: string,
@@ -38,38 +118,6 @@ const logIntegration = async (
   });
 };
 
-const createCoraInvoice = async (invoiceData: any, config: TenantConfig) => {
-  const coraPayload = {
-    amount: Math.round(invoiceData.valor * 100), // Cora expects amount in cents
-    description: invoiceData.descricao,
-    due_date: invoiceData.vencimento,
-    payer: {
-      name: invoiceData.cliente_nome,
-      email: invoiceData.cliente_email,
-      document: invoiceData.cliente_cpf?.replace(/\D/g, ''),
-    },
-    payment_methods: config.payment_types.includes('pix') ? ['pix'] : ['boleto'],
-    account_id: config.cora_account_id,
-  };
-
-  const response = await fetch('https://api.cora.com.br/v1/charges', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${coraApiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(coraPayload),
-  });
-
-  const responseData = await response.json();
-  
-  if (!response.ok) {
-    throw new Error(`Cora API error: ${responseData.message || 'Unknown error'}`);
-  }
-
-  return responseData;
-};
-
 const generateInvoicesForUser = async (userId: string) => {
   console.log(`Generating invoices for user: ${userId}`);
 
@@ -81,13 +129,16 @@ const generateInvoicesForUser = async (userId: string) => {
     .eq('config_key', 'cora_settings')
     .single();
 
-  const config: TenantConfig = configData?.config_value || {
+  const config: CoraConfig = configData?.config_value || {
+    client_id: '',
+    base_url: 'https://matls-clients.api.cora.com.br',
+    environment: 'production',
     payment_types: ['pix'],
     billing_start_day: 1,
     cora_account_id: '',
   };
 
-  if (!config.cora_account_id) {
+  if (!config.cora_account_id || !config.client_id) {
     console.log(`No Cora account configured for user ${userId}`);
     return;
   }

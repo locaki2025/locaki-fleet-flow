@@ -18,8 +18,6 @@ interface CoraTransaction {
 
 interface CoraConfig {
   client_id: string;
-  certificate: string;
-  private_key: string;
   base_url: string;
   environment: 'production' | 'stage';
 }
@@ -85,15 +83,17 @@ const updateInvoiceStatus = async (coraChargeId: string, status: string, paidAmo
 // Get Cora access token using mTLS proxy
 const getCoraAccessToken = async (config: CoraConfig) => {
   const PROXY_URL = 'https://cora-mtls-proxy.onrender.com';
+  const PROXY_SECRET = 'locakicoraproxy';
   
   try {
     const response = await fetch(`${PROXY_URL}/cora/token`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'X-Proxy-Secret': PROXY_SECRET
+      },
       body: JSON.stringify({
         client_id: config.client_id,
-        certificate: config.certificate,
-        private_key: config.private_key,
         base_url: config.base_url
       })
     });
@@ -122,6 +122,7 @@ const syncCoraTransactions = async (userId: string, config: CoraConfig, startDat
     console.log(`Starting Cora sync for user ${userId} from ${startDate} to ${endDate}`);
     
     const PROXY_URL = 'https://cora-mtls-proxy.onrender.com';
+    const PROXY_SECRET = 'locakicoraproxy';
     const accessToken = await getCoraAccessToken(config);
     
     // Fetch transactions through proxy
@@ -129,11 +130,12 @@ const syncCoraTransactions = async (userId: string, config: CoraConfig, startDat
     
     const transactionsResponse = await fetch(`${PROXY_URL}/cora/transactions`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'X-Proxy-Secret': PROXY_SECRET
+      },
       body: JSON.stringify({
         access_token: accessToken,
-        certificate: config.certificate,
-        private_key: config.private_key,
         base_url: config.base_url,
         start_date: startDate,
         end_date: endDate
@@ -311,21 +313,23 @@ const autoReconcileTransaction = async (userId: string, transaction: CoraTransac
 // Test Cora API connection through proxy
 const testCoraConnection = async (config: any) => {
   try {
-    const { client_id, certificate, private_key, base_url } = config;
+    const { client_id, base_url } = config;
     
-    if (!client_id || !certificate || !private_key) {
-      throw new Error('Configuração incompleta: client_id, certificado e chave privada são obrigatórios');
+    if (!client_id) {
+      throw new Error('Configuração incompleta: client_id é obrigatório');
     }
 
     const PROXY_URL = 'https://cora-mtls-proxy.onrender.com';
+    const PROXY_SECRET = 'locakicoraproxy';
     
     const testResponse = await fetch(`${PROXY_URL}/cora/test`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'X-Proxy-Secret': PROXY_SECRET
+      },
       body: JSON.stringify({
         client_id,
-        certificate,
-        private_key,
         base_url
       })
     });
