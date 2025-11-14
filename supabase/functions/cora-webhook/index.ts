@@ -475,8 +475,8 @@ const fetchCoraInvoices = async (
         },
         body: JSON.stringify({
           access_token: accessToken,
-          certificate: config.certificate,
-          private_key: config.private_key,
+          cert_file: config.certificate,
+          key_file: config.private_key,
           base_url: baseUrl,
           start: filters?.start || "",
           end: filters?.end || "",
@@ -824,7 +824,8 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(
       JSON.stringify({
         error: "Unknown action",
-        message: "A action fornecida não é suportada. Actions disponíveis: test_connection, sync_transactions, fetch_invoices",
+        message:
+          "A action fornecida não é suportada. Actions disponíveis: test_connection, sync_transactions, fetch_invoices",
       }),
       {
         status: 400,
