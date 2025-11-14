@@ -450,8 +450,8 @@ const fetchCoraInvoices = async (
       },
       body: JSON.stringify({
         access_token: accessToken,
-        certificate: config.certificate,
-        private_key: config.private_key,
+        cert_file: config.certificate,
+        key_file: config.private_key,
         base_url: baseUrl,
         start: filters?.start || "",
         end: filters?.end || "",
