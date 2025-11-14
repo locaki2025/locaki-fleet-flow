@@ -94,10 +94,10 @@ const Invoices = () => {
           config: configData.config_value,
           filters: {
             start: startDate.toISOString().split('T')[0],
-            end: endDate.toISOString().split('T')[0],
-            state: 'OPEN',
-            page: 1,
-            perPage: 100
+            end: endDate.toISOString().split('T')[0]
+            //state: 'OPEN',
+            //page: 1,
+            //perPage: 100
           }
         }
       });
