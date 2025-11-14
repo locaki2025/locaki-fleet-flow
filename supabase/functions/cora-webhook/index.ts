@@ -577,13 +577,20 @@ const handler = async (req: Request): Promise<Response> => {
           headers: { 'Content-Type': 'application/json', ...corsHeaders }
         });
       }
-      const result = await testCoraConnection(user_id);
-      return new Response(JSON.stringify(result), {
-        headers: { 
-          'Content-Type': 'application/json',
-          ...corsHeaders 
-        },
-      });
+      try {
+        const result = await testCoraConnection(user_id);
+        return new Response(JSON.stringify(result), {
+          headers: { 'Content-Type': 'application/json', ...corsHeaders },
+        });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        const isAuth = msg.includes('401') || msg.includes('invalid_client');
+        const status = isAuth ? 401 : 500;
+        return new Response(JSON.stringify({
+          error: isAuth ? 'invalid_client' : 'internal_error',
+          message: msg
+        }), { status, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+      }
     }
 
     if (payload.action === 'sync_transactions') {
@@ -608,13 +615,20 @@ const handler = async (req: Request): Promise<Response> => {
         });
       }
 
-      const result = await syncCoraTransactions(user_id, config, start_date, end_date);
-      return new Response(JSON.stringify(result), {
-        headers: { 
-          'Content-Type': 'application/json',
-          ...corsHeaders 
-        },
-      });
+      try {
+        const result = await syncCoraTransactions(user_id, config, start_date, end_date);
+        return new Response(JSON.stringify(result), {
+          headers: { 'Content-Type': 'application/json', ...corsHeaders },
+        });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        const isAuth = msg.includes('401') || msg.includes('invalid_client');
+        const status = isAuth ? 401 : 500;
+        return new Response(JSON.stringify({
+          error: isAuth ? 'invalid_client' : 'internal_error',
+          message: msg
+        }), { status, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+      }
     }
 
     if (payload.action === 'fetch_invoices') {
@@ -639,13 +653,20 @@ const handler = async (req: Request): Promise<Response> => {
         });
       }
 
-      const result = await fetchCoraInvoices(user_id, config, filters);
-      return new Response(JSON.stringify(result), {
-        headers: { 
-          'Content-Type': 'application/json',
-          ...corsHeaders 
-        },
-      });
+      try {
+        const result = await fetchCoraInvoices(user_id, config, filters);
+        return new Response(JSON.stringify(result), {
+          headers: { 'Content-Type': 'application/json', ...corsHeaders },
+        });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        const isAuth = msg.includes('401') || msg.includes('invalid_client');
+        const status = isAuth ? 401 : 500;
+        return new Response(JSON.stringify({
+          error: isAuth ? 'invalid_client' : 'internal_error',
+          message: msg
+        }), { status, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+      }
     }
 
     if (payload.action === 'auto_sync') {
