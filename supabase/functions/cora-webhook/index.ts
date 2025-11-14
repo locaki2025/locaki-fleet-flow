@@ -683,134 +683,151 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    if (payload.action === "auto_sync") {
-      // Auto sync for all users (used by cron)
-      const { data: configs, error: configError } = await supabase
-        .from("tenant_config")
-        .select("user_id, config_value")
-        .eq("config_key", "cora_settings");
+    // ROTA COMENTADA - Auto sync não está em uso
+    // if (payload.action === "auto_sync") {
+    //   // Auto sync for all users (used by cron)
+    //   const { data: configs, error: configError } = await supabase
+    //     .from("tenant_config")
+    //     .select("user_id, config_value")
+    //     .eq("config_key", "cora_settings");
 
-      if (configError || !configs) {
-        throw new Error("Error fetching Cora configurations");
-      }
+    //   if (configError || !configs) {
+    //     throw new Error("Error fetching Cora configurations");
+    //   }
 
-      const results = [];
-      const today = new Date();
-      const thirtyDaysAgo = new Date(today);
-      thirtyDaysAgo.setDate(today.getDate() - 30);
+    //   const results = [];
+    //   const today = new Date();
+    //   const thirtyDaysAgo = new Date(today);
+    //   thirtyDaysAgo.setDate(today.getDate() - 30);
 
-      for (const configRow of configs) {
-        try {
-          const result = await syncCoraTransactions(
-            configRow.user_id,
-            configRow.config_value,
-            thirtyDaysAgo.toISOString().split("T")[0],
-            today.toISOString().split("T")[0],
-          );
-          results.push({ user_id: configRow.user_id, ...result });
-        } catch (error) {
-          console.error(`Auto sync failed for user ${configRow.user_id}:`, error);
-          results.push({
-            user_id: configRow.user_id,
-            success: false,
-            error: error instanceof Error ? error.message : String(error),
-          });
-        }
-      }
+    //   for (const configRow of configs) {
+    //     try {
+    //       const result = await syncCoraTransactions(
+    //         configRow.user_id,
+    //         configRow.config_value,
+    //         thirtyDaysAgo.toISOString().split("T")[0],
+    //         today.toISOString().split("T")[0],
+    //       );
+    //       results.push({ user_id: configRow.user_id, ...result });
+    //     } catch (error) {
+    //       console.error(`Auto sync failed for user ${configRow.user_id}:`, error);
+    //       results.push({
+    //         user_id: configRow.user_id,
+    //         success: false,
+    //         error: error instanceof Error ? error.message : String(error),
+    //       });
+    //     }
+    //   }
 
-      return new Response(
-        JSON.stringify({
-          success: true,
-          message: `Auto sync completed for ${configs.length} users`,
-          results,
-        }),
-        {
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        },
-      );
-    }
+    //   return new Response(
+    //     JSON.stringify({
+    //       success: true,
+    //       message: `Auto sync completed for ${configs.length} users`,
+    //       results,
+    //     }),
+    //     {
+    //       headers: { "Content-Type": "application/json", ...corsHeaders },
+    //     },
+    //   );
+    // }
 
-    // Handle webhook events
-    const { event_type, data } = payload;
-    const chargeId = data?.id || data?.charge_id;
-    const amount = data?.amount;
+    // WEBHOOK HANDLERS COMENTADOS - Webhooks não estão configurados
+    // // Handle webhook events
+    // const { event_type, data } = payload;
+    // const chargeId = data?.id || data?.charge_id;
+    // const amount = data?.amount;
 
-    if (!chargeId) {
-      console.error("Missing charge ID in webhook payload");
-      return new Response("Missing charge ID", {
-        status: 400,
-        headers: corsHeaders,
-      });
-    }
+    // if (!chargeId) {
+    //   console.error("Missing charge ID in webhook payload");
+    //   return new Response("Missing charge ID", {
+    //     status: 400,
+    //     headers: corsHeaders,
+    //   });
+    // }
 
-    // Log the webhook
-    await logWebhook(chargeId, event_type, payload, "received", amount);
+    // // Log the webhook
+    // await logWebhook(chargeId, event_type, payload, "received", amount);
 
-    let invoiceStatus: string;
-    let updatedInvoice = null;
+    // let invoiceStatus: string;
+    // let updatedInvoice = null;
 
-    switch (event_type) {
-      case "charge.paid":
-        invoiceStatus = "pago";
-        updatedInvoice = await updateInvoiceStatus(chargeId, invoiceStatus, amount);
-        console.log(`Invoice ${chargeId} marked as paid`);
-        break;
+    // switch (event_type) {
+    //   case "charge.paid":
+    //     invoiceStatus = "pago";
+    //     updatedInvoice = await updateInvoiceStatus(chargeId, invoiceStatus, amount);
+    //     console.log(`Invoice ${chargeId} marked as paid`);
+    //     break;
 
-      case "charge.failed":
-      case "charge.refused":
-        invoiceStatus = "recusado";
-        updatedInvoice = await updateInvoiceStatus(chargeId, invoiceStatus);
-        console.log(`Invoice ${chargeId} marked as refused`);
-        break;
+    //   case "charge.failed":
+    //   case "charge.refused":
+    //     invoiceStatus = "recusado";
+    //     updatedInvoice = await updateInvoiceStatus(chargeId, invoiceStatus);
+    //     console.log(`Invoice ${chargeId} marked as refused`);
+    //     break;
 
-      case "charge.expired":
-        invoiceStatus = "vencido";
-        updatedInvoice = await updateInvoiceStatus(chargeId, invoiceStatus);
-        console.log(`Invoice ${chargeId} marked as expired`);
-        break;
+    //   case "charge.expired":
+    //     invoiceStatus = "vencido";
+    //     updatedInvoice = await updateInvoiceStatus(chargeId, invoiceStatus);
+    //     console.log(`Invoice ${chargeId} marked as expired`);
+    //     break;
 
-      case "charge.cancelled":
-        invoiceStatus = "cancelado";
-        updatedInvoice = await updateInvoiceStatus(chargeId, invoiceStatus);
-        console.log(`Invoice ${chargeId} marked as cancelled`);
-        break;
+    //   case "charge.cancelled":
+    //     invoiceStatus = "cancelado";
+    //     updatedInvoice = await updateInvoiceStatus(chargeId, invoiceStatus);
+    //     console.log(`Invoice ${chargeId} marked as cancelled`);
+    //     break;
 
-      case "charge.chargeback":
-        invoiceStatus = "estornado";
-        updatedInvoice = await updateInvoiceStatus(chargeId, invoiceStatus);
-        console.log(`Invoice ${chargeId} marked as chargeback`);
-        break;
+    //   case "charge.chargeback":
+    //     invoiceStatus = "estornado";
+    //     updatedInvoice = await updateInvoiceStatus(chargeId, invoiceStatus);
+    //     console.log(`Invoice ${chargeId} marked as chargeback`);
+    //     break;
 
-      default:
-        console.log(`Unhandled event type: ${event_type}`);
-        await logWebhook(chargeId, event_type, payload, "unhandled");
-        return new Response("Event acknowledged", {
-          status: 200,
-          headers: corsHeaders,
-        });
-    }
+    //   default:
+    //     console.log(`Unhandled event type: ${event_type}`);
+    //     await logWebhook(chargeId, event_type, payload, "unhandled");
+    //     return new Response("Event acknowledged", {
+    //       status: 200,
+    //       headers: corsHeaders,
+    //     });
+    // }
 
-    // Log the processing result
-    if (updatedInvoice) {
-      await logWebhook(chargeId, event_type, payload, "processed", amount);
+    // // Log the processing result
+    // if (updatedInvoice) {
+    //   await logWebhook(chargeId, event_type, payload, "processed", amount);
 
-      // If it's a recurring invoice that was paid, we could trigger additional logic here
-      if (invoiceStatus === "pago" && updatedInvoice.tipo_cobranca === "recorrente") {
-        console.log(`Recurring invoice paid for contract: ${updatedInvoice.contrato_origem_id}`);
-        // Could trigger notifications, update customer status, etc.
-      }
-    } else {
-      await logWebhook(chargeId, event_type, payload, "error");
-    }
+    //   // If it's a recurring invoice that was paid, we could trigger additional logic here
+    //   if (invoiceStatus === "pago" && updatedInvoice.tipo_cobranca === "recorrente") {
+    //     console.log(`Recurring invoice paid for contract: ${updatedInvoice.contrato_origem_id}`);
+    //     // Could trigger notifications, update customer status, etc.
+    //   }
+    // } else {
+    //   await logWebhook(chargeId, event_type, payload, "error");
+    // }
 
+    // return new Response(
+    //   JSON.stringify({
+    //     success: true,
+    //     message: "Webhook processed successfully",
+    //     invoice_updated: !!updatedInvoice,
+    //   }),
+    //   {
+    //     status: 200,
+    //     headers: {
+    //       "Content-Type": "application/json",
+    //       ...corsHeaders,
+    //     },
+    //   },
+    // );
+
+    // Se chegou aqui, é uma action desconhecida
     return new Response(
       JSON.stringify({
-        success: true,
-        message: "Webhook processed successfully",
-        invoice_updated: !!updatedInvoice,
+        error: "Unknown action",
+        message: "A action fornecida não é suportada. Actions disponíveis: test_connection, sync_transactions, fetch_invoices",
       }),
       {
-        status: 200,
+        status: 400,
         headers: {
           "Content-Type": "application/json",
           ...corsHeaders,
