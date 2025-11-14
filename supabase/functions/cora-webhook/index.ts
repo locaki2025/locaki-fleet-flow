@@ -1,8 +1,8 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
-const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -10,8 +10,8 @@ interface CoraTransaction {
   id: string;
   amount: number;
   currency: string;
-  type: 'credit' | 'debit';
-  status: 'settled' | 'pending' | 'failed';
+  type: "credit" | "debit";
+  status: "settled" | "pending" | "failed";
   description: string;
   created_at: string;
 }
@@ -21,7 +21,7 @@ interface CoraConfig {
   certificate: string;
   private_key: string;
   base_url: string;
-  environment: 'production' | 'stage';
+  environment: "production" | "stage";
 }
 
 interface CachedToken {
@@ -30,18 +30,12 @@ interface CachedToken {
 }
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const logWebhook = async (
-  invoiceId: string,
-  eventType: string,
-  payload: any,
-  status: string,
-  amount?: number
-) => {
-  await supabase.from('webhook_logs').insert({
+const logWebhook = async (invoiceId: string, eventType: string, payload: any, status: string, amount?: number) => {
+  await supabase.from("webhook_logs").insert({
     invoice_id: invoiceId,
     event_type: eventType,
     payload,
@@ -53,13 +47,13 @@ const logWebhook = async (
 const updateInvoiceStatus = async (coraChargeId: string, status: string, paidAmount?: number) => {
   // Find invoice by Cora charge ID (we'll need to store this in the boletos table)
   const { data: invoice, error: findError } = await supabase
-    .from('boletos')
-    .select('*')
-    .eq('fatura_id', coraChargeId)
+    .from("boletos")
+    .select("*")
+    .eq("fatura_id", coraChargeId)
     .single();
 
   if (findError || !invoice) {
-    console.error('Invoice not found for Cora charge ID:', coraChargeId);
+    console.error("Invoice not found for Cora charge ID:", coraChargeId);
     return null;
   }
 
@@ -69,18 +63,15 @@ const updateInvoiceStatus = async (coraChargeId: string, status: string, paidAmo
     updated_at: new Date().toISOString(),
   };
 
-  if (status === 'pago' && paidAmount) {
+  if (status === "pago" && paidAmount) {
     updateData.data_pagamento = new Date().toISOString();
     updateData.valor_pago = paidAmount / 100; // Convert from cents
   }
 
-  const { error: updateError } = await supabase
-    .from('boletos')
-    .update(updateData)
-    .eq('id', invoice.id);
+  const { error: updateError } = await supabase.from("boletos").update(updateData).eq("id", invoice.id);
 
   if (updateError) {
-    console.error('Error updating invoice:', updateError);
+    console.error("Error updating invoice:", updateError);
     return null;
   }
 
@@ -90,10 +81,10 @@ const updateInvoiceStatus = async (coraChargeId: string, status: string, paidAmo
 // Get cached token from database
 const getCachedToken = async (userId: string): Promise<CachedToken | null> => {
   const { data, error } = await supabase
-    .from('tenant_config')
-    .select('config_value')
-    .eq('user_id', userId)
-    .eq('config_key', 'cora_access_token')
+    .from("tenant_config")
+    .select("config_value")
+    .eq("user_id", userId)
+    .eq("config_key", "cora_access_token")
     .single();
 
   if (error || !data) {
@@ -119,76 +110,73 @@ const cacheToken = async (userId: string, accessToken: string, expiresIn: number
 
   const cachedToken: CachedToken = {
     access_token: accessToken,
-    expires_at: expiresAt.toISOString()
+    expires_at: expiresAt.toISOString(),
   };
 
-  await supabase
-    .from('tenant_config')
-    .upsert({
+  await supabase.from("tenant_config").upsert(
+    {
       user_id: userId,
-      config_key: 'cora_access_token',
-      config_value: cachedToken
-    }, {
-      onConflict: 'user_id,config_key'
-    });
+      config_key: "cora_access_token",
+      config_value: cachedToken,
+    },
+    {
+      onConflict: "user_id,config_key",
+    },
+  );
 };
 
 // Invalidate cached token
 const invalidateToken = async (userId: string) => {
-  await supabase
-    .from('tenant_config')
-    .delete()
-    .eq('user_id', userId)
-    .eq('config_key', 'cora_access_token');
+  await supabase.from("tenant_config").delete().eq("user_id", userId).eq("config_key", "cora_access_token");
 };
 
 // Normalize Cora base URL based on environment (ensures mTLS host)
 const resolveCoraBaseUrl = (config: CoraConfig): string => {
-  if (config?.base_url && config.base_url.includes('matls-clients.')) return config.base_url;
-  return config.environment === 'production'
-    ? 'https://matls-clients.api.cora.com.br'
-    : 'https://matls-clients.api.stage.cora.com.br';
+  if (config?.base_url && config.base_url.includes("matls-clients.")) return config.base_url;
+  return config.environment === "production"
+    ? "https://matls-clients.api.cora.com.br"
+    : "https://matls-clients.api.stage.cora.com.br";
 };
 
 // Get Cora access token using mTLS proxy (with caching)
 const getCoraAccessToken = async (userId: string, config: CoraConfig, forceRefresh: boolean = false) => {
-  const PROXY_URL = 'https://cora-mtls-proxy.onrender.com';
-  const PROXY_SECRET = 'locakicoraproxy';
-  
+  const PROXY_URL = "https://cora-mtls-proxy.onrender.com";
+  const PROXY_SECRET = "locakicoraproxy";
+
   try {
     // Check cache first unless forced refresh
     if (!forceRefresh) {
       const cachedToken = await getCachedToken(userId);
       if (cachedToken) {
-        console.log('Using cached Cora token');
+        console.log("Using cached Cora token");
         return cachedToken.access_token;
       }
     }
 
     const baseUrl = resolveCoraBaseUrl(config);
-    console.log('Fetching new Cora token from proxy', { 
+    console.log("Fetching new Cora token from proxy", {
       base_url: baseUrl,
-      client_id: config.client_id 
+      client_id: config.client_id,
     });
-    
+
     const response = await fetch(`${PROXY_URL}/cora/token`, {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'X-Proxy-Secret': PROXY_SECRET
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Proxy-Secret": PROXY_SECRET,
       },
       body: JSON.stringify({
         client_id: config.client_id,
         cert_file: config.certificate,
-        base_url: config.private_key,
-        base_url: baseUrl
-      })
+        key_file: config.private_key,
+        base_url: baseUrl,
+      }),
     });
 
     const responseText = await response.text();
-    console.log('Proxy token response:', { 
-      status: response.status, 
-      body: responseText 
+    console.log("Proxy token response:", {
+      status: response.status,
+      body: responseText,
     });
 
     if (!response.ok) {
@@ -204,7 +192,7 @@ const getCoraAccessToken = async (userId: string, config: CoraConfig, forceRefre
 
     return accessToken;
   } catch (error) {
-    console.error('Error getting Cora access token:', error);
+    console.error("Error getting Cora access token:", error);
     throw error;
   }
 };
@@ -214,46 +202,46 @@ const syncCoraTransactions = async (userId: string, config: CoraConfig, startDat
   const startTime = Date.now();
   let importedCount = 0;
   let conciliatedCount = 0;
-  let errorMessage = '';
+  let errorMessage = "";
 
   try {
     console.log(`Starting Cora sync for user ${userId} from ${startDate} to ${endDate}`);
-    
-    const PROXY_URL = 'https://cora-mtls-proxy.onrender.com';
-    const PROXY_SECRET = 'locakicoraproxy';
+
+    const PROXY_URL = "https://cora-mtls-proxy.onrender.com";
+    const PROXY_SECRET = "locakicoraproxy";
     let accessToken = await getCoraAccessToken(userId, config);
     const baseUrl = resolveCoraBaseUrl(config);
-    
+
     // Fetch transactions through proxy
     console.log(`Fetching transactions from ${startDate} to ${endDate}`);
-    
+
     let transactionsResponse = await fetch(`${PROXY_URL}/cora/transactions`, {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'X-Proxy-Secret': PROXY_SECRET
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Proxy-Secret": PROXY_SECRET,
       },
       body: JSON.stringify({
         access_token: accessToken,
-        certificate: config.certificate,
-        private_key: config.private_key,
+        cert_file: config.certificate,
+        key_file: config.private_key,
         base_url: baseUrl,
-        start_date: startDate,
-        end_date: endDate
-      })
+        start: startDate,
+        end: endDate,
+      }),
     });
 
     // If token expired, refresh and retry
     if (transactionsResponse.status === 401 || transactionsResponse.status === 403) {
-      console.log('Token expired, refreshing...');
+      console.log("Token expired, refreshing...");
       await invalidateToken(userId);
       accessToken = await getCoraAccessToken(userId, config, true);
-      
+
       transactionsResponse = await fetch(`${PROXY_URL}/cora/transactions`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'X-Proxy-Secret': PROXY_SECRET
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Proxy-Secret": PROXY_SECRET,
         },
         body: JSON.stringify({
           access_token: accessToken,
@@ -261,8 +249,8 @@ const syncCoraTransactions = async (userId: string, config: CoraConfig, startDat
           private_key: config.private_key,
           base_url: baseUrl,
           start_date: startDate,
-          end_date: endDate
-        })
+          end_date: endDate,
+        }),
       });
     }
 
@@ -280,67 +268,71 @@ const syncCoraTransactions = async (userId: string, config: CoraConfig, startDat
       try {
         // Convert amount from cents to reais
         const amountInReais = entry.amount / 100;
-        
+
         // Determine transaction type (credit or debit)
-        const transactionType = entry.type === 'CREDIT' ? 'credit' : 'debit';
-        
+        const transactionType = entry.type === "CREDIT" ? "credit" : "debit";
+
         // Get description from transaction object
-        const description = entry.transaction?.description || 'Transação Cora';
-        const counterPartyName = entry.transaction?.counterParty?.name || '';
+        const description = entry.transaction?.description || "Transação Cora";
+        const counterPartyName = entry.transaction?.counterParty?.name || "";
         const fullDescription = counterPartyName ? `${description} - ${counterPartyName}` : description;
-        
+
         // Insert or update transaction
-        const { error: insertError } = await supabase
-          .from('cora_transactions')
-          .upsert({
+        const { error: insertError } = await supabase.from("cora_transactions").upsert(
+          {
             user_id: userId,
             cora_transaction_id: entry.id,
             amount: Math.abs(amountInReais),
-            currency: 'BRL',
+            currency: "BRL",
             type: transactionType,
-            status: 'settled', // Cora statement entries are already settled
+            status: "settled", // Cora statement entries are already settled
             description: fullDescription,
             transaction_date: entry.createdAt,
             raw_data: entry,
-          }, {
-            onConflict: 'user_id,cora_transaction_id',
-            ignoreDuplicates: false
-          });
+          },
+          {
+            onConflict: "user_id,cora_transaction_id",
+            ignoreDuplicates: false,
+          },
+        );
 
         if (insertError) {
-          console.error('Error inserting transaction:', insertError);
+          console.error("Error inserting transaction:", insertError);
           continue;
         }
 
         importedCount++;
 
         // Try to auto-conciliate with boletos (only for credit transactions)
-        if (transactionType === 'credit') {
-          const conciliated = await autoReconcileTransaction(userId, {
-            id: entry.id,
-            amount: entry.amount,
-            created_at: entry.createdAt,
-            type: transactionType,
-            status: 'settled',
-            description: fullDescription,
-            currency: 'BRL'
-          }, Math.abs(amountInReais));
+        if (transactionType === "credit") {
+          const conciliated = await autoReconcileTransaction(
+            userId,
+            {
+              id: entry.id,
+              amount: entry.amount,
+              created_at: entry.createdAt,
+              type: transactionType,
+              status: "settled",
+              description: fullDescription,
+              currency: "BRL",
+            },
+            Math.abs(amountInReais),
+          );
           if (conciliated) {
             conciliatedCount++;
           }
         }
-
       } catch (entryError) {
         console.error(`Error processing entry ${entry.id}:`, entryError);
       }
     }
 
     // Log sync result
-    await supabase.from('cora_sync_logs').insert({
+    await supabase.from("cora_sync_logs").insert({
       user_id: userId,
       start_date: startDate,
       end_date: endDate,
-      status: 'success',
+      status: "success",
       transactions_imported: importedCount,
       transactions_conciliated: conciliatedCount,
       execution_time_ms: Date.now() - startTime,
@@ -350,19 +342,18 @@ const syncCoraTransactions = async (userId: string, config: CoraConfig, startDat
       success: true,
       imported: importedCount,
       conciliated: conciliatedCount,
-      message: `Sincronizados ${importedCount} lançamentos, ${conciliatedCount} conciliados automaticamente`
+      message: `Sincronizados ${importedCount} lançamentos, ${conciliatedCount} conciliados automaticamente`,
     };
-
   } catch (error) {
     errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('Cora sync error:', error);
+    console.error("Cora sync error:", error);
 
     // Log error
-    await supabase.from('cora_sync_logs').insert({
+    await supabase.from("cora_sync_logs").insert({
       user_id: userId,
       start_date: startDate,
       end_date: endDate,
-      status: 'error',
+      status: "error",
       transactions_imported: importedCount,
       transactions_conciliated: conciliatedCount,
       error_message: errorMessage,
@@ -385,14 +376,14 @@ const autoReconcileTransaction = async (userId: string, transaction: CoraTransac
     dateEnd.setDate(dateEnd.getDate() + dateRange);
 
     const { data: matchingBoletos, error } = await supabase
-      .from('boletos')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('valor', amount)
-      .eq('status', 'pendente')
-      .gte('vencimento', dateStart.toISOString().split('T')[0])
-      .lte('vencimento', dateEnd.toISOString().split('T')[0])
-      .order('vencimento', { ascending: true });
+      .from("boletos")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("valor", amount)
+      .eq("status", "pendente")
+      .gte("vencimento", dateStart.toISOString().split("T")[0])
+      .lte("vencimento", dateEnd.toISOString().split("T")[0])
+      .order("vencimento", { ascending: true });
 
     if (error || !matchingBoletos || matchingBoletos.length === 0) {
       return false;
@@ -405,91 +396,94 @@ const autoReconcileTransaction = async (userId: string, transaction: CoraTransac
     await Promise.all([
       // Mark boleto as paid
       supabase
-        .from('boletos')
+        .from("boletos")
         .update({
-          status: 'pago',
+          status: "pago",
           data_pagamento: transaction.created_at,
           valor_pago: amount,
-          metodo_pagamento: 'cora_automatico'
+          metodo_pagamento: "cora_automatico",
         })
-        .eq('id', boleto.id),
-      
+        .eq("id", boleto.id),
+
       // Mark transaction as conciliated
       supabase
-        .from('cora_transactions')
+        .from("cora_transactions")
         .update({
           conciliated: true,
-          conciliated_boleto_id: boleto.id
+          conciliated_boleto_id: boleto.id,
         })
-        .eq('user_id', userId)
-        .eq('cora_transaction_id', transaction.id)
+        .eq("user_id", userId)
+        .eq("cora_transaction_id", transaction.id),
     ]);
 
     console.log(`Auto-conciliated transaction ${transaction.id} with boleto ${boleto.id}`);
     return true;
-
   } catch (error) {
-    console.error('Auto reconciliation error:', error);
+    console.error("Auto reconciliation error:", error);
     return false;
   }
 };
 
 // Fetch invoices from Cora API
-const fetchCoraInvoices = async (userId: string, config: CoraConfig, filters?: {
-  start?: string;
-  end?: string;
-  state?: string;
-  page?: number;
-  perPage?: number;
-}) => {
+const fetchCoraInvoices = async (
+  userId: string,
+  config: CoraConfig,
+  filters?: {
+    start?: string;
+    end?: string;
+    state?: string;
+    page?: number;
+    perPage?: number;
+  },
+) => {
   try {
-    const PROXY_URL = 'https://cora-mtls-proxy.onrender.com';
-    const PROXY_SECRET = 'locakicoraproxy';
+    const PROXY_URL = "https://cora-mtls-proxy.onrender.com";
+    const PROXY_SECRET = "locakicoraproxy";
     let accessToken = await getCoraAccessToken(userId, config);
     const baseUrl = resolveCoraBaseUrl(config);
-    
+
     const invoicesResponse = await fetch(`${PROXY_URL}/cora/invoices`, {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'X-Proxy-Secret': PROXY_SECRET
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Proxy-Secret": PROXY_SECRET,
       },
       body: JSON.stringify({
         access_token: accessToken,
         certificate: config.certificate,
         private_key: config.private_key,
         base_url: baseUrl,
-        start: filters?.start || '',
-        end: filters?.end || '',
-        state: filters?.state || '',
+        start: filters?.start || "",
+        end: filters?.end || "",
+        state: filters?.state || "",
         page: filters?.page || 1,
-        perPage: filters?.perPage || 50
-      })
+        perPage: filters?.perPage || 50,
+      }),
     });
 
     // If token expired, refresh and retry
     if (invoicesResponse.status === 401 || invoicesResponse.status === 403) {
-      console.log('Token expired while fetching invoices, refreshing...');
+      console.log("Token expired while fetching invoices, refreshing...");
       await invalidateToken(userId);
       accessToken = await getCoraAccessToken(userId, config, true);
-      
+
       const retryResponse = await fetch(`${PROXY_URL}/cora/invoices`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'X-Proxy-Secret': PROXY_SECRET
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Proxy-Secret": PROXY_SECRET,
         },
         body: JSON.stringify({
           access_token: accessToken,
           certificate: config.certificate,
           private_key: config.private_key,
           base_url: baseUrl,
-          start: filters?.start || '',
-          end: filters?.end || '',
-          state: filters?.state || '',
+          start: filters?.start || "",
+          end: filters?.end || "",
+          state: filters?.state || "",
           page: filters?.page || 1,
-          perPage: filters?.perPage || 50
-        })
+          perPage: filters?.perPage || 50,
+        }),
       });
 
       if (!retryResponse.ok) {
@@ -507,7 +501,7 @@ const fetchCoraInvoices = async (userId: string, config: CoraConfig, filters?: {
 
     return await invoicesResponse.json();
   } catch (error) {
-    console.error('Error fetching Cora invoices:', error);
+    console.error("Error fetching Cora invoices:", error);
     throw error;
   }
 };
@@ -515,14 +509,14 @@ const fetchCoraInvoices = async (userId: string, config: CoraConfig, filters?: {
 // Get Cora config from database
 const getCoraConfig = async (userId: string): Promise<CoraConfig | null> => {
   const { data, error } = await supabase
-    .from('tenant_config')
-    .select('config_value')
-    .eq('user_id', userId)
-    .eq('config_key', 'cora_settings')
+    .from("tenant_config")
+    .select("config_value")
+    .eq("user_id", userId)
+    .eq("config_key", "cora_settings")
     .single();
 
   if (error || !data) {
-    console.error('Error fetching Cora config:', error);
+    console.error("Error fetching Cora config:", error);
     return null;
   }
 
@@ -533,151 +527,171 @@ const getCoraConfig = async (userId: string): Promise<CoraConfig | null> => {
 const testCoraConnection = async (userId: string, config?: any) => {
   try {
     // Fetch config from database if not provided
-    const coraConfig = config || await getCoraConfig(userId);
-    
+    const coraConfig = config || (await getCoraConfig(userId));
+
     if (!coraConfig) {
-      throw new Error('Configuração do Cora não encontrada. Por favor, configure a integração primeiro.');
+      throw new Error("Configuração do Cora não encontrada. Por favor, configure a integração primeiro.");
     }
 
     const { client_id, certificate, private_key } = coraConfig;
-    
+
     if (!client_id || !certificate || !private_key) {
-      throw new Error('Configuração incompleta: client_id, certificado e chave privada são obrigatórios');
+      throw new Error("Configuração incompleta: client_id, certificado e chave privada são obrigatórios");
     }
 
-    const PROXY_URL = 'https://cora-mtls-proxy.onrender.com';
-    const PROXY_SECRET = 'locakicoraproxy';
-    
+    const PROXY_URL = "https://cora-mtls-proxy.onrender.com";
+    const PROXY_SECRET = "locakicoraproxy";
+
     // Test by getting a token (will cache it for future use)
     await getCoraAccessToken(userId, coraConfig as CoraConfig, true);
-    
-    return { success: true, message: 'Conexão com Cora estabelecida com sucesso através do proxy mTLS' };
 
+    return { success: true, message: "Conexão com Cora estabelecida com sucesso através do proxy mTLS" };
   } catch (error) {
-    console.error('Cora connection test failed:', error);
+    console.error("Cora connection test failed:", error);
     throw new Error(`Erro na conexão: ${error instanceof Error ? error.message : String(error)}`);
   }
 };
 
 const handler = async (req: Request): Promise<Response> => {
-  if (req.method === 'OPTIONS') {
+  if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
     const payload = await req.json();
-    console.log('Received Cora request:', JSON.stringify(payload, null, 2));
+    console.log("Received Cora request:", JSON.stringify(payload, null, 2));
 
     // Handle different actions
-    if (payload.action === 'test_connection') {
+    if (payload.action === "test_connection") {
       const { user_id } = payload;
       if (!user_id) {
-        return new Response(JSON.stringify({ error: 'Missing user_id' }), {
+        return new Response(JSON.stringify({ error: "Missing user_id" }), {
           status: 400,
-          headers: { 'Content-Type': 'application/json', ...corsHeaders }
+          headers: { "Content-Type": "application/json", ...corsHeaders },
         });
       }
       try {
         const result = await testCoraConnection(user_id);
         return new Response(JSON.stringify(result), {
-          headers: { 'Content-Type': 'application/json', ...corsHeaders },
+          headers: { "Content-Type": "application/json", ...corsHeaders },
         });
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        const isAuth = msg.includes('401') || msg.includes('invalid_client');
+        const isAuth = msg.includes("401") || msg.includes("invalid_client");
         const status = isAuth ? 401 : 500;
-        return new Response(JSON.stringify({
-          error: isAuth ? 'invalid_client' : 'internal_error',
-          message: msg
-        }), { status, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+        return new Response(
+          JSON.stringify({
+            error: isAuth ? "invalid_client" : "internal_error",
+            message: msg,
+          }),
+          { status, headers: { "Content-Type": "application/json", ...corsHeaders } },
+        );
       }
     }
 
-    if (payload.action === 'sync_transactions') {
+    if (payload.action === "sync_transactions") {
       const { user_id, start_date, end_date } = payload;
-      
+
       if (!user_id || !start_date || !end_date) {
-        return new Response(JSON.stringify({
-          error: 'Missing required parameters: user_id, start_date, end_date'
-        }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json', ...corsHeaders }
-        });
+        return new Response(
+          JSON.stringify({
+            error: "Missing required parameters: user_id, start_date, end_date",
+          }),
+          {
+            status: 400,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          },
+        );
       }
 
       const config = await getCoraConfig(user_id);
       if (!config) {
-        return new Response(JSON.stringify({
-          error: 'Configuração do Cora não encontrada'
-        }), {
-          status: 404,
-          headers: { 'Content-Type': 'application/json', ...corsHeaders }
-        });
+        return new Response(
+          JSON.stringify({
+            error: "Configuração do Cora não encontrada",
+          }),
+          {
+            status: 404,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          },
+        );
       }
 
       try {
         const result = await syncCoraTransactions(user_id, config, start_date, end_date);
         return new Response(JSON.stringify(result), {
-          headers: { 'Content-Type': 'application/json', ...corsHeaders },
+          headers: { "Content-Type": "application/json", ...corsHeaders },
         });
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        const isAuth = msg.includes('401') || msg.includes('invalid_client');
+        const isAuth = msg.includes("401") || msg.includes("invalid_client");
         const status = isAuth ? 401 : 500;
-        return new Response(JSON.stringify({
-          error: isAuth ? 'invalid_client' : 'internal_error',
-          message: msg
-        }), { status, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+        return new Response(
+          JSON.stringify({
+            error: isAuth ? "invalid_client" : "internal_error",
+            message: msg,
+          }),
+          { status, headers: { "Content-Type": "application/json", ...corsHeaders } },
+        );
       }
     }
 
-    if (payload.action === 'fetch_invoices') {
+    if (payload.action === "fetch_invoices") {
       const { user_id, filters } = payload;
-      
+
       if (!user_id) {
-        return new Response(JSON.stringify({
-          error: 'Missing required parameter: user_id'
-        }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json', ...corsHeaders }
-        });
+        return new Response(
+          JSON.stringify({
+            error: "Missing required parameter: user_id",
+          }),
+          {
+            status: 400,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          },
+        );
       }
 
       const config = await getCoraConfig(user_id);
       if (!config) {
-        return new Response(JSON.stringify({
-          error: 'Configuração do Cora não encontrada'
-        }), {
-          status: 404,
-          headers: { 'Content-Type': 'application/json', ...corsHeaders }
-        });
+        return new Response(
+          JSON.stringify({
+            error: "Configuração do Cora não encontrada",
+          }),
+          {
+            status: 404,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          },
+        );
       }
 
       try {
         const result = await fetchCoraInvoices(user_id, config, filters);
         return new Response(JSON.stringify(result), {
-          headers: { 'Content-Type': 'application/json', ...corsHeaders },
+          headers: { "Content-Type": "application/json", ...corsHeaders },
         });
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        const isAuth = msg.includes('401') || msg.includes('invalid_client');
+        const isAuth = msg.includes("401") || msg.includes("invalid_client");
         const status = isAuth ? 401 : 500;
-        return new Response(JSON.stringify({
-          error: isAuth ? 'invalid_client' : 'internal_error',
-          message: msg
-        }), { status, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+        return new Response(
+          JSON.stringify({
+            error: isAuth ? "invalid_client" : "internal_error",
+            message: msg,
+          }),
+          { status, headers: { "Content-Type": "application/json", ...corsHeaders } },
+        );
       }
     }
 
-    if (payload.action === 'auto_sync') {
+    if (payload.action === "auto_sync") {
       // Auto sync for all users (used by cron)
       const { data: configs, error: configError } = await supabase
-        .from('tenant_config')
-        .select('user_id, config_value')
-        .eq('config_key', 'cora_settings');
+        .from("tenant_config")
+        .select("user_id, config_value")
+        .eq("config_key", "cora_settings");
 
       if (configError || !configs) {
-        throw new Error('Error fetching Cora configurations');
+        throw new Error("Error fetching Cora configurations");
       }
 
       const results = [];
@@ -690,27 +704,30 @@ const handler = async (req: Request): Promise<Response> => {
           const result = await syncCoraTransactions(
             configRow.user_id,
             configRow.config_value,
-            thirtyDaysAgo.toISOString().split('T')[0],
-            today.toISOString().split('T')[0]
+            thirtyDaysAgo.toISOString().split("T")[0],
+            today.toISOString().split("T")[0],
           );
           results.push({ user_id: configRow.user_id, ...result });
         } catch (error) {
           console.error(`Auto sync failed for user ${configRow.user_id}:`, error);
-          results.push({ 
-            user_id: configRow.user_id, 
-            success: false, 
-            error: error instanceof Error ? error.message : String(error) 
+          results.push({
+            user_id: configRow.user_id,
+            success: false,
+            error: error instanceof Error ? error.message : String(error),
           });
         }
       }
 
-      return new Response(JSON.stringify({
-        success: true,
-        message: `Auto sync completed for ${configs.length} users`,
-        results
-      }), {
-        headers: { 'Content-Type': 'application/json', ...corsHeaders }
-      });
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: `Auto sync completed for ${configs.length} users`,
+          results,
+        }),
+        {
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        },
+      );
     }
 
     // Handle webhook events
@@ -719,100 +736,102 @@ const handler = async (req: Request): Promise<Response> => {
     const amount = data?.amount;
 
     if (!chargeId) {
-      console.error('Missing charge ID in webhook payload');
-      return new Response('Missing charge ID', { 
-        status: 400, 
-        headers: corsHeaders 
+      console.error("Missing charge ID in webhook payload");
+      return new Response("Missing charge ID", {
+        status: 400,
+        headers: corsHeaders,
       });
     }
 
     // Log the webhook
-    await logWebhook(chargeId, event_type, payload, 'received', amount);
+    await logWebhook(chargeId, event_type, payload, "received", amount);
 
     let invoiceStatus: string;
     let updatedInvoice = null;
 
     switch (event_type) {
-      case 'charge.paid':
-        invoiceStatus = 'pago';
+      case "charge.paid":
+        invoiceStatus = "pago";
         updatedInvoice = await updateInvoiceStatus(chargeId, invoiceStatus, amount);
         console.log(`Invoice ${chargeId} marked as paid`);
         break;
-        
-      case 'charge.failed':
-      case 'charge.refused':
-        invoiceStatus = 'recusado';
+
+      case "charge.failed":
+      case "charge.refused":
+        invoiceStatus = "recusado";
         updatedInvoice = await updateInvoiceStatus(chargeId, invoiceStatus);
         console.log(`Invoice ${chargeId} marked as refused`);
         break;
-        
-      case 'charge.expired':
-        invoiceStatus = 'vencido';
+
+      case "charge.expired":
+        invoiceStatus = "vencido";
         updatedInvoice = await updateInvoiceStatus(chargeId, invoiceStatus);
         console.log(`Invoice ${chargeId} marked as expired`);
         break;
-        
-      case 'charge.cancelled':
-        invoiceStatus = 'cancelado';
+
+      case "charge.cancelled":
+        invoiceStatus = "cancelado";
         updatedInvoice = await updateInvoiceStatus(chargeId, invoiceStatus);
         console.log(`Invoice ${chargeId} marked as cancelled`);
         break;
-        
-      case 'charge.chargeback':
-        invoiceStatus = 'estornado';
+
+      case "charge.chargeback":
+        invoiceStatus = "estornado";
         updatedInvoice = await updateInvoiceStatus(chargeId, invoiceStatus);
         console.log(`Invoice ${chargeId} marked as chargeback`);
         break;
-        
+
       default:
         console.log(`Unhandled event type: ${event_type}`);
-        await logWebhook(chargeId, event_type, payload, 'unhandled');
-        return new Response('Event acknowledged', { 
-          status: 200, 
-          headers: corsHeaders 
+        await logWebhook(chargeId, event_type, payload, "unhandled");
+        return new Response("Event acknowledged", {
+          status: 200,
+          headers: corsHeaders,
         });
     }
 
     // Log the processing result
     if (updatedInvoice) {
-      await logWebhook(chargeId, event_type, payload, 'processed', amount);
-      
+      await logWebhook(chargeId, event_type, payload, "processed", amount);
+
       // If it's a recurring invoice that was paid, we could trigger additional logic here
-      if (invoiceStatus === 'pago' && updatedInvoice.tipo_cobranca === 'recorrente') {
+      if (invoiceStatus === "pago" && updatedInvoice.tipo_cobranca === "recorrente") {
         console.log(`Recurring invoice paid for contract: ${updatedInvoice.contrato_origem_id}`);
         // Could trigger notifications, update customer status, etc.
       }
     } else {
-      await logWebhook(chargeId, event_type, payload, 'error');
+      await logWebhook(chargeId, event_type, payload, "error");
     }
 
-    return new Response(JSON.stringify({ 
-      success: true, 
-      message: 'Webhook processed successfully',
-      invoice_updated: !!updatedInvoice
-    }), {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        ...corsHeaders,
-      },
-    });
-
-  } catch (error) {
-    console.error('Error processing Cora webhook:', error);
-    
     return new Response(
-      JSON.stringify({ 
-        error: 'Internal server error',
-        message: error instanceof Error ? error.message : String(error) 
+      JSON.stringify({
+        success: true,
+        message: "Webhook processed successfully",
+        invoice_updated: !!updatedInvoice,
+      }),
+      {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders,
+        },
+      },
+    );
+  } catch (error) {
+    console.error("Error processing Cora webhook:", error);
+
+    return new Response(
+      JSON.stringify({
+        error: "Internal server error",
+        message: error instanceof Error ? error.message : String(error),
       }),
       {
         status: 500,
-        headers: { 
-          'Content-Type': 'application/json', 
-          ...corsHeaders 
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders,
         },
-      }
+      },
     );
   }
 };
