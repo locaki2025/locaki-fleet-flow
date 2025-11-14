@@ -203,31 +203,32 @@ const getCoraAccessToken = async (userId: string, config: CoraConfig, forceRefre
         const errorJson = JSON.parse(responseText);
         if (errorJson.error) {
           errorDetails = errorJson.error;
-          
+
           // Provide more specific error messages
           if (errorDetails.includes("invalid_client")) {
             throw new Error(
               "Credenciais inválidas. Verifique se:\n" +
-              "1. O client_id está correto\n" +
-              "2. O certificado corresponde ao client_id\n" +
-              "3. A chave privada corresponde ao certificado\n" +
-              "4. As credenciais são válidas para o ambiente " + config.environment
+                "1. O client_id está correto\n" +
+                "2. O certificado corresponde ao client_id\n" +
+                "3. A chave privada corresponde ao certificado\n" +
+                "4. As credenciais são válidas para o ambiente " +
+                config.environment,
             );
           }
         }
       } catch (parseError) {
         // If not JSON, use original text
       }
-      
+
       throw new Error(`Falha na autenticação com Cora (${response.status}): ${errorDetails}`);
     }
 
     const data = JSON.parse(responseText);
-    
+
     if (!data.access_token) {
       throw new Error("Token de acesso não retornado pela API do Cora");
     }
-    
+
     const accessToken = data.access_token;
     const expiresIn = data.expires_in || 3600; // Default 1 hour
 
@@ -290,8 +291,8 @@ const syncCoraTransactions = async (userId: string, config: CoraConfig, startDat
         },
         body: JSON.stringify({
           access_token: accessToken,
-          certificate: config.certificate,
-          private_key: config.private_key,
+          cert_file: config.certificate,
+          key_file: config.private_key,
           base_url: baseUrl,
           start_date: startDate,
           end_date: endDate,
@@ -520,8 +521,8 @@ const fetchCoraInvoices = async (
         },
         body: JSON.stringify({
           access_token: accessToken,
-          certificate: config.certificate,
-          private_key: config.private_key,
+          cert_file: config.certificate,
+          key_file: config.private_key,
           base_url: baseUrl,
           start: filters?.start || "",
           end: filters?.end || "",
@@ -869,7 +870,8 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(
       JSON.stringify({
         error: "Unknown action",
-        message: "A action fornecida não é suportada. Actions disponíveis: test_connection, sync_transactions, fetch_invoices",
+        message:
+          "A action fornecida não é suportada. Actions disponíveis: test_connection, sync_transactions, fetch_invoices",
       }),
       {
         status: 400,
