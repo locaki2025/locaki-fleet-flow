@@ -93,8 +93,8 @@ const Invoices = () => {
           user_id: user.id,
           config: configData.config_value,
           filters: {
-            start: startDate.toISOString().split('T')[0],
-            end: endDate.toISOString().split('T')[0]
+            start: '2025-01-01',
+            end: '2025-12-31'
             //state: 'OPEN',
             //page: 1,
             //perPage: 100
