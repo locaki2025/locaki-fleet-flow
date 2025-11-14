@@ -155,6 +155,19 @@ const CoraConfigDialog = ({ open, onOpenChange }: CoraConfigDialogProps) => {
         }
       }
 
+      // Validate configuration before saving
+      if (!payload.client_id || payload.client_id.trim() === '') {
+        throw new Error('Client ID é obrigatório');
+      }
+
+      if (!payload.certificate || !payload.certificate.includes('BEGIN CERTIFICATE')) {
+        throw new Error('Certificado inválido ou não carregado. O arquivo deve estar em formato PEM (.pem ou .crt)');
+      }
+
+      if (!payload.private_key || !payload.private_key.includes('PRIVATE KEY')) {
+        throw new Error('Chave privada inválida ou não carregada. O arquivo deve estar em formato PEM (.pem ou .key)');
+      }
+
       const { error } = await supabase
         .from('tenant_config')
         .upsert(
@@ -176,7 +189,7 @@ const CoraConfigDialog = ({ open, onOpenChange }: CoraConfigDialogProps) => {
       console.error('Error saving Cora config:', error);
       toast({
         title: "Erro",
-        description: "Erro ao salvar configurações do Cora",
+        description: error instanceof Error ? error.message : "Erro ao salvar configurações do Cora",
         variant: "destructive",
       });
     } finally {
@@ -200,18 +213,34 @@ const CoraConfigDialog = ({ open, onOpenChange }: CoraConfigDialogProps) => {
 
       if (data?.success) {
         toast({
-          title: "Conexão testada",
-          description: "Conexão com o Cora estabelecida com sucesso",
+          title: "✓ Conexão estabelecida",
+          description: "Autenticação com o Cora realizada com sucesso!",
         });
       } else {
         throw new Error(data?.message || 'Erro na conexão');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Cora test connection error:', error);
+      
+      // Extract detailed error message
+      let errorMessage = "Não foi possível conectar com o Cora.";
+      
+      if (error.message) {
+        errorMessage = error.message;
+      } else if (error.context?.body) {
+        try {
+          const body = typeof error.context.body === 'string' 
+            ? JSON.parse(error.context.body) 
+            : error.context.body;
+          errorMessage = body.message || body.error || errorMessage;
+        } catch {}
+      }
+      
       toast({
-        title: "Erro na conexão",
-        description: error.message || "Não foi possível conectar com o Cora. Verifique as credenciais.",
+        title: "✗ Falha na autenticação",
+        description: errorMessage,
         variant: "destructive",
+        duration: 8000, // Show error longer
       });
     } finally {
       setTesting(false);

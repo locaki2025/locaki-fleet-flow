@@ -144,6 +144,21 @@ const getCoraAccessToken = async (userId: string, config: CoraConfig, forceRefre
   const PROXY_SECRET = "locakicoraproxy";
 
   try {
+    // Validate config before attempting authentication
+    if (!config.client_id || !config.certificate || !config.private_key) {
+      throw new Error("Configuração incompleta: client_id, certificado e chave privada são obrigatórios");
+    }
+
+    // Validate certificate format
+    if (!config.certificate.includes("BEGIN CERTIFICATE") || !config.certificate.includes("END CERTIFICATE")) {
+      throw new Error("Formato de certificado inválido. O certificado deve estar em formato PEM");
+    }
+
+    // Validate private key format
+    if (!config.private_key.includes("BEGIN") || !config.private_key.includes("PRIVATE KEY")) {
+      throw new Error("Formato de chave privada inválido. A chave deve estar em formato PEM");
+    }
+
     // Check cache first unless forced refresh
     if (!forceRefresh) {
       const cachedToken = await getCachedToken(userId);
@@ -157,6 +172,8 @@ const getCoraAccessToken = async (userId: string, config: CoraConfig, forceRefre
     console.log("Fetching new Cora token from proxy", {
       base_url: baseUrl,
       client_id: config.client_id,
+      cert_length: config.certificate.length,
+      key_length: config.private_key.length,
     });
 
     const response = await fetch(`${PROXY_URL}/cora/token`, {
@@ -176,20 +193,48 @@ const getCoraAccessToken = async (userId: string, config: CoraConfig, forceRefre
     const responseText = await response.text();
     console.log("Proxy token response:", {
       status: response.status,
-      body: responseText,
+      body: responseText.substring(0, 200), // Log only first 200 chars
     });
 
     if (!response.ok) {
-      throw new Error(`Erro ao obter token: ${response.status} - ${responseText}`);
+      // Parse error details if available
+      let errorDetails = responseText;
+      try {
+        const errorJson = JSON.parse(responseText);
+        if (errorJson.error) {
+          errorDetails = errorJson.error;
+          
+          // Provide more specific error messages
+          if (errorDetails.includes("invalid_client")) {
+            throw new Error(
+              "Credenciais inválidas. Verifique se:\n" +
+              "1. O client_id está correto\n" +
+              "2. O certificado corresponde ao client_id\n" +
+              "3. A chave privada corresponde ao certificado\n" +
+              "4. As credenciais são válidas para o ambiente " + config.environment
+            );
+          }
+        }
+      } catch (parseError) {
+        // If not JSON, use original text
+      }
+      
+      throw new Error(`Falha na autenticação com Cora (${response.status}): ${errorDetails}`);
     }
 
     const data = JSON.parse(responseText);
+    
+    if (!data.access_token) {
+      throw new Error("Token de acesso não retornado pela API do Cora");
+    }
+    
     const accessToken = data.access_token;
     const expiresIn = data.expires_in || 3600; // Default 1 hour
 
     // Cache the token
     await cacheToken(userId, accessToken, expiresIn);
 
+    console.log("Successfully obtained and cached Cora access token");
     return accessToken;
   } catch (error) {
     console.error("Error getting Cora access token:", error);
