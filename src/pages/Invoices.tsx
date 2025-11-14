@@ -95,6 +95,7 @@ const Invoices = () => {
           filters: {
             start: startDate.toISOString().split('T')[0],
             end: endDate.toISOString().split('T')[0],
+            state: 'OPEN',
             page: 1,
             perPage: 100
           }
