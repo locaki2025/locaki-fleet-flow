@@ -179,8 +179,8 @@ const getCoraAccessToken = async (userId: string, config: CoraConfig, forceRefre
       },
       body: JSON.stringify({
         client_id: config.client_id,
-        certificate: config.certificate,
-        private_key: config.private_key,
+        cert_file: config.certificate,
+        base_url: config.private_key,
         base_url: baseUrl
       })
     });
