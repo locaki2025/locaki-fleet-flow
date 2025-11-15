@@ -95,23 +95,26 @@ const Invoices = () => {
           filters: {
             start: '2025-01-01',
             end: '2025-12-31'
-            //state: 'OPEN',
-            //page: 1,
-            //perPage: 100
           }
         }
       });
 
       console.log('Cora invoices response:', { data, error });
+      console.log('Cora invoices data structure:', data);
 
       if (error) throw error;
 
-      setCoraInvoices(data?.invoices || []);
-      console.log('Cora invoices loaded:', data?.invoices?.length || 0);
+      // Check if data has invoices array
+      const invoicesArray = data?.invoices || [];
+      console.log('Invoices array:', invoicesArray);
+      console.log('First invoice structure:', invoicesArray[0]);
+
+      setCoraInvoices(invoicesArray);
+      console.log('Cora invoices loaded:', invoicesArray.length);
       
       toast({
         title: "Boletos consultados",
-        description: `${data?.invoices?.length || 0} boletos encontrados no Banco Cora`,
+        description: `${invoicesArray.length} boletos encontrados no Banco Cora`,
       });
     } catch (error) {
       console.error('Error fetching Cora invoices:', error);
@@ -190,23 +193,42 @@ const Invoices = () => {
   // Combine local invoices with Cora invoices
   const allInvoices = [
     ...invoices.map(inv => ({ ...inv, source: 'local' })),
-    ...coraInvoices.map(inv => ({
-      id: inv.id,
-      fatura_id: inv.code || inv.id,
-      cliente_nome: inv.customer?.name || 'Cliente não identificado',
-      descricao: inv.description || '',
-      valor: (inv.amount || 0) / 100,
-      vencimento: inv.due_date,
-      data_pagamento: inv.paid_at,
-      valor_pago: inv.paid_amount ? (inv.paid_amount / 100) : null,
-      status: inv.status === 'PAID' ? 'pago' : 
-              inv.status === 'PENDING' ? 'pendente' :
-              inv.status === 'CANCELLED' ? 'cancelado' : 'pendente',
-      placa: null,
-      codigo_barras: inv.barcode,
-      source: 'cora',
-      raw_cora_data: inv
-    }))
+    ...coraInvoices.map(inv => {
+      // Try different possible customer field structures
+      const customerName = inv.customer?.name || 
+                          inv.payer?.name || 
+                          inv.debtor?.name || 
+                          inv.customer_name ||
+                          inv.payer_name ||
+                          'Cliente não identificado';
+      
+      console.log('Mapping Cora invoice:', { 
+        id: inv.id, 
+        customer: inv.customer,
+        payer: inv.payer,
+        debtor: inv.debtor,
+        customerName 
+      });
+
+      return {
+        id: inv.id,
+        fatura_id: inv.code || inv.id,
+        cliente_nome: customerName,
+        descricao: inv.description || inv.notes || '',
+        valor: (inv.amount || 0) / 100,
+        vencimento: inv.due_date || inv.dueDate,
+        data_pagamento: inv.paid_at || inv.paidAt,
+        valor_pago: inv.paid_amount ? (inv.paid_amount / 100) : (inv.paidAmount ? (inv.paidAmount / 100) : null),
+        status: inv.status === 'PAID' ? 'pago' : 
+                inv.status === 'PENDING' || inv.status === 'OPEN' ? 'pendente' :
+                inv.status === 'CANCELLED' || inv.status === 'CANCELED' ? 'cancelado' : 
+                inv.status === 'OVERDUE' || inv.status === 'EXPIRED' ? 'vencido' : 'pendente',
+        placa: null,
+        codigo_barras: inv.barcode || inv.barCode,
+        source: 'cora',
+        raw_cora_data: inv
+      };
+    })
   ];
 
   const filteredInvoices = allInvoices.filter(invoice =>
