@@ -104,8 +104,8 @@ const Invoices = () => {
 
       if (error) throw error;
 
-      // Check if data has invoices array
-      const invoicesArray = data?.invoices || [];
+      // Cora retorna os boletos em data.items
+      const invoicesArray = data?.items || [];
       console.log('Invoices array:', invoicesArray);
       console.log('First invoice structure:', invoicesArray[0]);
 
