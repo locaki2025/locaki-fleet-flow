@@ -260,6 +260,9 @@ const syncCoraTransactions = async (userId: string, config: CoraConfig, startDat
 
     // Fetch transactions through proxy
     console.log(`Fetching transactions from ${startDate} to ${endDate}`);
+    // Fetch transactions through proxy
+    console.log(`JSON body ${ccessToken}, ${config.certificate}, 
+    ${config.private_key}, ${baseUrl}, ${startDate}, ${endDate}`);
 
     let transactionsResponse = await fetch(`${PROXY_URL}/cora/transactions`, {
       method: "POST",
@@ -282,6 +285,10 @@ const syncCoraTransactions = async (userId: string, config: CoraConfig, startDat
       console.log("Token expired, refreshing...");
       await invalidateToken(userId);
       accessToken = await getCoraAccessToken(userId, config, true);
+
+      // Fetch transactions through proxy
+      console.log(`JSON body ${ccessToken}, ${config.certificate}, 
+      ${config.private_key}, ${baseUrl}, ${startDate}, ${endDate}`);
 
       transactionsResponse = await fetch(`${PROXY_URL}/cora/transactions`, {
         method: "POST",
