@@ -578,7 +578,7 @@ const Invoices = () => {
                   </div>
                 ) : (
                   filteredInvoices.map((invoice) => (
-                    <div key={`${invoice.source}-${invoice.id}`} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50">
+                    <div key={invoice.cliente_nome`} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50">
                       <div className="flex items-center gap-4">
                         <div className={`h-12 w-12 rounded-full flex items-center justify-center ${
                           invoice.source === 'cora' ? 'bg-accent/10' : 'bg-primary/10'
@@ -589,7 +589,7 @@ const Invoices = () => {
                         </div>
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
-                            <p className="font-medium">{invoice.cliente_nome}</p>
+                            <p className="font-medium">{${invoice.source}-${invoice.id}`}</p>
                             <Badge className={getStatusColor(invoice.status)}>
                               {getStatusText(invoice.status)}
                             </Badge>
