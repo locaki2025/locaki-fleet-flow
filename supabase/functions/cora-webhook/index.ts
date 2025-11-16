@@ -1153,10 +1153,16 @@ const handler = async (req: Request): Promise<Response> => {
         const createdInvoice = await response.json();
         console.log("Invoice created successfully:", createdInvoice);
 
+        // Verify invoice was created successfully (has ID)
+        if (!createdInvoice || !createdInvoice.id) {
+          console.error("Invoice creation failed - no ID returned:", createdInvoice);
+          throw new Error("Invoice creation failed - API did not return a valid invoice ID");
+        }
+
         // Calculate total amount from services
         const totalAmount = boleto.services.reduce((sum: number, service: any) => sum + service.amount, 0);
 
-        // Save invoice to database
+        // Save invoice to database only after successful creation in Cora
         const { data: insertedInvoice, error: insertError } = await supabase
           .from("boletos")
           .insert({
