@@ -573,6 +573,11 @@ const syncInvoicesToDatabase = async (userId: string, apiResponse: any) => {
     }
 
     console.log(`Syncing ${invoices.length} invoices to database...`);
+    
+    // Log first invoice structure for debugging
+    if (invoices.length > 0) {
+      console.log("Sample invoice structure:", JSON.stringify(invoices[0], null, 2));
+    }
 
     // Map status from Cora to our system
     const mapStatus = (coraStatus: string): string => {
@@ -587,25 +592,30 @@ const syncInvoicesToDatabase = async (userId: string, apiResponse: any) => {
     };
 
     // Prepare boletos for upsert
-    const boletosToUpsert = invoices.map((invoice: any) => ({
-      user_id: userId,
-      fatura_id: invoice.id,
-      cliente_id: invoice.customer_id || "",
-      cliente_nome: invoice.customer_name || "Cliente Cora",
-      cliente_email: invoice.customer_email || "",
-      cliente_cpf: invoice.customer_document || null,
-      valor: parseFloat(invoice.total_amount) || 0,
-      vencimento: invoice.due_date,
-      status: mapStatus(invoice.status),
-      url_boleto: invoice.invoice_url || null,
-      codigo_barras: invoice.barcode || null,
-      qr_code_pix: invoice.pix_qr_code || null,
-      descricao: invoice.description || null,
-      tipo_cobranca: "cora",
-      data_pagamento: invoice.paid_at || null,
-      valor_pago: invoice.paid_at ? parseFloat(invoice.total_amount) : null,
-      metodo_pagamento: invoice.paid_at ? "cora" : null,
-    }));
+    const boletosToUpsert = invoices.map((invoice: any) => {
+      const valor = parseFloat(invoice.total_amount || invoice.amount || invoice.value || "0");
+      console.log(`Processing invoice ${invoice.id}: total_amount=${invoice.total_amount}, amount=${invoice.amount}, value=${invoice.value}, final valor=${valor}`);
+      
+      return {
+        user_id: userId,
+        fatura_id: invoice.id,
+        cliente_id: invoice.customer_id || "",
+        cliente_nome: invoice.customer_name || "Cliente Cora",
+        cliente_email: invoice.customer_email || "",
+        cliente_cpf: invoice.customer_document || null,
+        valor: valor,
+        vencimento: invoice.due_date,
+        status: mapStatus(invoice.status),
+        url_boleto: invoice.invoice_url || null,
+        codigo_barras: invoice.barcode || null,
+        qr_code_pix: invoice.pix_qr_code || null,
+        descricao: invoice.description || null,
+        tipo_cobranca: "cora",
+        data_pagamento: invoice.paid_at || null,
+        valor_pago: invoice.paid_at ? valor : null,
+        metodo_pagamento: invoice.paid_at ? "cora" : null,
+      };
+    });
 
     // Upsert boletos (update if exists, insert if not)
     const { error } = await supabase
