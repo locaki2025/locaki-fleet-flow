@@ -477,7 +477,7 @@ const autoReconcileTransaction = async (userId: string, transaction: CoraTransac
   }
 };*/
 
-// Fetch invoices from Cora API
+// Fetch invoices from Cora API and sync to database
 const fetchCoraInvoices = async (
   userId: string,
   config: CoraConfig,
@@ -544,7 +544,9 @@ const fetchCoraInvoices = async (
         throw new Error(`Erro ao buscar boletos: ${retryResponse.status} - ${errorText}`);
       }
 
-      return await retryResponse.json();
+      const result = await retryResponse.json();
+      await syncInvoicesToDatabase(userId, result);
+      return result;
     }
 
     if (!invoicesResponse.ok) {
@@ -552,9 +554,75 @@ const fetchCoraInvoices = async (
       throw new Error(`Erro ao buscar boletos: ${invoicesResponse.status} - ${errorText}`);
     }
 
-    return await invoicesResponse.json();
+    const result = await invoicesResponse.json();
+    await syncInvoicesToDatabase(userId, result);
+    return result;
   } catch (error) {
     console.error("Error fetching Cora invoices:", error);
+    throw error;
+  }
+};
+
+// Sync invoices from Cora API to database
+const syncInvoicesToDatabase = async (userId: string, apiResponse: any) => {
+  try {
+    const invoices = apiResponse.invoices || [];
+    if (!invoices.length) {
+      console.log("No invoices to sync");
+      return;
+    }
+
+    console.log(`Syncing ${invoices.length} invoices to database...`);
+
+    // Map status from Cora to our system
+    const mapStatus = (coraStatus: string): string => {
+      const statusMap: Record<string, string> = {
+        "PENDING": "pendente",
+        "PAID": "pago",
+        "OVERDUE": "vencido",
+        "CANCELLED": "cancelado",
+        "EXPIRED": "vencido",
+      };
+      return statusMap[coraStatus] || "pendente";
+    };
+
+    // Prepare boletos for upsert
+    const boletosToUpsert = invoices.map((invoice: any) => ({
+      user_id: userId,
+      fatura_id: invoice.id,
+      cliente_id: invoice.customer_id || "",
+      cliente_nome: invoice.customer_name || "Cliente Cora",
+      cliente_email: invoice.customer_email || "",
+      cliente_cpf: invoice.customer_document || null,
+      valor: parseFloat(invoice.amount) || 0,
+      vencimento: invoice.due_date,
+      status: mapStatus(invoice.status),
+      url_boleto: invoice.invoice_url || null,
+      codigo_barras: invoice.barcode || null,
+      qr_code_pix: invoice.pix_qr_code || null,
+      descricao: invoice.description || null,
+      tipo_cobranca: "cora",
+      data_pagamento: invoice.paid_at || null,
+      valor_pago: invoice.paid_at ? parseFloat(invoice.amount) : null,
+      metodo_pagamento: invoice.paid_at ? "cora" : null,
+    }));
+
+    // Upsert boletos (update if exists, insert if not)
+    const { error } = await supabase
+      .from("boletos")
+      .upsert(boletosToUpsert, {
+        onConflict: "fatura_id",
+        ignoreDuplicates: false,
+      });
+
+    if (error) {
+      console.error("Error syncing invoices to database:", error);
+      throw error;
+    }
+
+    console.log(`Successfully synced ${boletosToUpsert.length} invoices to database`);
+  } catch (error) {
+    console.error("Error in syncInvoicesToDatabase:", error);
     throw error;
   }
 };
