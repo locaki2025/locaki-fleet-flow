@@ -171,7 +171,7 @@ const InvoiceDialog = ({ open, onOpenChange, onInvoiceCreated }: InvoiceDialogPr
     try {
       const { error } = await supabase.from("boletos").insert({
         user_id: user.id,
-        cliente_nome: formData.customer_name,
+        cliente_nome: formData.cliente_nome,
         cliente_email: formData.cliente_email,
         cliente_id: formData.cliente_id || formData.cliente_email,
         descricao: formData.descricao,
