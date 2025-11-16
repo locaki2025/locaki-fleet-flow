@@ -585,16 +585,18 @@ const syncInvoicesToDatabase = async (userId: string, apiResponse: any) => {
 
     // Map status from Cora to our system
     const mapStatus = (coraStatus: string): string => {
+      const key = (coraStatus || '').toString().trim().toUpperCase();
       const statusMap: Record<string, string> = {
-        "OPEN": "pendente",
-        "PENDING": "pendente",
-        "PAID": "pago",
-        "OVERDUE": "vencido",
-        "LATE": "vencido",
-        "CANCELLED": "cancelado",
-        "EXPIRED": "vencido",
+        OPEN: 'pendente',
+        PENDING: 'pendente',
+        PAID: 'pago',
+        OVERDUE: 'vencido',
+        LATE: 'vencido',
+        EXPIRED: 'vencido',
+        CANCELLED: 'cancelado',
+        CANCELED: 'cancelado',
       };
-      return statusMap[coraStatus] || "pendente";
+      return statusMap[key] || 'pendente';
     };
 
     const supabase = createClient(

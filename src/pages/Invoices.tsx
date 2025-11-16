@@ -200,7 +200,8 @@ const Invoices = () => {
   // Use only database invoices (includes synced Cora invoices)
   const allInvoices = invoices.map((inv) => {
     const source = inv.tipo_cobranca || 'local';
-    let status = inv.status;
+    let status = (inv.status || "").toString().trim().toLowerCase();
+    if (status === 'cancelada') status = 'cancelado';
 
     if (status !== 'pago' && status !== 'cancelado' && inv.vencimento) {
       const due = new Date(inv.vencimento);
