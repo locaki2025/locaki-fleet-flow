@@ -208,6 +208,7 @@ const InvoiceDialog = ({ open, onOpenChange, onInvoiceCreated }: InvoiceDialogPr
             body: {
               action: "create_invoice",
               user_id: user.id,
+              config: coraConfig.config_value,
               boleto: {
                 code: localInvoice.fatura_id,
                 customer: {
