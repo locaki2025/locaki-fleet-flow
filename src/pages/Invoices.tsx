@@ -113,9 +113,12 @@ const Invoices = () => {
       console.log('Cora invoices loaded:', invoicesArray.length);
       
       toast({
-        title: "Boletos consultados",
-        description: `${invoicesArray.length} boletos encontrados no Banco Cora`,
+        title: "Boletos sincronizados",
+        description: `${invoicesArray.length} boletos sincronizados com sucesso`,
       });
+
+      // Reload local invoices to show newly synced data
+      await fetchInvoices();
     } catch (error) {
       console.error('Error fetching Cora invoices:', error);
       toast({
