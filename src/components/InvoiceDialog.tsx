@@ -171,102 +171,51 @@ const InvoiceDialog = ({ open, onOpenChange, onInvoiceCreated }: InvoiceDialogPr
 
     setLoading(true);
     try {
-      // Verificar se tem configuração do Cora
-      const { data: coraConfig } = await supabase
-        .from("tenant_config")
-        .select("config_value")
-        .eq("user_id", user.id)
-        .eq("config_key", "cora_settings")
-        .maybeSingle();
-
-      // Criar fatura localmente
-      const { data: localInvoice, error } = await supabase.from("boletos").insert({
+      // Não salvar localmente: chamar diretamente a Edge Function para criar no Cora
+      const payload: any = {
+        action: "create_invoice",
         user_id: user.id,
-        cliente_nome: formData.cliente_nome,
-        cliente_email: formData.cliente_email,
-        cliente_id: formData.cliente_id || formData.cliente_email,
-        descricao: formData.descricao,
-        valor: parseFloat(formData.valor),
-        vencimento: formData.vencimento,
-        observacoes: formData.observacoes,
-        placa: formData.placa,
-        status: "pendente",
-        fatura_id: `FAT-${Date.now()}`,
-        tipo_cobranca: "avulsa",
-        taxa_juros: parseFloat(formData.taxa_juros) || 3.67,
-      }).select().single();
+        boleto: {
+          customer: {
+            name: formData.cliente_nome,
+            email: formData.cliente_email,
+            // Envia documento como string se não houver tipo; a função trata o payload
+            document: formData.cliente_id || "00000000000",
+          },
+          services: [
+            {
+              description: formData.descricao || "Serviço",
+              amount: Math.round(parseFloat(formData.valor) * 100), // em centavos
+            },
+          ],
+          payment_terms: {
+            due_date: formData.vencimento,
+          },
+        },
+      };
+
+      const { data, error } = await supabase.functions.invoke("cora-webhook", {
+        body: payload,
+      });
 
       if (error) {
-        console.error("Supabase error creating invoice:", error);
-        throw new Error(`Erro ao criar fatura: ${error.message}`);
+        console.error("Erro ao criar fatura no Cora:", error);
+        throw new Error(error.message || "Falha ao criar no Cora");
       }
 
-      // Se tiver configuração do Cora, criar fatura na API também
-      if (coraConfig && localInvoice) {
-        try {
-          const { data: coraInvoice, error: coraError } = await supabase.functions.invoke("cora-webhook", {
-            body: {
-              action: "create_invoice",
-              user_id: user.id,
-              config: coraConfig.config_value,
-              boleto: {
-                code: localInvoice.fatura_id,
-                customer: {
-                  name: formData.cliente_nome,
-                  email: formData.cliente_email,
-                  document: formData.cliente_id || "00000000000",
-                },
-                services: [
-                  {
-                    code: localInvoice.fatura_id,
-                    description: formData.descricao || "Serviço",
-                    amount: Math.round(parseFloat(formData.valor) * 100), // Converter para centavos
-                  },
-                ],
-                payment_terms: {
-                  due_date: formData.vencimento,
-                },
-              },
-            },
-          });
-
-          if (coraError) {
-            console.error("Erro ao criar fatura no Cora:", coraError);
-            toast({
-              title: "Fatura criada localmente",
-              description: "A fatura foi criada no sistema, mas houve um erro ao sincronizar com o Cora",
-              variant: "default",
-            });
-          } else {
-            toast({
-              title: "Fatura criada com sucesso",
-              description: "A fatura foi criada no sistema e na API do Cora",
-            });
-          }
-        } catch (coraError) {
-          console.error("Erro ao chamar API do Cora:", coraError);
-          toast({
-            title: "Fatura criada localmente",
-            description: "A fatura foi criada no sistema, mas não foi possível sincronizar com o Cora",
-            variant: "default",
-          });
-        }
-      } else {
-        toast({
-          title: "Fatura criada",
-          description: "A fatura foi criada com sucesso!",
-        });
-      }
+      // Se criado com sucesso no Cora, a função já inicia a sincronização com o banco
+      toast({
+        title: "Boleto solicitado no Cora",
+        description: "Sincronizando boletos com o banco de dados...",
+      });
 
       resetForm();
       onOpenChange(false);
-      if (onInvoiceCreated) {
-        onInvoiceCreated();
-      }
+      onInvoiceCreated?.();
     } catch (error) {
       console.error("Error creating invoice:", error);
       toast({
-        title: "Erro ao criar fatura",
+        title: "Erro ao criar boleto no Cora",
         description: error instanceof Error ? error.message : "Ocorreu um erro inesperado",
         variant: "destructive",
       });
