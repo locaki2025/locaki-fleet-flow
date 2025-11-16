@@ -107,16 +107,20 @@ const CoraConfigDialog = ({ open, onOpenChange }: CoraConfigDialogProps) => {
       }
 
       if (data && data.config_value) {
-        const loadedConfig = data.config_value as any as CoraConfig;
+        const loaded: any = data.config_value as any;
         // Normalize environment and base_url
-        const env: 'production' | 'stage' = loadedConfig.environment === 'production' ? 'production' : 'stage';
+        const env: 'production' | 'stage' = loaded.environment === 'production' ? 'production' : 'stage';
         const correctBaseUrl = env === 'production'
           ? 'https://matls-clients.api.cora.com.br'
           : 'https://matls-clients.api.stage.cora.com.br';
+
+        // Map old keys (certificate/private_key) to new ones (cert_file/key_file)
         setConfig({
-          ...loadedConfig,
+          client_id: loaded.client_id || '',
+          cert_file: loaded.cert_file || loaded.certificate || '',
+          key_file: loaded.key_file || loaded.private_key || '',
           environment: env,
-          base_url: correctBaseUrl
+          base_url: correctBaseUrl,
         });
       }
     } catch (error) {
