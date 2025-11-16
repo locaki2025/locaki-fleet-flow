@@ -1099,7 +1099,7 @@ const handler = async (req: Request): Promise<Response> => {
 
       try {
         // Get access token
-        const accessToken = await getAccessToken(user_id, config);
+        const accessToken = await getCoraAccessToken(user_id, config);
         
         // Generate idempotency key (unique per request)
         const idempotencyKey = crypto.randomUUID();
