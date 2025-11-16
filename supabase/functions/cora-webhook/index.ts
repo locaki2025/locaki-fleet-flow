@@ -1138,8 +1138,8 @@ const handler = async (req: Request): Promise<Response> => {
           },
           body: JSON.stringify({
             access_token: accessToken,
+            idempotency_Key: idempotencyKey,
             base_url: config.base_url,
-            idempotencyKey: idempotencyKey,
             boleto: invoicePayload,
           }),
         });
