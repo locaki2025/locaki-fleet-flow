@@ -1070,7 +1070,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Handle create_invoice action
     if (payload.action === "create_invoice") {
-      const { user_id, boleto, contrato_id } = payload;
+      const { user_id, boleto, contrato_id, access_token, base_url, idempotency_Key, idempotency_key, idempotencyKey } = payload;
 
       if (!user_id || !boleto) {
         return new Response(
@@ -1098,14 +1098,116 @@ const handler = async (req: Request): Promise<Response> => {
       }
 
       try {
-        // Get access token
-        const accessToken = await getCoraAccessToken(user_id, config);
-        
-        // Generate idempotency key (unique per request)
-        const idempotencyKey = crypto.randomUUID();
-        
+        // Prefer provided token/base url/idempotency key when sent by the client
+        const tokenToUse: string = access_token || (await getCoraAccessToken(user_id, config));
+        const baseUrlForCora: string = base_url || config.base_url;
+        const idemKey: string = idempotency_Key || idempotency_key || idempotencyKey || crypto.randomUUID();
+
         // Prepare invoice creation payload
         const invoicePayload = {
+          code: boleto.code || crypto.randomUUID().substring(0, 8),
+          customer: boleto.customer,
+          services: boleto.services,
+          payment_terms: boleto.payment_terms,
+          notifications: boleto.notifications || {
+            channels: ["EMAIL"],
+            destination: {
+              name: boleto.customer?.name,
+              email: boleto.customer?.email,
+            },
+            rules: [
+              "NOTIFY_TEN_DAYS_BEFORE_DUE_DATE",
+              "NOTIFY_TWO_DAYS_BEFORE_DUE_DATE",
+              "NOTIFY_ON_DUE_DATE",
+              "NOTIFY_TWO_DAYS_AFTER_DUE_DATE",
+              "NOTIFY_WHEN_PAID",
+            ],
+          },
+        };
+
+        console.log("Creating invoice with payload:", JSON.stringify(invoicePayload, null, 2));
+
+        // Use the same mTLS proxy used for listing invoices
+        const PROXY_URL = "https://cora-mtls-proxy.onrender.com";
+        const PROXY_SECRET = "locakicoraproxy";
+
+        // Create invoice via proxy endpoint
+        const response = await fetch(`${PROXY_URL}/cora/invoices/create`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Proxy-Secret": PROXY_SECRET,
+          },
+          body: JSON.stringify({
+            access_token: tokenToUse,
+            idempotency_Key: idemKey,
+            base_url: baseUrlForCora,
+            boleto: invoicePayload,
+          }),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error("Error creating invoice:", errorText);
+          throw new Error(`Failed to create invoice: ${response.status} - ${errorText}`);
+        }
+
+        const createdInvoice = await response.json();
+        console.log("Invoice created successfully:", createdInvoice);
+
+        // Ensure created invoice has an id before any sync
+        if (!createdInvoice || !createdInvoice.id) {
+          console.error("Invoice creation failed - no ID returned:", createdInvoice);
+          throw new Error("Invoice creation failed - API did not return a valid invoice ID");
+        }
+
+        // After successful creation, fetch a very narrow window to sync only recent invoices
+        console.log("Fetching invoices from Cora to sync with database...");
+        try {
+          const today = new Date();
+          const start = new Date(today);
+          start.setDate(today.getDate() - 2);
+          const end = new Date(today);
+          end.setDate(today.getDate() + 2);
+
+          const syncResult = await fetchCoraInvoices(user_id, config, {
+            start: start.toISOString().split("T")[0],
+            end: end.toISOString().split("T")[0],
+            page: 1,
+            perPage: 50,
+          });
+          console.log(`Synced ${syncResult?.items?.length || 0} invoices from Cora`);
+        } catch (syncError) {
+          console.error("Error syncing invoices after creation:", syncError);
+          // Don't fail the request if sync fails, invoice was created successfully
+        }
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            message: "Invoice created successfully in Cora and synced to database",
+            invoice: createdInvoice,
+          }),
+          {
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          },
+        );
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        const isAuth = msg.includes("401") || msg.includes("invalid_client");
+        const status = isAuth ? 401 : 500;
+        
+        console.error("Error in create_invoice:", msg);
+        
+        return new Response(
+          JSON.stringify({
+            error: isAuth ? "invalid_client" : "internal_error",
+            message: msg,
+          }),
+          { status, headers: { "Content-Type": "application/json", ...corsHeaders } },
+        );
+      }
+    }
           code: boleto.code || crypto.randomUUID().substring(0, 8),
           customer: boleto.customer,
           services: boleto.services,
