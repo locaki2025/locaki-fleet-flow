@@ -594,7 +594,7 @@ const syncInvoicesToDatabase = async (userId: string, apiResponse: any) => {
       cliente_nome: invoice.customer_name || "Cliente Cora",
       cliente_email: invoice.customer_email || "",
       cliente_cpf: invoice.customer_document || null,
-      valor: parseFloat(invoice.amount) || 0,
+      valor: parseFloat(invoice.total_amount) || 0,
       vencimento: invoice.due_date,
       status: mapStatus(invoice.status),
       url_boleto: invoice.invoice_url || null,
@@ -603,7 +603,7 @@ const syncInvoicesToDatabase = async (userId: string, apiResponse: any) => {
       descricao: invoice.description || null,
       tipo_cobranca: "cora",
       data_pagamento: invoice.paid_at || null,
-      valor_pago: invoice.paid_at ? parseFloat(invoice.amount) : null,
+      valor_pago: invoice.paid_at ? parseFloat(invoice.total_amount) : null,
       metodo_pagamento: invoice.paid_at ? "cora" : null,
     }));
 
