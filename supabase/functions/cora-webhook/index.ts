@@ -176,18 +176,25 @@ const getCoraAccessToken = async (userId: string, config: CoraConfig, forceRefre
       key_length: config.key_file.length,
     });
 
+    // Create FormData for multipart/form-data request
+    const formData = new FormData();
+    formData.append('client_id', config.client_id);
+    formData.append('base_url', baseUrl);
+    
+    // Convert certificate and key strings to Blobs
+    const certBlob = new Blob([config.cert_file], { type: 'application/x-pem-file' });
+    const keyBlob = new Blob([config.key_file], { type: 'application/x-pem-file' });
+    
+    formData.append('cert_file', certBlob, 'certificate.pem');
+    formData.append('key_file', keyBlob, 'private-key.key');
+
     const response = await fetch(`${PROXY_URL}/cora/token`, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
         "X-Proxy-Secret": PROXY_SECRET,
+        // Don't set Content-Type, let the browser set it with boundary
       },
-      body: JSON.stringify({
-        client_id: config.client_id,
-        cert_file: config.cert_file,
-        key_file: config.key_file,
-        base_url: baseUrl,
-      }),
+      body: formData,
     });
 
     const responseText = await response.text();
@@ -503,8 +510,6 @@ const fetchCoraInvoices = async (
       },
       body: JSON.stringify({
         access_token: accessToken,
-        cert_file: config.cert_file,
-        key_file: config.key_file,
         base_url: baseUrl,
         start: filters?.start || "",
         end: filters?.end || "",
@@ -528,8 +533,6 @@ const fetchCoraInvoices = async (
         },
         body: JSON.stringify({
           access_token: accessToken,
-          cert_file: config.cert_file,
-          key_file: config.key_file,
           base_url: baseUrl,
           start: filters?.start || "",
           end: filters?.end || "",
