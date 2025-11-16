@@ -282,7 +282,7 @@ const Invoices = () => {
         // Open invoice details dialog
         toast({
           title: "Visualizar Fatura",
-          description: `Visualizando fatura ${invoice.fatura_id}`,
+          description: `Visualizando fatura de ${invoice.cliente_nome}`,
         });
         break;
       
@@ -290,7 +290,7 @@ const Invoices = () => {
         // Open edit dialog
         toast({
           title: "Editar Fatura",
-          description: `Editando fatura ${invoice.fatura_id}`,
+          description: `Editando fatura de ${invoice.cliente_nome}`,
         });
         break;
       
@@ -308,7 +308,7 @@ const Invoices = () => {
 
           toast({
             title: "Email enviado",
-            description: `Fatura ${invoice.fatura_id} enviada por email`,
+            description: `Fatura de ${invoice.cliente_nome} enviada por email`,
           });
         } catch (error) {
           toast({
@@ -343,7 +343,7 @@ const Invoices = () => {
             
             const element = document.createElement('a');
             element.href = url;
-            element.download = `fatura_${invoice.fatura_id}.pdf`;
+            element.download = `fatura_${invoice.cliente_nome.replace(/\s/g, '_')}.pdf`;
             document.body.appendChild(element);
             element.click();
             document.body.removeChild(element);
@@ -352,7 +352,7 @@ const Invoices = () => {
 
           toast({
             title: "PDF gerado",
-            description: `Fatura ${invoice.fatura_id} baixada com sucesso`,
+            description: `Fatura de ${invoice.cliente_nome} baixada com sucesso`,
           });
         } catch (error) {
           toast({
@@ -375,7 +375,7 @@ const Invoices = () => {
 
           toast({
             title: "Fatura excluída",
-            description: `Fatura ${invoice.fatura_id} excluída com sucesso`,
+            description: `Fatura de ${invoice.cliente_nome} excluída com sucesso`,
           });
           
           fetchInvoices(); // Refresh list
@@ -589,7 +589,7 @@ const Invoices = () => {
                         </div>
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
-                            <p className="font-medium">{invoice.fatura_id}</p>
+                            <p className="font-medium">{invoice.cliente_nome}</p>
                             <Badge className={getStatusColor(invoice.status)}>
                               {getStatusText(invoice.status)}
                             </Badge>
@@ -599,7 +599,6 @@ const Invoices = () => {
                               </Badge>
                             )}
                           </div>
-                          <p className="text-sm font-medium">{invoice.cliente_nome}</p>
                           <p className="text-sm text-muted-foreground">{invoice.descricao}</p>
                           {invoice.placa && (
                             <p className="text-sm font-medium text-primary">Placa: {invoice.placa}</p>
@@ -692,8 +691,8 @@ const Invoices = () => {
                           <Clock className="h-6 w-6 text-warning" />
                         </div>
                         <div>
-                          <p className="font-medium">{invoice.fatura_id}</p>
-                          <p className="text-sm text-muted-foreground">{invoice.cliente_nome}</p>
+                          <p className="font-medium">{invoice.cliente_nome}</p>
+                          <p className="text-sm text-muted-foreground">{invoice.descricao}</p>
                           {invoice.placa && (
                             <p className="text-xs font-medium text-primary">Placa: {invoice.placa}</p>
                           )}
@@ -740,8 +739,8 @@ const Invoices = () => {
                           <CheckCircle2 className="h-6 w-6 text-success" />
                         </div>
                         <div>
-                          <p className="font-medium">{invoice.fatura_id}</p>
-                          <p className="text-sm text-muted-foreground">{invoice.cliente_nome}</p>
+                          <p className="font-medium">{invoice.cliente_nome}</p>
+                          <p className="text-sm text-muted-foreground">{invoice.descricao}</p>
                           {invoice.placa && (
                             <p className="text-xs font-medium text-primary">Placa: {invoice.placa}</p>
                           )}
@@ -791,8 +790,8 @@ const Invoices = () => {
                           <AlertCircle className="h-6 w-6 text-destructive" />
                         </div>
                         <div>
-                          <p className="font-medium">{invoice.fatura_id}</p>
-                          <p className="text-sm text-muted-foreground">{invoice.cliente_nome}</p>
+                          <p className="font-medium">{invoice.cliente_nome}</p>
+                          <p className="text-sm text-muted-foreground">{invoice.descricao}</p>
                           {invoice.placa && (
                             <p className="text-xs font-medium text-primary">Placa: {invoice.placa}</p>
                           )}
