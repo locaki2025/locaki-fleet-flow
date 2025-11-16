@@ -205,7 +205,15 @@ const CoraConfigDialog = ({ open, onOpenChange }: CoraConfigDialogProps) => {
       const { data, error } = await supabase.functions.invoke('cora-webhook', {
         body: {
           action: 'test_connection',
-          user_id: user.id
+          user_id: user.id,
+          // Envia a configuração atual (mesmo que ainda não tenha sido salva) para o teste usar os dados corretos
+          config: {
+            client_id: config.client_id,
+            certificate: config.certificate,
+            private_key: config.private_key,
+            base_url: config.base_url,
+            environment: config.environment,
+          }
         }
       });
 
@@ -234,6 +242,11 @@ const CoraConfigDialog = ({ open, onOpenChange }: CoraConfigDialogProps) => {
             : error.context.body;
           errorMessage = body.message || body.error || errorMessage;
         } catch {}
+      }
+
+      // Dica específica para invalid_client
+      if (/invalid_client/i.test(errorMessage)) {
+        errorMessage = 'Cora retornou "invalid_client". Verifique se: (1) o Client ID corresponde ao certificado emitido; (2) a chave privada é o par do certificado; (3) o ambiente selecionado (stage/production) está correto; e salve as configurações antes de testar.';
       }
       
       toast({
