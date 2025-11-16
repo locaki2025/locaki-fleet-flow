@@ -193,46 +193,8 @@ const Invoices = () => {
     }
   };
 
-  // Combine local invoices with Cora invoices
-  const allInvoices = [
-    ...invoices.map(inv => ({ ...inv, source: 'local' })),
-    ...coraInvoices.map(inv => {
-      // Try different possible customer field structures
-      const customerName = inv.customer?.name || 
-                          inv.payer?.name || 
-                          inv.debtor?.name || 
-                          inv.customer_name ||
-                          inv.payer_name ||
-                          'Cliente não identificado';
-      
-      console.log('Mapping Cora invoice:', { 
-        id: inv.id, 
-        customer: inv.customer,
-        payer: inv.payer,
-        debtor: inv.debtor,
-        customerName 
-      });
-
-      return {
-        id: inv.id,
-        fatura_id: inv.code || inv.id,
-        cliente_nome: customerName,
-        descricao: inv.description || inv.notes || '',
-        valor: (inv.amount || 0) / 100,
-        vencimento: inv.due_date || inv.dueDate,
-        data_pagamento: inv.paid_at || inv.paidAt,
-        valor_pago: inv.paid_amount ? (inv.paid_amount / 100) : (inv.paidAmount ? (inv.paidAmount / 100) : null),
-        status: inv.status === 'PAID' ? 'pago' : 
-                inv.status === 'PENDING' || inv.status === 'OPEN' ? 'pendente' :
-                inv.status === 'CANCELLED' || inv.status === 'CANCELED' ? 'cancelado' : 
-                inv.status === 'OVERDUE' || inv.status === 'EXPIRED' ? 'vencido' : 'pendente',
-        placa: null,
-        codigo_barras: inv.barcode || inv.barCode,
-        source: 'cora',
-        raw_cora_data: inv
-      };
-    })
-  ];
+  // Use only database invoices (includes synced Cora invoices)
+  const allInvoices = invoices.map(inv => ({ ...inv, source: inv.tipo_cobranca || 'local' }));
 
   const filteredInvoices = allInvoices.filter(invoice =>
     invoice.cliente_nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
