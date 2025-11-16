@@ -202,7 +202,7 @@ const Invoices = () => {
     const source = inv.tipo_cobranca || 'local';
     let status = inv.status;
 
-    if (status !== 'pago' && inv.vencimento) {
+    if (status !== 'pago' && status !== 'cancelado' && inv.vencimento) {
       const due = new Date(inv.vencimento);
       due.setHours(0, 0, 0, 0);
       if (due < today) {
@@ -224,10 +224,12 @@ const Invoices = () => {
   const paidInvoices = allInvoices.filter(inv => inv.status === 'pago');
   const pendingInvoices = allInvoices.filter(inv => inv.status === 'pendente');
   const overdueInvoices = allInvoices.filter(inv => inv.status === 'vencido');
+  const cancelledInvoices = allInvoices.filter(inv => inv.status === 'cancelado');
   
   const totalAmount = allInvoices.reduce((sum, inv) => sum + (Number(inv.valor) || 0), 0);
   const paidAmount = paidInvoices.reduce((sum, inv) => sum + (Number(inv.valor) || 0), 0);
   const pendingAmount = pendingInvoices.reduce((sum, inv) => sum + (Number(inv.valor) || 0), 0);
+  const cancelledAmount = cancelledInvoices.reduce((sum, inv) => sum + (Number(inv.valor) || 0), 0);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -237,6 +239,8 @@ const Invoices = () => {
         return 'bg-warning text-warning-foreground';
       case 'vencido':
         return 'bg-destructive text-destructive-foreground';
+      case 'cancelado':
+        return 'bg-muted text-muted-foreground';
       default:
         return 'bg-muted text-muted-foreground';
     }
@@ -250,6 +254,8 @@ const Invoices = () => {
         return 'Pendente';
       case 'vencido':
         return 'Vencido';
+      case 'cancelado':
+        return 'Cancelado';
       default:
         return status;
     }
@@ -539,6 +545,7 @@ const Invoices = () => {
           <TabsTrigger value="pending">Pendentes ({pendingInvoices.length})</TabsTrigger>
           <TabsTrigger value="paid">Pagas ({paidInvoices.length})</TabsTrigger>
           <TabsTrigger value="overdue">Vencidas ({overdueInvoices.length})</TabsTrigger>
+          <TabsTrigger value="cancelled">Canceladas ({cancelledInvoices.length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="all" className="space-y-4">
@@ -797,9 +804,53 @@ const Invoices = () => {
           </Card>
         </TabsContent>
 
+        <TabsContent value="cancelled" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Faturas Canceladas</CardTitle>
+              <CardDescription>Faturas que foram canceladas</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {cancelledInvoices.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    Nenhuma fatura cancelada
+                  </div>
+                ) : (
+                  cancelledInvoices.map((invoice) => (
+                    <div key={invoice.id} className="flex items-center justify-between p-4 border rounded-lg bg-muted/30">
+                      <div className="flex items-center gap-4">
+                        <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
+                          <Receipt className="h-6 w-6 text-muted-foreground" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-muted-foreground line-through">{invoice.cliente_nome}</p>
+                          <p className="text-sm text-muted-foreground">{invoice.descricao}</p>
+                          {invoice.placa && (
+                            <p className="text-xs font-medium text-muted-foreground">Placa: {invoice.placa}</p>
+                          )}
+                          <p className="text-xs text-muted-foreground">
+                            Cancelado em: {invoice.updated_at ? new Date(invoice.updated_at).toLocaleDateString('pt-BR') : 'N/A'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold text-muted-foreground line-through">
+                          R$ {(Number(invoice.valor) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </p>
+                        <Badge variant="outline" className="mt-1">Cancelado</Badge>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
       </Tabs>
 
-      <InvoiceDialog 
+      <InvoiceDialog
         open={isInvoiceDialogOpen} 
         onOpenChange={setIsInvoiceDialogOpen}
         onInvoiceCreated={fetchInvoices}
