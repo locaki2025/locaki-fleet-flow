@@ -193,8 +193,25 @@ const Invoices = () => {
     }
   };
 
+  // Normalize statuses considering due date (overrides to "vencido" when past due and not paid)
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
   // Use only database invoices (includes synced Cora invoices)
-  const allInvoices = invoices.map(inv => ({ ...inv, source: inv.tipo_cobranca || 'local' }));
+  const allInvoices = invoices.map((inv) => {
+    const source = inv.tipo_cobranca || 'local';
+    let status = inv.status;
+
+    if (status !== 'pago' && inv.vencimento) {
+      const due = new Date(inv.vencimento);
+      due.setHours(0, 0, 0, 0);
+      if (due < today) {
+        status = 'vencido';
+      }
+    }
+
+    return { ...inv, source, status };
+  });
 
   const filteredInvoices = allInvoices.filter(invoice =>
     invoice.cliente_nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -202,13 +219,13 @@ const Invoices = () => {
     invoice.descricao?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Calculate metrics
-  const totalInvoices = invoices.length;
-  const paidInvoices = invoices.filter(inv => inv.status === 'pago');
-  const pendingInvoices = invoices.filter(inv => inv.status === 'pendente');
-  const overdueInvoices = invoices.filter(inv => inv.status === 'vencido');
+  // Calculate metrics based on normalized invoices
+  const totalInvoices = allInvoices.length;
+  const paidInvoices = allInvoices.filter(inv => inv.status === 'pago');
+  const pendingInvoices = allInvoices.filter(inv => inv.status === 'pendente');
+  const overdueInvoices = allInvoices.filter(inv => inv.status === 'vencido');
   
-  const totalAmount = invoices.reduce((sum, inv) => sum + (Number(inv.valor) || 0), 0);
+  const totalAmount = allInvoices.reduce((sum, inv) => sum + (Number(inv.valor) || 0), 0);
   const paidAmount = paidInvoices.reduce((sum, inv) => sum + (Number(inv.valor) || 0), 0);
   const pendingAmount = pendingInvoices.reduce((sum, inv) => sum + (Number(inv.valor) || 0), 0);
 
