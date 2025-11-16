@@ -610,8 +610,8 @@ const syncInvoicesToDatabase = async (userId: string, apiResponse: any) => {
       // Get mapped status from Cora
       let finalStatus = mapStatus(invoice.status);
       
-      // Override status if due date has passed and invoice is not paid
-      if (invoice.due_date && finalStatus !== "pago") {
+      // Override status if due date has passed and invoice is not paid or cancelled
+      if (invoice.due_date && finalStatus !== "pago" && finalStatus !== "cancelado") {
         const dueDate = new Date(invoice.due_date);
         const today = new Date();
         today.setHours(0, 0, 0, 0);
