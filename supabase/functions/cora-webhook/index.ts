@@ -1131,25 +1131,38 @@ const handler = async (req: Request): Promise<Response> => {
         const PROXY_URL = "https://cora-mtls-proxy.onrender.com";
         const PROXY_SECRET = "locakicoraproxy";
 
-        // Create invoice via proxy endpoint
-        const response = await fetch(`${PROXY_URL}/cora/invoices/create`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Proxy-Secret": PROXY_SECRET,
-          },
-          body: JSON.stringify({
-            access_token: tokenToUse,
-            idempotency_Key: idemKey,
-            base_url: baseUrlForCora,
-            boleto: invoicePayload,
-          }),
-        });
+        // Create invoice via proxy endpoint (retry once on invalid_client)
+        const makeCreateRequest = async (token: string) => {
+          return fetch(`${PROXY_URL}/cora/invoices/create`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-Proxy-Secret": PROXY_SECRET,
+            },
+            body: JSON.stringify({
+              access_token: token,
+              idempotencyKey: idemKey, // correct key for proxy
+              base_url: baseUrlForCora,
+              boleto: invoicePayload,
+            }),
+          });
+        };
+
+        let response = await makeCreateRequest(tokenToUse);
+        let errorText = "";
+        if (!response.ok) {
+          errorText = await response.text();
+          if (response.status === 401 || errorText.includes("invalid_client")) {
+            console.log("Create invoice returned 401/invalid_client, retrying with fresh token...");
+            const freshToken = await getCoraAccessToken(user_id, config, true);
+            response = await makeCreateRequest(freshToken);
+          }
+        }
 
         if (!response.ok) {
-          const errorText = await response.text();
-          console.error("Error creating invoice:", errorText);
-          throw new Error(`Failed to create invoice: ${response.status} - ${errorText}`);
+          const bodyText = errorText || (await response.text());
+          console.error("Error creating invoice:", bodyText);
+          throw new Error(`Failed to create invoice: ${response.status} - ${bodyText}`);
         }
 
         const createdInvoice = await response.json();
