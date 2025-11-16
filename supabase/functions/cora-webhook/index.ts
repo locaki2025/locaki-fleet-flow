@@ -616,7 +616,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Handle different actions
     if (payload.action === "test_connection") {
-      const { user_id } = payload;
+      const { user_id, config } = payload;
       if (!user_id) {
         return new Response(JSON.stringify({ error: "Missing user_id" }), {
           status: 400,
@@ -624,7 +624,7 @@ const handler = async (req: Request): Promise<Response> => {
         });
       }
       try {
-        const result = await testCoraConnection(user_id);
+        const result = await testCoraConnection(user_id, config);
         return new Response(JSON.stringify(result), {
           headers: { "Content-Type": "application/json", ...corsHeaders },
         });
