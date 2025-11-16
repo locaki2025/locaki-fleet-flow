@@ -220,13 +220,13 @@ const InvoiceDialog = ({ open, onOpenChange, onInvoiceCreated }: InvoiceDialogPr
 
   return (
     <Dialog open={open} onOpenChange={handleDialogChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px] max-h-[85vh]">
         <DialogHeader>
           <DialogTitle>Nova Fatura</DialogTitle>
           <DialogDescription>Crie uma nova fatura para cobrança de serviços</DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4 overflow-y-auto pr-2 custom-scrollbar max-h-[calc(85vh-140px)]">
           {/* Seleção de Placa do Veículo */}
           <div className="space-y-2">
             <Label htmlFor="placa">Placa do Veículo</Label>
