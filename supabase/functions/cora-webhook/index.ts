@@ -1130,15 +1130,18 @@ const handler = async (req: Request): Promise<Response> => {
 
         const baseUrl = resolveCoraBaseUrl(config);
         
-        // Create invoice on Cora
+        // Create invoice on Cora via proxy
         const response = await fetch(`${baseUrl}/cora/invoices/create`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-            "idempotency-key": idempotencyKey,
           },
-          body: JSON.stringify(invoicePayload),
+          body: JSON.stringify({
+            access_token: accessToken,
+            base_url: config.base_url,
+            idempotencyKey: idempotencyKey,
+            boleto: invoicePayload,
+          }),
         });
 
         if (!response.ok) {
