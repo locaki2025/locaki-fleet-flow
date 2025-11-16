@@ -606,6 +606,21 @@ const syncInvoicesToDatabase = async (userId: string, apiResponse: any) => {
       const valor = parseFloat(invoice.total_amount) || 0;
       console.log(`Processing invoice ${invoice.id}: total_amount=${invoice.total_amount}, final valor=${valor}`);
       
+      // Get mapped status from Cora
+      let finalStatus = mapStatus(invoice.status);
+      
+      // Override status if due date has passed and invoice is not paid
+      if (invoice.due_date && finalStatus !== "pago") {
+        const dueDate = new Date(invoice.due_date);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        if (dueDate < today) {
+          finalStatus = "vencido";
+          console.log(`Invoice ${invoice.id} is overdue (due: ${invoice.due_date})`);
+        }
+      }
+      
       return {
         user_id: userId,
         fatura_id: invoice.id,
@@ -615,7 +630,7 @@ const syncInvoicesToDatabase = async (userId: string, apiResponse: any) => {
         cliente_cpf: invoice.customer_document || null,
         valor: valor,
         vencimento: invoice.due_date,
-        status: mapStatus(invoice.status),
+        status: finalStatus,
         url_boleto: invoice.invoice_url || null,
         codigo_barras: invoice.barcode || null,
         qr_code_pix: invoice.pix_qr_code || null,
