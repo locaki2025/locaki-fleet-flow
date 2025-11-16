@@ -804,6 +804,95 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
+    if (payload.action === "scheduled_sync") {
+      try {
+        console.log("Starting scheduled sync for all users...");
+        
+        // Fetch all users with Cora configuration
+        const { data: configs, error: configError } = await supabase
+          .from("tenant_config")
+          .select("user_id, config_value")
+          .eq("config_key", "cora_settings");
+
+        if (configError) {
+          console.error("Error fetching configs:", configError);
+          throw configError;
+        }
+
+        if (!configs || configs.length === 0) {
+          console.log("No users with Cora configuration found");
+          return new Response(
+            JSON.stringify({ message: "No users to sync", synced: 0 }),
+            { headers: { "Content-Type": "application/json", ...corsHeaders } }
+          );
+        }
+
+        console.log(`Found ${configs.length} users to sync`);
+
+        // Sync invoices for each user (last 30 days)
+        const endDate = new Date();
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - 30);
+
+        const results = [];
+        for (const configRow of configs) {
+          try {
+            const userId = configRow.user_id;
+            const config = configRow.config_value as CoraConfig;
+            
+            console.log(`Syncing invoices for user ${userId}...`);
+            
+            const result = await fetchCoraInvoices(userId, config, {
+              start: startDate.toISOString().split('T')[0],
+              end: endDate.toISOString().split('T')[0],
+              page: 1,
+              perPage: 100,
+            });
+
+            results.push({
+              user_id: userId,
+              status: "success",
+              invoices_count: result?.invoices?.length || 0,
+            });
+            
+            console.log(`Successfully synced ${result?.invoices?.length || 0} invoices for user ${userId}`);
+          } catch (error) {
+            console.error(`Error syncing user ${configRow.user_id}:`, error);
+            results.push({
+              user_id: configRow.user_id,
+              status: "error",
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
+        }
+
+        const successCount = results.filter(r => r.status === "success").length;
+        const errorCount = results.filter(r => r.status === "error").length;
+
+        console.log(`Scheduled sync completed: ${successCount} successful, ${errorCount} failed`);
+
+        return new Response(
+          JSON.stringify({
+            message: "Scheduled sync completed",
+            total_users: configs.length,
+            successful: successCount,
+            failed: errorCount,
+            results,
+          }),
+          { headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      } catch (err) {
+        console.error("Scheduled sync error:", err);
+        return new Response(
+          JSON.stringify({
+            error: "scheduled_sync_error",
+            message: err instanceof Error ? err.message : String(err),
+          }),
+          { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
+    }
+
     // ROTA COMENTADA - Auto sync não está em uso
     // if (payload.action === "auto_sync") {
     //   // Auto sync for all users (used by cron)
