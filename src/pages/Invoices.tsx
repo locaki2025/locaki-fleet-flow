@@ -247,6 +247,21 @@ const Invoices = () => {
     }
   };
 
+  const getIconColorByStatus = (status: string) => {
+    switch (status) {
+      case 'pago':
+        return { bg: 'bg-success/10', text: 'text-success' };
+      case 'pendente':
+        return { bg: 'bg-warning/10', text: 'text-warning' };
+      case 'vencido':
+        return { bg: 'bg-destructive/10', text: 'text-destructive' };
+      case 'cancelado':
+        return { bg: 'bg-muted/20', text: 'text-muted-foreground' };
+      default:
+        return { bg: 'bg-primary/10', text: 'text-primary' };
+    }
+  };
+
   const getStatusText = (status: string) => {
     switch (status) {
       case 'pago':
@@ -568,10 +583,10 @@ const Invoices = () => {
                     <div key={invoice.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50">
                       <div className="flex items-center gap-4">
                         <div className={`h-12 w-12 rounded-full flex items-center justify-center ${
-                          invoice.source === 'cora' ? 'bg-accent/10' : 'bg-primary/10'
+                          getIconColorByStatus(invoice.status).bg
                         }`}>
                           <Receipt className={`h-6 w-6 ${
-                            invoice.source === 'cora' ? 'text-accent' : 'text-primary'
+                            getIconColorByStatus(invoice.status).text
                           }`} />
                         </div>
                         <div className="space-y-1">
