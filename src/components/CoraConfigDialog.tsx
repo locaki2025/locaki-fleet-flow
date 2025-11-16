@@ -16,8 +16,8 @@ interface CoraConfigDialogProps {
 
 interface CoraConfig {
   client_id: string;
-  certificate: string;
-  private_key: string;
+  cert_file: string;
+  key_file: string;
   base_url: string;
   environment: 'production' | 'stage';
 }
@@ -31,8 +31,8 @@ const CoraConfigDialog = ({ open, onOpenChange }: CoraConfigDialogProps) => {
   
   const [config, setConfig] = useState<CoraConfig>({
     client_id: '',
-    certificate: '',
-    private_key: '',
+    cert_file: '',
+    key_file: '',
     base_url: 'https://matls-clients.api.stage.cora.com.br',
     environment: 'stage'
   });
@@ -43,7 +43,7 @@ const CoraConfigDialog = ({ open, onOpenChange }: CoraConfigDialogProps) => {
       const reader = new FileReader();
       reader.onload = (e) => {
         const content = e.target?.result as string;
-        setConfig({ ...config, certificate: content });
+        setConfig({ ...config, cert_file: content });
         toast({
           title: "Certificado carregado",
           description: "O certificado foi carregado com sucesso",
@@ -66,7 +66,7 @@ const CoraConfigDialog = ({ open, onOpenChange }: CoraConfigDialogProps) => {
       const reader = new FileReader();
       reader.onload = (e) => {
         const content = e.target?.result as string;
-        setConfig({ ...config, private_key: content });
+        setConfig({ ...config, key_file: content });
         toast({
           title: "Chave privada carregada",
           description: "A chave privada foi carregada com sucesso",
@@ -136,11 +136,11 @@ const CoraConfigDialog = ({ open, onOpenChange }: CoraConfigDialogProps) => {
 
     setSaving(true);
     try {
-      // Preserve previously saved certificate/private_key if user didn't reupload
+      // Preserve previously saved cert_file/key_file if user didn't reupload
       const payload: CoraConfig = { ...config } as CoraConfig;
 
-      if (!payload.certificate || payload.certificate.trim() === '' ||
-          !payload.private_key || payload.private_key.trim() === '') {
+      if (!payload.cert_file || payload.cert_file.trim() === '' ||
+          !payload.key_file || payload.key_file.trim() === '') {
         const { data: existing } = await supabase
           .from('tenant_config')
           .select('config_value')
@@ -150,8 +150,8 @@ const CoraConfigDialog = ({ open, onOpenChange }: CoraConfigDialogProps) => {
 
         if (existing?.config_value) {
           const saved = existing.config_value as any as CoraConfig;
-          payload.certificate = payload.certificate?.trim() ? payload.certificate : saved.certificate || '';
-          payload.private_key = payload.private_key?.trim() ? payload.private_key : saved.private_key || '';
+          payload.cert_file = payload.cert_file?.trim() ? payload.cert_file : saved.cert_file || '';
+          payload.key_file = payload.key_file?.trim() ? payload.key_file : saved.key_file || '';
         }
       }
 
@@ -160,11 +160,11 @@ const CoraConfigDialog = ({ open, onOpenChange }: CoraConfigDialogProps) => {
         throw new Error('Client ID é obrigatório');
       }
 
-      if (!payload.certificate || !payload.certificate.includes('BEGIN CERTIFICATE')) {
+      if (!payload.cert_file || !payload.cert_file.includes('BEGIN CERTIFICATE')) {
         throw new Error('Certificado inválido ou não carregado. O arquivo deve estar em formato PEM (.pem ou .crt)');
       }
 
-      if (!payload.private_key || !payload.private_key.includes('PRIVATE KEY')) {
+      if (!payload.key_file || !payload.key_file.includes('PRIVATE KEY')) {
         throw new Error('Chave privada inválida ou não carregada. O arquivo deve estar em formato PEM (.pem ou .key)');
       }
 
@@ -209,8 +209,8 @@ const CoraConfigDialog = ({ open, onOpenChange }: CoraConfigDialogProps) => {
           // Envia a configuração atual (mesmo que ainda não tenha sido salva) para o teste usar os dados corretos
           config: {
             client_id: config.client_id,
-            certificate: config.certificate,
-            private_key: config.private_key,
+            cert_file: config.cert_file,
+            key_file: config.key_file,
             base_url: config.base_url,
             environment: config.environment,
           }
@@ -309,9 +309,9 @@ const CoraConfigDialog = ({ open, onOpenChange }: CoraConfigDialogProps) => {
                   onChange={handleCertificateUpload}
                   className="cursor-pointer"
                 />
-                {config.certificate && (
+                {config.cert_file && (
                   <div className="text-xs text-muted-foreground bg-muted p-2 rounded">
-                    ✓ Certificado carregado ({config.certificate.length} caracteres)
+                    ✓ Certificado carregado ({config.cert_file.length} caracteres)
                   </div>
                 )}
               </div>
@@ -327,9 +327,9 @@ const CoraConfigDialog = ({ open, onOpenChange }: CoraConfigDialogProps) => {
                   onChange={handlePrivateKeyUpload}
                   className="cursor-pointer"
                 />
-                {config.private_key && (
+                {config.key_file && (
                   <div className="text-xs text-muted-foreground bg-muted p-2 rounded">
-                    ✓ Chave privada carregada ({config.private_key.length} caracteres)
+                    ✓ Chave privada carregada ({config.key_file.length} caracteres)
                   </div>
                 )}
               </div>
@@ -368,7 +368,7 @@ const CoraConfigDialog = ({ open, onOpenChange }: CoraConfigDialogProps) => {
               <Button
                 variant="outline"
                 onClick={testConnection}
-                disabled={testing || !config.client_id || !config.certificate || !config.private_key}
+                disabled={testing || !config.client_id || !config.cert_file || !config.key_file}
                 className="flex-1"
               >
                 {testing ? (

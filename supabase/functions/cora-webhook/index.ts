@@ -18,8 +18,8 @@ interface CoraTransaction {
 
 interface CoraConfig {
   client_id: string;
-  certificate: string;
-  private_key: string;
+  cert_file: string;
+  key_file: string;
   base_url: string;
   environment: "production" | "stage";
 }
@@ -145,17 +145,17 @@ const getCoraAccessToken = async (userId: string, config: CoraConfig, forceRefre
 
   try {
     // Validate config before attempting authentication
-    if (!config.client_id || !config.certificate || !config.private_key) {
+    if (!config.client_id || !config.cert_file || !config.key_file) {
       throw new Error("Configuração incompleta: client_id, certificado e chave privada são obrigatórios");
     }
 
     // Validate certificate format
-    if (!config.certificate.includes("BEGIN CERTIFICATE") || !config.certificate.includes("END CERTIFICATE")) {
+    if (!config.cert_file.includes("BEGIN CERTIFICATE") || !config.cert_file.includes("END CERTIFICATE")) {
       throw new Error("Formato de certificado inválido. O certificado deve estar em formato PEM");
     }
 
     // Validate private key format
-    if (!config.private_key.includes("BEGIN") || !config.private_key.includes("PRIVATE KEY")) {
+    if (!config.key_file.includes("BEGIN") || !config.key_file.includes("PRIVATE KEY")) {
       throw new Error("Formato de chave privada inválido. A chave deve estar em formato PEM");
     }
 
@@ -172,8 +172,8 @@ const getCoraAccessToken = async (userId: string, config: CoraConfig, forceRefre
     console.log("Fetching new Cora token from proxy", {
       base_url: baseUrl,
       client_id: config.client_id,
-      cert_length: config.certificate.length,
-      key_length: config.private_key.length,
+      cert_length: config.cert_file.length,
+      key_length: config.key_file.length,
     });
 
     const response = await fetch(`${PROXY_URL}/cora/token`, {
@@ -184,8 +184,8 @@ const getCoraAccessToken = async (userId: string, config: CoraConfig, forceRefre
       },
       body: JSON.stringify({
         client_id: config.client_id,
-        cert_file: config.certificate,
-        key_file: config.private_key,
+        cert_file: config.cert_file,
+        key_file: config.key_file,
         base_url: baseUrl,
       }),
     });
@@ -261,8 +261,8 @@ const syncCoraTransactions = async (userId: string, config: CoraConfig, startDat
     // Fetch transactions through proxy
     console.log(`Fetching transactions from ${startDate} to ${endDate}`);
     // Fetch transactions through proxy
-    console.log(`JSON body ${ccessToken}, ${config.certificate}, 
-    ${config.private_key}, ${baseUrl}, ${startDate}, ${endDate}`);
+    console.log(`JSON body ${ccessToken}, ${config.cert_file}, 
+    ${config.key_file}, ${baseUrl}, ${startDate}, ${endDate}`);
 
     let transactionsResponse = await fetch(`${PROXY_URL}/cora/transactions`, {
       method: "POST",
@@ -272,8 +272,8 @@ const syncCoraTransactions = async (userId: string, config: CoraConfig, startDat
       },
       body: JSON.stringify({
         access_token: accessToken,
-        cert_file: config.certificate,
-        key_file: config.private_key,
+        cert_file: config.cert_file,
+        key_file: config.key_file,
         base_url: baseUrl,
         start: startDate,
         end: endDate,
@@ -287,8 +287,8 @@ const syncCoraTransactions = async (userId: string, config: CoraConfig, startDat
       accessToken = await getCoraAccessToken(userId, config, true);
 
       // Fetch transactions through proxy
-      console.log(`JSON body ${ccessToken}, ${config.certificate}, 
-      ${config.private_key}, ${baseUrl}, ${startDate}, ${endDate}`);
+      console.log(`JSON body ${ccessToken}, ${config.cert_file}, 
+      ${config.key_file}, ${baseUrl}, ${startDate}, ${endDate}`);
 
       transactionsResponse = await fetch(`${PROXY_URL}/cora/transactions`, {
         method: "POST",
@@ -298,8 +298,8 @@ const syncCoraTransactions = async (userId: string, config: CoraConfig, startDat
         },
         body: JSON.stringify({
           access_token: accessToken,
-          cert_file: config.certificate,
-          key_file: config.private_key,
+          cert_file: config.cert_file,
+          key_file: config.key_file,
           base_url: baseUrl,
           start_date: startDate,
           end_date: endDate,
@@ -503,8 +503,8 @@ const fetchCoraInvoices = async (
       },
       body: JSON.stringify({
         access_token: accessToken,
-        cert_file: config.certificate,
-        key_file: config.private_key,
+        cert_file: config.cert_file,
+        key_file: config.key_file,
         base_url: baseUrl,
         start: filters?.start || "",
         end: filters?.end || "",
@@ -528,8 +528,8 @@ const fetchCoraInvoices = async (
         },
         body: JSON.stringify({
           access_token: accessToken,
-          cert_file: config.certificate,
-          key_file: config.private_key,
+          cert_file: config.cert_file,
+          key_file: config.key_file,
           base_url: baseUrl,
           start: filters?.start || "",
           end: filters?.end || "",
@@ -586,9 +586,9 @@ const testCoraConnection = async (userId: string, config?: any) => {
       throw new Error("Configuração do Cora não encontrada. Por favor, configure a integração primeiro.");
     }
 
-    const { client_id, certificate, private_key } = coraConfig;
+    const { client_id, cert_file, key_file } = coraConfig;
 
-    if (!client_id || !certificate || !private_key) {
+    if (!client_id || !cert_file || !key_file) {
       throw new Error("Configuração incompleta: client_id, certificado e chave privada são obrigatórios");
     }
 
