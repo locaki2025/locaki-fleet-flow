@@ -1,5 +1,12 @@
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,39 +29,39 @@ const InvoiceDialog = ({ open, onOpenChange, onInvoiceCreated }: InvoiceDialogPr
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [vehicles, setVehicles] = useState<any[]>([]);
-  const [selectedPlate, setSelectedPlate] = useState('');
+  const [selectedPlate, setSelectedPlate] = useState("");
   const [currentRenter, setCurrentRenter] = useState<any>(null);
   const [rentalHistory, setRentalHistory] = useState<any[]>([]);
-  
+
   const [formData, setFormData] = useState({
-    cliente_nome: '',
-    cliente_email: '',
-    cliente_id: '',
-    descricao: '',
-    valor: '',
-    vencimento: '',
-    observacoes: '',
-    placa: '',
-    dataCriacao: new Date().toISOString().split('T')[0] // Data atual
+    cliente_nome: "",
+    cliente_email: "",
+    cliente_id: "",
+    descricao: "",
+    valor: "",
+    vencimento: "",
+    observacoes: "",
+    placa: "",
+    dataCriacao: new Date().toISOString().split("T")[0], // Data atual
   });
 
   const handleChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   const resetForm = () => {
     setFormData({
-      cliente_nome: '',
-      cliente_email: '',
-      cliente_id: '',
-      descricao: '',
-      valor: '',
-      vencimento: '',
-      observacoes: '',
-      placa: '',
-      dataCriacao: new Date().toISOString().split('T')[0]
+      cliente_nome: "",
+      cliente_email: "",
+      cliente_id: "",
+      descricao: "",
+      valor: "",
+      vencimento: "",
+      observacoes: "",
+      placa: "",
+      dataCriacao: new Date().toISOString().split("T")[0],
     });
-    setSelectedPlate('');
+    setSelectedPlate("");
     setCurrentRenter(null);
     setRentalHistory([]);
   };
@@ -76,15 +83,15 @@ const InvoiceDialog = ({ open, onOpenChange, onInvoiceCreated }: InvoiceDialogPr
   const fetchVehicles = async () => {
     try {
       const { data, error } = await supabase
-        .from('vehicles')
-        .select('id, plate, brand, model, status')
-        .eq('user_id', user!.id)
-        .order('plate');
+        .from("vehicles")
+        .select("id, plate, brand, model, status")
+        .eq("user_id", user!.id)
+        .order("plate");
 
       if (error) throw error;
       setVehicles(data || []);
     } catch (error) {
-      console.error('Error fetching vehicles:', error);
+      console.error("Error fetching vehicles:", error);
     }
   };
 
@@ -92,14 +99,14 @@ const InvoiceDialog = ({ open, onOpenChange, onInvoiceCreated }: InvoiceDialogPr
     try {
       // Buscar contrato ativo atual
       const { data: activeContract, error: activeError } = await supabase
-        .from('contratos')
-        .select('*')
-        .eq('user_id', user!.id)
-        .eq('moto_id', plate)
-        .eq('status', 'ativo')
+        .from("contratos")
+        .select("*")
+        .eq("user_id", user!.id)
+        .eq("moto_id", plate)
+        .eq("status", "ativo")
         .maybeSingle();
 
-      if (activeError && activeError.code !== 'PGRST116') {
+      if (activeError && activeError.code !== "PGRST116") {
         throw activeError;
       }
 
@@ -107,11 +114,11 @@ const InvoiceDialog = ({ open, onOpenChange, onInvoiceCreated }: InvoiceDialogPr
 
       // Buscar histórico de contratos para esta placa
       const { data: history, error: historyError } = await supabase
-        .from('contratos')
-        .select('cliente_nome, cliente_email, data_inicio, data_fim, status')
-        .eq('user_id', user!.id)
-        .eq('moto_id', plate)
-        .order('data_inicio', { ascending: false })
+        .from("contratos")
+        .select("cliente_nome, cliente_email, data_inicio, data_fim, status")
+        .eq("user_id", user!.id)
+        .eq("moto_id", plate)
+        .order("data_inicio", { ascending: false })
         .limit(5);
 
       if (historyError) throw historyError;
@@ -119,29 +126,29 @@ const InvoiceDialog = ({ open, onOpenChange, onInvoiceCreated }: InvoiceDialogPr
 
       // Auto-preencher dados do locatário atual se houver
       if (activeContract) {
-        setFormData(prev => ({
+        setFormData((prev) => ({
           ...prev,
           cliente_nome: activeContract.cliente_nome,
           cliente_email: activeContract.cliente_email,
-          cliente_id: activeContract.cliente_cpf || '',
-          placa: plate
+          cliente_id: activeContract.cliente_cpf || "",
+          placa: plate,
         }));
       } else {
-        setFormData(prev => ({ ...prev, placa: plate }));
+        setFormData((prev) => ({ ...prev, placa: plate }));
       }
     } catch (error) {
-      console.error('Error fetching rental data:', error);
+      console.error("Error fetching rental data:", error);
     }
   };
 
   const handlePlateSelect = (plate: string) => {
     setSelectedPlate(plate);
-    handleChange('placa', plate);
+    handleChange("placa", plate);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!user) {
       toast({
         title: "Erro de autenticação",
@@ -162,25 +169,23 @@ const InvoiceDialog = ({ open, onOpenChange, onInvoiceCreated }: InvoiceDialogPr
 
     setLoading(true);
     try {
-      const { error } = await supabase
-        .from('boletos')
-        .insert({
-          user_id: user.id,
-          cliente_nome: formData.cliente_nome,
-          cliente_email: formData.cliente_email,
-          cliente_id: formData.cliente_id || formData.cliente_email,
-          descricao: formData.descricao,
-          valor: parseFloat(formData.valor),
-          vencimento: formData.vencimento,
-          observacoes: formData.observacoes,
-          placa: formData.placa,
-          status: 'pendente',
-          fatura_id: `FAT-${Date.now()}`,
-          tipo_cobranca: 'avulsa'
-        });
+      const { error } = await supabase.from("boletos").insert({
+        user_id: user.id,
+        cliente_nome: formData.customer_name,
+        cliente_email: formData.cliente_email,
+        cliente_id: formData.cliente_id || formData.cliente_email,
+        descricao: formData.descricao,
+        valor: parseFloat(formData.valor),
+        vencimento: formData.vencimento,
+        observacoes: formData.observacoes,
+        placa: formData.placa,
+        status: "pendente",
+        fatura_id: `FAT-${Date.now()}`,
+        tipo_cobranca: "avulsa",
+      });
 
       if (error) {
-        console.error('Supabase error creating invoice:', error);
+        console.error("Supabase error creating invoice:", error);
         throw new Error(`Erro ao criar fatura: ${error.message}`);
       }
 
@@ -195,7 +200,7 @@ const InvoiceDialog = ({ open, onOpenChange, onInvoiceCreated }: InvoiceDialogPr
         onInvoiceCreated();
       }
     } catch (error) {
-      console.error('Error creating invoice:', error);
+      console.error("Error creating invoice:", error);
       toast({
         title: "Erro ao criar fatura",
         description: error instanceof Error ? error.message : "Ocorreu um erro inesperado",
@@ -218,11 +223,9 @@ const InvoiceDialog = ({ open, onOpenChange, onInvoiceCreated }: InvoiceDialogPr
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Nova Fatura</DialogTitle>
-          <DialogDescription>
-            Crie uma nova fatura para cobrança de serviços
-          </DialogDescription>
+          <DialogDescription>Crie uma nova fatura para cobrança de serviços</DialogDescription>
         </DialogHeader>
-        
+
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Seleção de Placa do Veículo */}
           <div className="space-y-2">
@@ -260,13 +263,13 @@ const InvoiceDialog = ({ open, onOpenChange, onInvoiceCreated }: InvoiceDialogPr
                   <div className="flex justify-between">
                     <span className="text-sm font-medium">Período:</span>
                     <span className="text-sm">
-                      {new Date(currentRenter.data_inicio).toLocaleDateString()} - 
-                      {currentRenter.data_fim ? new Date(currentRenter.data_fim).toLocaleDateString() : 'Em andamento'}
+                      {new Date(currentRenter.data_inicio).toLocaleDateString()} -
+                      {currentRenter.data_fim ? new Date(currentRenter.data_fim).toLocaleDateString() : "Em andamento"}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-sm font-medium">Status:</span>
-                    <Badge variant={currentRenter.status === 'ativo' ? 'default' : 'secondary'}>
+                    <Badge variant={currentRenter.status === "ativo" ? "default" : "secondary"}>
                       {currentRenter.status}
                     </Badge>
                   </div>
@@ -288,11 +291,11 @@ const InvoiceDialog = ({ open, onOpenChange, onInvoiceCreated }: InvoiceDialogPr
                       <div>
                         <span className="text-sm font-medium">{rental.cliente_nome}</span>
                         <div className="text-xs text-muted-foreground">
-                          {new Date(rental.data_inicio).toLocaleDateString()} - 
-                          {rental.data_fim ? new Date(rental.data_fim).toLocaleDateString() : 'Atual'}
+                          {new Date(rental.data_inicio).toLocaleDateString()} -
+                          {rental.data_fim ? new Date(rental.data_fim).toLocaleDateString() : "Atual"}
                         </div>
                       </div>
-                      <Badge variant={rental.status === 'ativo' ? 'default' : 'secondary'} className="text-xs">
+                      <Badge variant={rental.status === "ativo" ? "default" : "secondary"} className="text-xs">
                         {rental.status}
                       </Badge>
                     </div>
@@ -308,7 +311,7 @@ const InvoiceDialog = ({ open, onOpenChange, onInvoiceCreated }: InvoiceDialogPr
               <Input
                 id="cliente_nome"
                 value={formData.cliente_nome}
-                onChange={(e) => handleChange('cliente_nome', e.target.value)}
+                onChange={(e) => handleChange("cliente_nome", e.target.value)}
                 placeholder="Nome completo"
                 required
               />
@@ -319,7 +322,7 @@ const InvoiceDialog = ({ open, onOpenChange, onInvoiceCreated }: InvoiceDialogPr
                 id="cliente_email"
                 type="email"
                 value={formData.cliente_email}
-                onChange={(e) => handleChange('cliente_email', e.target.value)}
+                onChange={(e) => handleChange("cliente_email", e.target.value)}
                 placeholder="email@exemplo.com"
                 required
               />
@@ -331,7 +334,7 @@ const InvoiceDialog = ({ open, onOpenChange, onInvoiceCreated }: InvoiceDialogPr
             <Input
               id="cliente_id"
               value={formData.cliente_id}
-              onChange={(e) => handleChange('cliente_id', e.target.value)}
+              onChange={(e) => handleChange("cliente_id", e.target.value)}
               placeholder="CPF ou ID do cliente (opcional)"
             />
           </div>
@@ -341,7 +344,7 @@ const InvoiceDialog = ({ open, onOpenChange, onInvoiceCreated }: InvoiceDialogPr
             <Textarea
               id="descricao"
               value={formData.descricao}
-              onChange={(e) => handleChange('descricao', e.target.value)}
+              onChange={(e) => handleChange("descricao", e.target.value)}
               placeholder="Descreva o serviço prestado..."
               rows={3}
             />
@@ -356,7 +359,7 @@ const InvoiceDialog = ({ open, onOpenChange, onInvoiceCreated }: InvoiceDialogPr
                 step="0.01"
                 min="0"
                 value={formData.valor}
-                onChange={(e) => handleChange('valor', e.target.value)}
+                onChange={(e) => handleChange("valor", e.target.value)}
                 placeholder="0,00"
                 required
               />
@@ -367,7 +370,7 @@ const InvoiceDialog = ({ open, onOpenChange, onInvoiceCreated }: InvoiceDialogPr
                 id="vencimento"
                 type="date"
                 value={formData.vencimento}
-                onChange={(e) => handleChange('vencimento', e.target.value)}
+                onChange={(e) => handleChange("vencimento", e.target.value)}
                 required
               />
             </div>
@@ -377,7 +380,7 @@ const InvoiceDialog = ({ open, onOpenChange, onInvoiceCreated }: InvoiceDialogPr
                 id="dataCriacao"
                 type="date"
                 value={formData.dataCriacao}
-                onChange={(e) => handleChange('dataCriacao', e.target.value)}
+                onChange={(e) => handleChange("dataCriacao", e.target.value)}
               />
             </div>
           </div>
@@ -387,26 +390,17 @@ const InvoiceDialog = ({ open, onOpenChange, onInvoiceCreated }: InvoiceDialogPr
             <Textarea
               id="observacoes"
               value={formData.observacoes}
-              onChange={(e) => handleChange('observacoes', e.target.value)}
+              onChange={(e) => handleChange("observacoes", e.target.value)}
               placeholder="Observações adicionais..."
               rows={2}
             />
           </div>
 
           <DialogFooter>
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={() => onOpenChange(false)}
-              disabled={loading}
-            >
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
               Cancelar
             </Button>
-            <Button 
-              type="submit" 
-              className="bg-gradient-primary hover:opacity-90"
-              disabled={loading}
-            >
+            <Button type="submit" className="bg-gradient-primary hover:opacity-90" disabled={loading}>
               {loading ? "Criando..." : "Criar Fatura"}
             </Button>
           </DialogFooter>
