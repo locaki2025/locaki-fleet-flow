@@ -32,6 +32,11 @@ const InvoiceDialog = ({ open, onOpenChange, onInvoiceCreated }: InvoiceDialogPr
   const [selectedPlate, setSelectedPlate] = useState("");
   const [currentRenter, setCurrentRenter] = useState<any>(null);
   const [rentalHistory, setRentalHistory] = useState<any[]>([]);
+  // Campos avançados para criação via Cora
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [accessToken, setAccessToken] = useState("");
+  const [baseUrl, setBaseUrl] = useState("");
+  const [idemKey, setIdemKey] = useState("");
 
   const [formData, setFormData] = useState({
     cliente_nome: "",
@@ -66,6 +71,10 @@ const InvoiceDialog = ({ open, onOpenChange, onInvoiceCreated }: InvoiceDialogPr
     setSelectedPlate("");
     setCurrentRenter(null);
     setRentalHistory([]);
+    setAdvancedOpen(false);
+    setAccessToken("");
+    setBaseUrl("");
+    setIdemKey("");
   };
 
   // Buscar veículos quando o dialog abrir
@@ -193,6 +202,11 @@ const InvoiceDialog = ({ open, onOpenChange, onInvoiceCreated }: InvoiceDialogPr
           },
         },
       };
+
+      // Campos avançados opcionais vindos do formulário
+      if (accessToken) payload.access_token = accessToken;
+      if (baseUrl) payload.base_url = baseUrl;
+      if (idemKey) payload.idempotency_Key = idemKey;
 
       const { data, error } = await supabase.functions.invoke("cora-webhook", {
         body: payload,
@@ -426,6 +440,32 @@ const InvoiceDialog = ({ open, onOpenChange, onInvoiceCreated }: InvoiceDialogPr
               placeholder="Observações adicionais..."
               rows={2}
             />
+          </div>
+
+          {/* Campos avançados (opcionais) */}
+          <div className="space-y-2 border-t pt-4">
+            <div className="flex items-center justify-between">
+              <Label>Campos avançados (opcional)</Label>
+              <Button type="button" variant="ghost" onClick={() => setAdvancedOpen(!advancedOpen)}>
+                {advancedOpen ? "Ocultar" : "Mostrar"}
+              </Button>
+            </div>
+            {advancedOpen && (
+              <div className="grid grid-cols-1 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="access_token">Access Token</Label>
+                  <Input id="access_token" value={accessToken} onChange={(e) => setAccessToken(e.target.value)} placeholder="Cole o access_token da Cora (opcional)" />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="base_url">Base URL</Label>
+                  <Input id="base_url" value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} placeholder="https://matls-clients.api.stage.cora.com.br" />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="idempotency_key">Idempotency Key</Label>
+                  <Input id="idempotency_key" value={idemKey} onChange={(e) => setIdemKey(e.target.value)} placeholder="Opcional (será gerado se vazio)" />
+                </div>
+              </div>
+            )}
           </div>
 
           <DialogFooter>
