@@ -690,7 +690,7 @@ const Invoices = () => {
                     <div key={invoice.id} className="flex items-center justify-between p-4 border rounded-lg bg-warning/5">
                       <div className="flex items-center gap-4">
                         <div className="h-12 w-12 rounded-full bg-warning/10 flex items-center justify-center">
-                          <Clock className="h-6 w-6 text-warning" />
+                          <Receipt className="h-6 w-6 text-warning" />
                         </div>
                         <div>
                           <p className="font-medium">{invoice.cliente_nome}</p>
@@ -738,7 +738,7 @@ const Invoices = () => {
                     <div key={invoice.id} className="flex items-center justify-between p-4 border rounded-lg">
                       <div className="flex items-center gap-4">
                         <div className="h-12 w-12 rounded-full bg-success/10 flex items-center justify-center">
-                          <CheckCircle2 className="h-6 w-6 text-success" />
+                          <Receipt className="h-6 w-6 text-success" />
                         </div>
                         <div>
                           <p className="font-medium">{invoice.cliente_nome}</p>
@@ -789,7 +789,7 @@ const Invoices = () => {
                     <div key={invoice.id} className="flex items-center justify-between p-4 border rounded-lg bg-destructive/5">
                       <div className="flex items-center gap-4">
                         <div className="h-12 w-12 rounded-full bg-destructive/10 flex items-center justify-center">
-                          <AlertCircle className="h-6 w-6 text-destructive" />
+                          <Receipt className="h-6 w-6 text-destructive" />
                         </div>
                         <div>
                           <p className="font-medium">{invoice.cliente_nome}</p>
