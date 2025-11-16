@@ -1159,54 +1159,25 @@ const handler = async (req: Request): Promise<Response> => {
           throw new Error("Invoice creation failed - API did not return a valid invoice ID");
         }
 
-        // Calculate total amount from services
-        const totalAmount = boleto.services.reduce((sum: number, service: any) => sum + service.amount, 0);
-
-        // Save invoice to database only after successful creation in Cora
-        const { data: insertedInvoice, error: insertError } = await supabase
-          .from("boletos")
-          .insert({
-            user_id,
-            fatura_id: createdInvoice.id,
-            cliente_nome: boleto.customer.name,
-            cliente_email: boleto.customer.email,
-            cliente_cpf: boleto.customer.document.identity,
-            cliente_id: boleto.customer.document.identity, // Use CPF/CNPJ as customer ID
-            descricao: boleto.services.map((s: any) => s.name).join(", "),
-            valor: totalAmount / 100, // Convert from cents to reais
-            vencimento: boleto.payment_terms.due_date,
-            status: "pendente",
-            tipo_cobranca: "cora",
-            contrato_id: contrato_id || null,
-            url_boleto: createdInvoice.bank_slip?.url || null,
-            codigo_barras: createdInvoice.bank_slip?.digitable_line || null,
-            qr_code_pix: createdInvoice.pix?.qr_code || null,
-          })
-          .select()
-          .single();
-
-        if (insertError) {
-          console.error("Error saving invoice to database:", insertError);
-          // Even if DB save fails, invoice was created in Cora
-          return new Response(
-            JSON.stringify({
-              success: true,
-              message: "Invoice created in Cora but failed to save to database",
-              invoice: createdInvoice,
-              db_error: insertError.message,
-            }),
-            {
-              headers: { "Content-Type": "application/json", ...corsHeaders },
-            },
-          );
+        // Sync invoices from Cora API to database
+        console.log("Fetching invoices from Cora to sync with database...");
+        try {
+          const syncResult = await fetchCoraInvoices(user_id, config, {
+            page: 1,
+            perPage: 100, // Get recent invoices to ensure the new one is included
+          });
+          
+          console.log(`Synced ${syncResult?.items?.length || 0} invoices from Cora`);
+        } catch (syncError) {
+          console.error("Error syncing invoices after creation:", syncError);
+          // Don't fail the request if sync fails, invoice was created successfully
         }
 
         return new Response(
           JSON.stringify({
             success: true,
-            message: "Invoice created successfully",
+            message: "Invoice created successfully in Cora and synced to database",
             invoice: createdInvoice,
-            database_record: insertedInvoice,
           }),
           {
             headers: { "Content-Type": "application/json", ...corsHeaders },
