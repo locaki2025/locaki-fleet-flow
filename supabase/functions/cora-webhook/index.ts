@@ -1068,12 +1068,164 @@ const handler = async (req: Request): Promise<Response> => {
     //   },
     // );
 
+    // Handle create_invoice action
+    if (payload.action === "create_invoice") {
+      const { user_id, boleto, contrato_id } = payload;
+
+      if (!user_id || !boleto) {
+        return new Response(
+          JSON.stringify({
+            error: "Missing required parameters: user_id and boleto",
+          }),
+          {
+            status: 400,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          },
+        );
+      }
+
+      const config = await getCoraConfig(user_id);
+      if (!config) {
+        return new Response(
+          JSON.stringify({
+            error: "Configuração do Cora não encontrada",
+          }),
+          {
+            status: 404,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          },
+        );
+      }
+
+      try {
+        // Get access token
+        const accessToken = await getAccessToken(user_id, config);
+        
+        // Generate idempotency key (unique per request)
+        const idempotencyKey = crypto.randomUUID();
+        
+        // Prepare invoice creation payload
+        const invoicePayload = {
+          code: boleto.code || crypto.randomUUID().substring(0, 8),
+          customer: boleto.customer,
+          services: boleto.services,
+          payment_terms: boleto.payment_terms,
+          notifications: boleto.notifications || {
+            channels: ["EMAIL"],
+            destination: {
+              name: boleto.customer.name,
+              email: boleto.customer.email,
+            },
+            rules: [
+              "NOTIFY_TEN_DAYS_BEFORE_DUE_DATE",
+              "NOTIFY_TWO_DAYS_BEFORE_DUE_DATE",
+              "NOTIFY_ON_DUE_DATE",
+              "NOTIFY_TWO_DAYS_AFTER_DUE_DATE",
+              "NOTIFY_WHEN_PAID"
+            ]
+          }
+        };
+
+        console.log("Creating invoice with payload:", JSON.stringify(invoicePayload, null, 2));
+
+        const baseUrl = resolveCoraBaseUrl(config);
+        
+        // Create invoice on Cora
+        const response = await fetch(`${baseUrl}/cora/invoices/create`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+            "idempotency-key": idempotencyKey,
+          },
+          body: JSON.stringify(invoicePayload),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error("Error creating invoice:", errorText);
+          throw new Error(`Failed to create invoice: ${response.status} - ${errorText}`);
+        }
+
+        const createdInvoice = await response.json();
+        console.log("Invoice created successfully:", createdInvoice);
+
+        // Calculate total amount from services
+        const totalAmount = boleto.services.reduce((sum: number, service: any) => sum + service.amount, 0);
+
+        // Save invoice to database
+        const { data: insertedInvoice, error: insertError } = await supabase
+          .from("boletos")
+          .insert({
+            user_id,
+            fatura_id: createdInvoice.id,
+            cliente_nome: boleto.customer.name,
+            cliente_email: boleto.customer.email,
+            cliente_cpf: boleto.customer.document.identity,
+            cliente_id: boleto.customer.document.identity, // Use CPF/CNPJ as customer ID
+            descricao: boleto.services.map((s: any) => s.name).join(", "),
+            valor: totalAmount / 100, // Convert from cents to reais
+            vencimento: boleto.payment_terms.due_date,
+            status: "pendente",
+            tipo_cobranca: "cora",
+            contrato_id: contrato_id || null,
+            url_boleto: createdInvoice.bank_slip?.url || null,
+            codigo_barras: createdInvoice.bank_slip?.digitable_line || null,
+            qr_code_pix: createdInvoice.pix?.qr_code || null,
+          })
+          .select()
+          .single();
+
+        if (insertError) {
+          console.error("Error saving invoice to database:", insertError);
+          // Even if DB save fails, invoice was created in Cora
+          return new Response(
+            JSON.stringify({
+              success: true,
+              message: "Invoice created in Cora but failed to save to database",
+              invoice: createdInvoice,
+              db_error: insertError.message,
+            }),
+            {
+              headers: { "Content-Type": "application/json", ...corsHeaders },
+            },
+          );
+        }
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            message: "Invoice created successfully",
+            invoice: createdInvoice,
+            database_record: insertedInvoice,
+          }),
+          {
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          },
+        );
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        const isAuth = msg.includes("401") || msg.includes("invalid_client");
+        const status = isAuth ? 401 : 500;
+        
+        console.error("Error in create_invoice:", msg);
+        
+        return new Response(
+          JSON.stringify({
+            error: isAuth ? "invalid_client" : "internal_error",
+            message: msg,
+          }),
+          { status, headers: { "Content-Type": "application/json", ...corsHeaders } },
+        );
+      }
+    }
+
     // Se chegou aqui, é uma action desconhecida
     return new Response(
       JSON.stringify({
         error: "Unknown action",
         message:
-          "A action fornecida não é suportada. Actions disponíveis: test_connection, sync_transactions, fetch_invoices",
+          "A action fornecida não é suportada. Actions disponíveis: test_connection, sync_transactions, fetch_invoices, create_invoice",
       }),
       {
         status: 400,
