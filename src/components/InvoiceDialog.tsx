@@ -43,6 +43,7 @@ const InvoiceDialog = ({ open, onOpenChange, onInvoiceCreated }: InvoiceDialogPr
     observacoes: "",
     placa: "",
     dataCriacao: new Date().toISOString().split("T")[0], // Data atual
+    taxa_juros: "3.67", // Taxa de juros padrão
   });
 
   const handleChange = (field: string, value: string) => {
@@ -60,6 +61,7 @@ const InvoiceDialog = ({ open, onOpenChange, onInvoiceCreated }: InvoiceDialogPr
       observacoes: "",
       placa: "",
       dataCriacao: new Date().toISOString().split("T")[0],
+      taxa_juros: "3.67",
     });
     setSelectedPlate("");
     setCurrentRenter(null);
@@ -382,6 +384,25 @@ const InvoiceDialog = ({ open, onOpenChange, onInvoiceCreated }: InvoiceDialogPr
                 value={formData.dataCriacao}
                 onChange={(e) => handleChange("dataCriacao", e.target.value)}
               />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="taxa_juros">Taxa de Juros (% ao mês)</Label>
+              <Input
+                id="taxa_juros"
+                type="number"
+                step="0.01"
+                min="0"
+                max="100"
+                value={formData.taxa_juros}
+                onChange={(e) => handleChange("taxa_juros", e.target.value)}
+                placeholder="3.67"
+              />
+              <p className="text-xs text-muted-foreground">
+                Taxa de juros aplicada após o vencimento
+              </p>
             </div>
           </div>
 
