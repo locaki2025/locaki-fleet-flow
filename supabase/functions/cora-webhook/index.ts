@@ -590,6 +590,7 @@ const syncInvoicesToDatabase = async (userId: string, apiResponse: any) => {
         "PENDING": "pendente",
         "PAID": "pago",
         "OVERDUE": "vencido",
+        "LATE": "vencido",
         "CANCELLED": "cancelado",
         "EXPIRED": "vencido",
       };
