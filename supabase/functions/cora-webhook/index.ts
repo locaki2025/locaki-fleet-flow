@@ -566,7 +566,8 @@ const fetchCoraInvoices = async (
 // Sync invoices from Cora API to database
 const syncInvoicesToDatabase = async (userId: string, apiResponse: any) => {
   try {
-    const invoices = apiResponse.invoices || [];
+    // Cora API returns 'items' not 'invoices'
+    const invoices = apiResponse.items || apiResponse.invoices || [];
     if (!invoices.length) {
       console.log("No invoices to sync");
       return;
@@ -582,6 +583,7 @@ const syncInvoicesToDatabase = async (userId: string, apiResponse: any) => {
     // Map status from Cora to our system
     const mapStatus = (coraStatus: string): string => {
       const statusMap: Record<string, string> = {
+        "OPEN": "pendente",
         "PENDING": "pendente",
         "PAID": "pago",
         "OVERDUE": "vencido",
@@ -591,10 +593,15 @@ const syncInvoicesToDatabase = async (userId: string, apiResponse: any) => {
       return statusMap[coraStatus] || "pendente";
     };
 
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+
     // Prepare boletos for upsert
     const boletosToUpsert = invoices.map((invoice: any) => {
-      const valor = parseFloat(invoice.total_amount || invoice.amount || invoice.value || "0");
-      console.log(`Processing invoice ${invoice.id}: total_amount=${invoice.total_amount}, amount=${invoice.amount}, value=${invoice.value}, final valor=${valor}`);
+      const valor = parseFloat(invoice.total_amount) || 0;
+      console.log(`Processing invoice ${invoice.id}: total_amount=${invoice.total_amount}, final valor=${valor}`);
       
       return {
         user_id: userId,
@@ -612,7 +619,7 @@ const syncInvoicesToDatabase = async (userId: string, apiResponse: any) => {
         descricao: invoice.description || null,
         tipo_cobranca: "cora",
         data_pagamento: invoice.paid_at || null,
-        valor_pago: invoice.paid_at ? valor : null,
+        valor_pago: invoice.total_paid ? parseFloat(invoice.total_paid) : null,
         metodo_pagamento: invoice.paid_at ? "cora" : null,
       };
     });
