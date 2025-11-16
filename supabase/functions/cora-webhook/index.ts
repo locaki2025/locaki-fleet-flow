@@ -244,7 +244,7 @@ const getCoraAccessToken = async (userId: string, config: CoraConfig, forceRefre
 };
 
 // Sync transactions from Cora API
-const syncCoraTransactions = async (userId: string, config: CoraConfig, startDate: string, endDate: string) => {
+/*const syncCoraTransactions = async (userId: string, config: CoraConfig, startDate: string, endDate: string) => {
   const startTime = Date.now();
   let importedCount = 0;
   let conciliatedCount = 0;
@@ -475,7 +475,7 @@ const autoReconcileTransaction = async (userId: string, transaction: CoraTransac
     console.error("Auto reconciliation error:", error);
     return false;
   }
-};
+};*/
 
 // Fetch invoices from Cora API
 const fetchCoraInvoices = async (
