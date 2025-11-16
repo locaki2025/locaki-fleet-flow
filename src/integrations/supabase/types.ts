@@ -34,6 +34,7 @@ export type Database = {
           placa: string | null
           qr_code_pix: string | null
           status: string
+          taxa_juros: number | null
           tentativas_cobranca: number | null
           tipo_cobranca: string | null
           updated_at: string
@@ -62,6 +63,7 @@ export type Database = {
           placa?: string | null
           qr_code_pix?: string | null
           status?: string
+          taxa_juros?: number | null
           tentativas_cobranca?: number | null
           tipo_cobranca?: string | null
           updated_at?: string
@@ -90,6 +92,7 @@ export type Database = {
           placa?: string | null
           qr_code_pix?: string | null
           status?: string
+          taxa_juros?: number | null
           tentativas_cobranca?: number | null
           tipo_cobranca?: string | null
           updated_at?: string

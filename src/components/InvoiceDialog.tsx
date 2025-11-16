@@ -184,6 +184,7 @@ const InvoiceDialog = ({ open, onOpenChange, onInvoiceCreated }: InvoiceDialogPr
         status: "pendente",
         fatura_id: `FAT-${Date.now()}`,
         tipo_cobranca: "avulsa",
+        taxa_juros: parseFloat(formData.taxa_juros) || 3.67,
       });
 
       if (error) {
