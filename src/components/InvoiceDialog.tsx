@@ -171,7 +171,16 @@ const InvoiceDialog = ({ open, onOpenChange, onInvoiceCreated }: InvoiceDialogPr
 
     setLoading(true);
     try {
-      const { error } = await supabase.from("boletos").insert({
+      // Verificar se tem configuração do Cora
+      const { data: coraConfig } = await supabase
+        .from("tenant_config")
+        .select("config_value")
+        .eq("user_id", user.id)
+        .eq("config_key", "cora_settings")
+        .maybeSingle();
+
+      // Criar fatura localmente
+      const { data: localInvoice, error } = await supabase.from("boletos").insert({
         user_id: user.id,
         cliente_nome: formData.cliente_nome,
         cliente_email: formData.cliente_email,
@@ -185,17 +194,68 @@ const InvoiceDialog = ({ open, onOpenChange, onInvoiceCreated }: InvoiceDialogPr
         fatura_id: `FAT-${Date.now()}`,
         tipo_cobranca: "avulsa",
         taxa_juros: parseFloat(formData.taxa_juros) || 3.67,
-      });
+      }).select().single();
 
       if (error) {
         console.error("Supabase error creating invoice:", error);
         throw new Error(`Erro ao criar fatura: ${error.message}`);
       }
 
-      toast({
-        title: "Fatura criada",
-        description: "A fatura foi criada com sucesso!",
-      });
+      // Se tiver configuração do Cora, criar fatura na API também
+      if (coraConfig && localInvoice) {
+        try {
+          const { data: coraInvoice, error: coraError } = await supabase.functions.invoke("cora-webhook", {
+            body: {
+              action: "create_invoice",
+              user_id: user.id,
+              boleto: {
+                code: localInvoice.fatura_id,
+                customer: {
+                  name: formData.cliente_nome,
+                  email: formData.cliente_email,
+                  document: formData.cliente_id || "00000000000",
+                },
+                services: [
+                  {
+                    code: localInvoice.fatura_id,
+                    description: formData.descricao || "Serviço",
+                    amount: Math.round(parseFloat(formData.valor) * 100), // Converter para centavos
+                  },
+                ],
+                payment_terms: {
+                  due_date: formData.vencimento,
+                },
+              },
+            },
+          });
+
+          if (coraError) {
+            console.error("Erro ao criar fatura no Cora:", coraError);
+            toast({
+              title: "Fatura criada localmente",
+              description: "A fatura foi criada no sistema, mas houve um erro ao sincronizar com o Cora",
+              variant: "default",
+            });
+          } else {
+            toast({
+              title: "Fatura criada com sucesso",
+              description: "A fatura foi criada no sistema e na API do Cora",
+            });
+          }
+        } catch (coraError) {
+          console.error("Erro ao chamar API do Cora:", coraError);
+          toast({
+            title: "Fatura criada localmente",
+            description: "A fatura foi criada no sistema, mas não foi possível sincronizar com o Cora",
+            variant: "default",
+          });
+        }
+      } else {
+        toast({
+          title: "Fatura criada",
+          description: "A fatura foi criada com sucesso!",
+        });
+      }
 
       resetForm();
       onOpenChange(false);
