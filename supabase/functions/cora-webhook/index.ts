@@ -1133,7 +1133,7 @@ const handler = async (req: Request): Promise<Response> => {
 
         // Create invoice via proxy endpoint (retry once on invalid_client)
         const makeCreateRequest = async (token: string) => {
-          return fetch(`${PROXY_URL}/cora/invoices/create`, {
+          return fetch(`${PROXY_URL}/cora/invoices/pay`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
