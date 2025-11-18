@@ -178,15 +178,15 @@ const getCoraAccessToken = async (userId: string, config: CoraConfig, forceRefre
 
     // Create FormData for multipart/form-data request
     const formData = new FormData();
-    formData.append('client_id', config.client_id);
-    formData.append('base_url', baseUrl);
-    
+    formData.append("client_id", config.client_id);
+    formData.append("base_url", baseUrl);
+
     // Convert certificate and key strings to Blobs
-    const certBlob = new Blob([config.cert_file], { type: 'application/x-pem-file' });
-    const keyBlob = new Blob([config.key_file], { type: 'application/x-pem-file' });
-    
-    formData.append('cert_file', certBlob, 'certificate.pem');
-    formData.append('key_file', keyBlob, 'private-key.key');
+    const certBlob = new Blob([config.cert_file], { type: "application/x-pem-file" });
+    const keyBlob = new Blob([config.key_file], { type: "application/x-pem-file" });
+
+    formData.append("cert_file", certBlob, "certificate.pem");
+    formData.append("key_file", keyBlob, "private-key.key");
 
     const response = await fetch(`${PROXY_URL}/cora/token`, {
       method: "POST",
@@ -577,7 +577,7 @@ const syncInvoicesToDatabase = async (userId: string, apiResponse: any) => {
     }
 
     console.log(`Syncing ${invoices.length} invoices to database...`);
-    
+
     // Log first invoice structure for debugging
     if (invoices.length > 0) {
       console.log("Sample invoice structure:", JSON.stringify(invoices[0], null, 2));
@@ -585,45 +585,42 @@ const syncInvoicesToDatabase = async (userId: string, apiResponse: any) => {
 
     // Map status from Cora to our system
     const mapStatus = (coraStatus: string): string => {
-      const key = (coraStatus || '').toString().trim().toUpperCase();
+      const key = (coraStatus || "").toString().trim().toUpperCase();
       const statusMap: Record<string, string> = {
-        OPEN: 'pendente',
-        PENDING: 'pendente',
-        PAID: 'pago',
-        OVERDUE: 'vencido',
-        LATE: 'vencido',
-        EXPIRED: 'vencido',
-        CANCELLED: 'cancelado',
-        CANCELED: 'cancelado',
+        OPEN: "pendente",
+        PENDING: "pendente",
+        PAID: "pago",
+        OVERDUE: "vencido",
+        LATE: "vencido",
+        EXPIRED: "vencido",
+        CANCELLED: "cancelado",
+        CANCELED: "cancelado",
       };
-      return statusMap[key] || 'pendente';
+      return statusMap[key] || "pendente";
     };
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    );
+    const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
     // Prepare boletos for upsert
     const boletosToUpsert = invoices.map((invoice: any) => {
       const valor = parseFloat(invoice.total_amount) || 0;
       console.log(`Processing invoice ${invoice.id}: total_amount=${invoice.total_amount}, final valor=${valor}`);
-      
+
       // Get mapped status from Cora
       let finalStatus = mapStatus(invoice.status);
-      
+
       // Override status if due date has passed and invoice is not paid or cancelled
       if (invoice.due_date && finalStatus !== "pago" && finalStatus !== "cancelado") {
         const dueDate = new Date(invoice.due_date);
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        
+
         if (dueDate < today) {
           finalStatus = "vencido";
           console.log(`Invoice ${invoice.id} is overdue (due: ${invoice.due_date})`);
         }
       }
-      
+
       return {
         user_id: userId,
         fatura_id: invoice.id,
@@ -646,12 +643,10 @@ const syncInvoicesToDatabase = async (userId: string, apiResponse: any) => {
     });
 
     // Upsert boletos (update if exists, insert if not)
-    const { error } = await supabase
-      .from("boletos")
-      .upsert(boletosToUpsert, {
-        onConflict: "fatura_id",
-        ignoreDuplicates: false,
-      });
+    const { error } = await supabase.from("boletos").upsert(boletosToUpsert, {
+      onConflict: "fatura_id",
+      ignoreDuplicates: false,
+    });
 
     if (error) {
       console.error("Error syncing invoices to database:", error);
@@ -845,7 +840,7 @@ const handler = async (req: Request): Promise<Response> => {
     if (payload.action === "scheduled_sync") {
       try {
         console.log("Starting scheduled sync for all users...");
-        
+
         // Fetch all users with Cora configuration
         const { data: configs, error: configError } = await supabase
           .from("tenant_config")
@@ -859,10 +854,9 @@ const handler = async (req: Request): Promise<Response> => {
 
         if (!configs || configs.length === 0) {
           console.log("No users with Cora configuration found");
-          return new Response(
-            JSON.stringify({ message: "No users to sync", synced: 0 }),
-            { headers: { "Content-Type": "application/json", ...corsHeaders } }
-          );
+          return new Response(JSON.stringify({ message: "No users to sync", synced: 0 }), {
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          });
         }
 
         console.log(`Found ${configs.length} users to sync`);
@@ -877,12 +871,12 @@ const handler = async (req: Request): Promise<Response> => {
           try {
             const userId = configRow.user_id;
             const config = configRow.config_value as CoraConfig;
-            
+
             console.log(`Syncing invoices for user ${userId}...`);
-            
+
             const result = await fetchCoraInvoices(userId, config, {
-              start: startDate.toISOString().split('T')[0],
-              end: endDate.toISOString().split('T')[0],
+              start: startDate.toISOString().split("T")[0],
+              end: endDate.toISOString().split("T")[0],
               page: 1,
               perPage: 100,
             });
@@ -892,7 +886,7 @@ const handler = async (req: Request): Promise<Response> => {
               status: "success",
               invoices_count: result?.invoices?.length || 0,
             });
-            
+
             console.log(`Successfully synced ${result?.invoices?.length || 0} invoices for user ${userId}`);
           } catch (error) {
             console.error(`Error syncing user ${configRow.user_id}:`, error);
@@ -904,8 +898,8 @@ const handler = async (req: Request): Promise<Response> => {
           }
         }
 
-        const successCount = results.filter(r => r.status === "success").length;
-        const errorCount = results.filter(r => r.status === "error").length;
+        const successCount = results.filter((r) => r.status === "success").length;
+        const errorCount = results.filter((r) => r.status === "error").length;
 
         console.log(`Scheduled sync completed: ${successCount} successful, ${errorCount} failed`);
 
@@ -917,7 +911,7 @@ const handler = async (req: Request): Promise<Response> => {
             failed: errorCount,
             results,
           }),
-          { headers: { "Content-Type": "application/json", ...corsHeaders } }
+          { headers: { "Content-Type": "application/json", ...corsHeaders } },
         );
       } catch (err) {
         console.error("Scheduled sync error:", err);
@@ -926,7 +920,7 @@ const handler = async (req: Request): Promise<Response> => {
             error: "scheduled_sync_error",
             message: err instanceof Error ? err.message : String(err),
           }),
-          { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+          { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } },
         );
       }
     }
@@ -1070,7 +1064,8 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Handle create_invoice action
     if (payload.action === "create_invoice") {
-      const { user_id, boleto, contrato_id, access_token, base_url, idempotency_Key, idempotency_key, idempotencyKey } = payload;
+      const { user_id, boleto, contrato_id, access_token, base_url, idempotency_Key, idempotency_key, idempotencyKey } =
+        payload;
 
       if (!user_id || !boleto) {
         return new Response(
@@ -1143,7 +1138,7 @@ const handler = async (req: Request): Promise<Response> => {
               access_token: token,
               idempotencyKey: idemKey, // correct key for proxy
               base_url: baseUrlForCora,
-              invoice: invoicePayload,
+              boleto: invoicePayload,
             }),
           });
         };
@@ -1165,11 +1160,12 @@ const handler = async (req: Request): Promise<Response> => {
 
           const isProxyParseIssue =
             response.status === 500 &&
-            (bodyText.includes("invalid json response body") ||
-             bodyText.includes("Unexpected end of JSON input"));
+            (bodyText.includes("invalid json response body") || bodyText.includes("Unexpected end of JSON input"));
 
           if (isProxyParseIssue) {
-            console.warn("Proxy returned 500 due to JSON parse, assuming creation may have succeeded. Syncing recent invoices...");
+            console.warn(
+              "Proxy returned 500 due to JSON parse, assuming creation may have succeeded. Syncing recent invoices...",
+            );
             try {
               const today = new Date();
               const start = new Date(today);
@@ -1190,7 +1186,7 @@ const handler = async (req: Request): Promise<Response> => {
                   success: true,
                   note: "Proxy JSON parse error; treated as success after syncing invoices.",
                 }),
-                { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+                { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } },
               );
             } catch (fallbackErr) {
               console.error("Fallback sync after proxy parse error failed:", fallbackErr);
@@ -1259,9 +1255,9 @@ const handler = async (req: Request): Promise<Response> => {
         const msg = err instanceof Error ? err.message : String(err);
         const isAuth = msg.includes("401") || msg.includes("invalid_client");
         const status = isAuth ? 401 : 500;
-        
+
         console.error("Error in create_invoice:", msg);
-        
+
         return new Response(
           JSON.stringify({
             error: isAuth ? "invalid_client" : "internal_error",
