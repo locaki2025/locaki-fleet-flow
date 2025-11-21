@@ -365,7 +365,9 @@ const syncInvoicesToDatabase = async (userId: string, apiResponse: any) => {
       return statusMap[key] || "pendente";
     };
 
-    const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
+      global: { headers: { Authorization: req.headers.get("Authorization")! } },
+    });
 
     // Prepare boletos for upsert
     const boletosToUpsert = invoices.map((invoice: any) => {
@@ -725,13 +727,13 @@ const handler = async (req: Request): Promise<Response> => {
         // Prefer provided token/base url/idempotency key when sent by the client
         let tokenToUse: string;
         let isNewToken = false;
-        
+
         if (access_token) {
           tokenToUse = access_token;
           console.log("Using provided access token");
         } else {
           console.log("Obtaining Cora access token (from cache or new)...");
-          
+
           // Check if we have a cached token first
           const cachedToken = await getCachedToken(user_id);
           if (cachedToken) {
@@ -742,18 +744,18 @@ const handler = async (req: Request): Promise<Response> => {
             console.log("No valid cached token, fetching new token from Cora...");
             tokenToUse = await getCoraAccessToken(user_id, config, true);
             isNewToken = true;
-            
+
             // Validate token was successfully obtained
-            if (!tokenToUse || typeof tokenToUse !== 'string' || tokenToUse.trim() === '') {
+            if (!tokenToUse || typeof tokenToUse !== "string" || tokenToUse.trim() === "") {
               throw new Error("Failed to obtain valid Cora access token");
             }
-            
+
             console.log("New Cora access token obtained successfully, waiting before creating invoice...");
             // Wait only for new tokens to ensure it's fully propagated in Cora's system
-            await new Promise(resolve => setTimeout(resolve, 1500));
+            await new Promise((resolve) => setTimeout(resolve, 1500));
           }
         }
-        
+
         const baseUrlForCora: string = base_url || config.base_url;
         const idemKey: string = idempotency_Key || idempotency_key || idempotencyKey || crypto.randomUUID();
 
@@ -809,16 +811,16 @@ const handler = async (req: Request): Promise<Response> => {
           if (response.status === 401 || errorText.includes("invalid_client")) {
             console.log("Create invoice returned 401/invalid_client, retrying with fresh token...");
             const freshToken = await getCoraAccessToken(user_id, config, true);
-            
+
             // Validate fresh token
-            if (!freshToken || typeof freshToken !== 'string' || freshToken.trim() === '') {
+            if (!freshToken || typeof freshToken !== "string" || freshToken.trim() === "") {
               throw new Error("Failed to obtain valid fresh Cora access token on retry");
             }
-            
+
             console.log("Fresh token obtained, waiting before retry...");
             // Wait before retrying with fresh token
-            await new Promise(resolve => setTimeout(resolve, 1500));
-            
+            await new Promise((resolve) => setTimeout(resolve, 1500));
+
             response = await makeCreateRequest(freshToken);
           }
         }
