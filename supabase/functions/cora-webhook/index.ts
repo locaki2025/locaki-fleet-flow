@@ -475,33 +475,29 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    // Extract Authorization header and create authenticated Supabase client
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Unauthorized", message: "Missing Authorization header" }), {
-        status: 401,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
-
-    // Validate user
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      console.error("Authentication error:", authError);
-      return new Response(JSON.stringify({ error: "Unauthorized", message: "Invalid or expired token" }), {
-        status: 401,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
-    }
-
-    console.log("Authenticated user:", user.id);
-
     const payload = await req.json();
     console.log("Received Cora request:", JSON.stringify(payload, null, 2));
+
+    // Extract Authorization header for creating authenticated client
+    const authHeader = req.headers.get("Authorization");
+    
+    // Create authenticated Supabase client if auth header is present
+    const supabase = authHeader 
+      ? createClient(supabaseUrl, supabaseAnonKey, {
+          global: { headers: { Authorization: authHeader } },
+        })
+      : createClient(supabaseUrl, supabaseAnonKey);
+
+    // Validate user if auth header is present
+    let authenticatedUserId: string | null = null;
+    if (authHeader) {
+      const token = authHeader.replace('Bearer ', '');
+      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+      if (!authError && user) {
+        authenticatedUserId = user.id;
+        console.log("Authenticated user:", user.id);
+      }
+    }
 
     // Handle different actions
     if (payload.action === "test_connection") {
@@ -509,6 +505,14 @@ const handler = async (req: Request): Promise<Response> => {
       if (!user_id) {
         return new Response(JSON.stringify({ error: "Missing user_id" }), {
           status: 400,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
+      }
+      
+      // Validate that authenticated user matches requested user_id (if auth is present)
+      if (authenticatedUserId && authenticatedUserId !== user_id) {
+        return new Response(JSON.stringify({ error: "Forbidden", message: "Cannot access other user's data" }), {
+          status: 403,
           headers: { "Content-Type": "application/json", ...corsHeaders },
         });
       }
@@ -544,6 +548,14 @@ const handler = async (req: Request): Promise<Response> => {
             headers: { "Content-Type": "application/json", ...corsHeaders },
           },
         );
+      }
+
+      // Validate that authenticated user matches requested user_id (if auth is present)
+      if (authenticatedUserId && authenticatedUserId !== user_id) {
+        return new Response(JSON.stringify({ error: "Forbidden", message: "Cannot access other user's data" }), {
+          status: 403,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
       }
 
       const config = await getCoraConfig(supabase, user_id);
@@ -591,6 +603,14 @@ const handler = async (req: Request): Promise<Response> => {
             headers: { "Content-Type": "application/json", ...corsHeaders },
           },
         );
+      }
+
+      // Validate that authenticated user matches requested user_id (if auth is present)
+      if (authenticatedUserId && authenticatedUserId !== user_id) {
+        return new Response(JSON.stringify({ error: "Forbidden", message: "Cannot access other user's data" }), {
+          status: 403,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
       }
 
       const config = await getCoraConfig(supabase, user_id);
@@ -728,6 +748,14 @@ const handler = async (req: Request): Promise<Response> => {
             headers: { "Content-Type": "application/json", ...corsHeaders },
           },
         );
+      }
+
+      // Validate that authenticated user matches requested user_id (if auth is present)
+      if (authenticatedUserId && authenticatedUserId !== user_id) {
+        return new Response(JSON.stringify({ error: "Forbidden", message: "Cannot access other user's data" }), {
+          status: 403,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
       }
 
       const config = await getCoraConfig(supabase, user_id);
