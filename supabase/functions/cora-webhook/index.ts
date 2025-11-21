@@ -723,7 +723,24 @@ const handler = async (req: Request): Promise<Response> => {
 
       try {
         // Prefer provided token/base url/idempotency key when sent by the client
-        const tokenToUse: string = access_token || (await getCoraAccessToken(user_id, config));
+        let tokenToUse: string;
+        if (access_token) {
+          tokenToUse = access_token;
+          console.log("Using provided access token");
+        } else {
+          console.log("Fetching new Cora access token...");
+          tokenToUse = await getCoraAccessToken(user_id, config);
+          
+          // Validate token was successfully obtained
+          if (!tokenToUse || typeof tokenToUse !== 'string' || tokenToUse.trim() === '') {
+            throw new Error("Failed to obtain valid Cora access token");
+          }
+          
+          console.log("Cora access token obtained successfully, waiting before creating invoice...");
+          // Wait a bit to ensure token is fully propagated in Cora's system
+          await new Promise(resolve => setTimeout(resolve, 1500));
+        }
+        
         const baseUrlForCora: string = base_url || config.base_url;
         const idemKey: string = idempotency_Key || idempotency_key || idempotencyKey || crypto.randomUUID();
 
@@ -779,6 +796,16 @@ const handler = async (req: Request): Promise<Response> => {
           if (response.status === 401 || errorText.includes("invalid_client")) {
             console.log("Create invoice returned 401/invalid_client, retrying with fresh token...");
             const freshToken = await getCoraAccessToken(user_id, config, true);
+            
+            // Validate fresh token
+            if (!freshToken || typeof freshToken !== 'string' || freshToken.trim() === '') {
+              throw new Error("Failed to obtain valid fresh Cora access token on retry");
+            }
+            
+            console.log("Fresh token obtained, waiting before retry...");
+            // Wait before retrying with fresh token
+            await new Promise(resolve => setTimeout(resolve, 1500));
+            
             response = await makeCreateRequest(freshToken);
           }
         }
