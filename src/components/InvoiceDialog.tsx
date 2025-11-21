@@ -49,6 +49,18 @@ const InvoiceDialog = ({ open, onOpenChange, onInvoiceCreated }: InvoiceDialogPr
     placa: "",
     dataCriacao: new Date().toISOString().split("T")[0], // Data atual
     taxa_juros: "3.67", // Taxa de juros padrão
+    // Endereço do cliente
+    rua: "",
+    numero: "",
+    bairro: "",
+    cidade: "",
+    estado: "",
+    complemento: "",
+    cep: "",
+    // Multa e desconto
+    multa: "0",
+    desconto_tipo: "PERCENT",
+    desconto_valor: "0",
   });
 
   const handleChange = (field: string, value: string) => {
@@ -67,6 +79,16 @@ const InvoiceDialog = ({ open, onOpenChange, onInvoiceCreated }: InvoiceDialogPr
       placa: "",
       dataCriacao: new Date().toISOString().split("T")[0],
       taxa_juros: "3.67",
+      rua: "",
+      numero: "",
+      bairro: "",
+      cidade: "",
+      estado: "",
+      complemento: "",
+      cep: "",
+      multa: "0",
+      desconto_tipo: "PERCENT",
+      desconto_valor: "0",
     });
     setSelectedPlate("");
     setCurrentRenter(null);
@@ -180,28 +202,74 @@ const InvoiceDialog = ({ open, onOpenChange, onInvoiceCreated }: InvoiceDialogPr
 
     setLoading(true);
     try {
-      // Não salvar localmente: chamar diretamente a Edge Function para criar no Cora
+      // Determinar tipo de documento (CPF ou CNPJ)
+      const cleanedDoc = (formData.cliente_id || "00000000000").replace(/\D/g, "");
+      const docType = cleanedDoc.length === 14 ? "CNPJ" : "CPF";
+      
+      // Montar payload no formato exato da API Cora
       const payload: any = {
         action: "create_invoice",
         user_id: user.id,
         boleto: {
+          code: crypto.randomUUID().substring(0, 8),
           customer: {
             name: formData.cliente_nome,
             email: formData.cliente_email,
-            // Envia documento como string se não houver tipo; a função trata o payload
-            document: formData.cliente_id || "00000000000",
+            document: {
+              identity: cleanedDoc,
+              type: docType
+            },
+            address: {
+              street: formData.rua || "Rua não informada",
+              number: formData.numero || "S/N",
+              district: formData.bairro || "Centro",
+              city: formData.cidade || "Cidade",
+              state: formData.estado || "SP",
+              complement: formData.complemento || "N/A",
+              zip_code: (formData.cep || "00000000").replace(/\D/g, "")
+            }
           },
           services: [
             {
-              description: formData.descricao || "Serviço",
-              amount: Math.round(parseFloat(formData.valor) * 100), // em centavos
-            },
+              name: formData.descricao || "Serviço de Locação",
+              description: formData.observacoes || formData.descricao || "Serviço prestado",
+              amount: Math.round(parseFloat(formData.valor) * 100) // em centavos
+            }
           ],
           payment_terms: {
             due_date: formData.vencimento,
+            fine: {
+              amount: Math.round(parseFloat(formData.multa || "0") * 100)
+            },
+            interest: {
+              rate: parseFloat(formData.taxa_juros || "3.67")
+            },
+            discount: parseFloat(formData.desconto_valor || "0") > 0 ? {
+              type: formData.desconto_tipo || "PERCENT",
+              value: parseFloat(formData.desconto_valor)
+            } : undefined
           },
-        },
+          notifications: {
+            channels: ["EMAIL"],
+            destination: {
+              name: formData.cliente_nome,
+              email: formData.cliente_email
+            },
+            rules: [
+              "NOTIFY_TEN_DAYS_BEFORE_DUE_DATE",
+              "NOTIFY_TWO_DAYS_BEFORE_DUE_DATE",
+              "NOTIFY_ON_DUE_DATE",
+              "NOTIFY_TWO_DAYS_AFTER_DUE_DATE",
+              "NOTIFY_WHEN_PAID"
+            ]
+          }
+        }
       };
+
+      // Remove discount se for undefined
+      if (!payload.boleto.payment_terms.discount) {
+        delete payload.boleto.payment_terms.discount;
+      }
 
       // Campos avançados opcionais vindos do formulário
       if (accessToken) payload.access_token = accessToken;
@@ -357,23 +425,104 @@ const InvoiceDialog = ({ open, onOpenChange, onInvoiceCreated }: InvoiceDialogPr
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="cliente_id">ID/CPF do Cliente</Label>
+            <Label htmlFor="cliente_id">CPF/CNPJ do Cliente *</Label>
             <Input
               id="cliente_id"
               value={formData.cliente_id}
               onChange={(e) => handleChange("cliente_id", e.target.value)}
-              placeholder="CPF ou ID do cliente (opcional)"
+              placeholder="000.000.000-00 ou 00.000.000/0000-00"
+              required
             />
           </div>
 
+          {/* Endereço do Cliente */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="rua">Rua *</Label>
+              <Input
+                id="rua"
+                value={formData.rua}
+                onChange={(e) => handleChange("rua", e.target.value)}
+                placeholder="Nome da rua"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="numero">Número *</Label>
+              <Input
+                id="numero"
+                value={formData.numero}
+                onChange={(e) => handleChange("numero", e.target.value)}
+                placeholder="123"
+                required
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="bairro">Bairro *</Label>
+              <Input
+                id="bairro"
+                value={formData.bairro}
+                onChange={(e) => handleChange("bairro", e.target.value)}
+                placeholder="Centro"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="cidade">Cidade *</Label>
+              <Input
+                id="cidade"
+                value={formData.cidade}
+                onChange={(e) => handleChange("cidade", e.target.value)}
+                placeholder="São Paulo"
+                required
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="estado">Estado *</Label>
+              <Input
+                id="estado"
+                value={formData.estado}
+                onChange={(e) => handleChange("estado", e.target.value)}
+                placeholder="SP"
+                maxLength={2}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="cep">CEP *</Label>
+              <Input
+                id="cep"
+                value={formData.cep}
+                onChange={(e) => handleChange("cep", e.target.value)}
+                placeholder="00000-000"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="complemento">Complemento</Label>
+              <Input
+                id="complemento"
+                value={formData.complemento}
+                onChange={(e) => handleChange("complemento", e.target.value)}
+                placeholder="Apto 123"
+              />
+            </div>
+          </div>
+
           <div className="space-y-2">
-            <Label htmlFor="descricao">Descrição do Serviço</Label>
-            <Textarea
+            <Label htmlFor="descricao">Nome do Serviço *</Label>
+            <Input
               id="descricao"
               value={formData.descricao}
               onChange={(e) => handleChange("descricao", e.target.value)}
-              placeholder="Descreva o serviço prestado..."
-              rows={3}
+              placeholder="Ex: Locação de Motocicleta"
+              required
             />
           </div>
 
@@ -412,9 +561,9 @@ const InvoiceDialog = ({ open, onOpenChange, onInvoiceCreated }: InvoiceDialogPr
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="taxa_juros">Taxa de Juros (% ao mês)</Label>
+              <Label htmlFor="taxa_juros">Juros (% mês)</Label>
               <Input
                 id="taxa_juros"
                 type="number"
@@ -425,9 +574,42 @@ const InvoiceDialog = ({ open, onOpenChange, onInvoiceCreated }: InvoiceDialogPr
                 onChange={(e) => handleChange("taxa_juros", e.target.value)}
                 placeholder="3.67"
               />
-              <p className="text-xs text-muted-foreground">
-                Taxa de juros aplicada após o vencimento
-              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="multa">Multa (R$)</Label>
+              <Input
+                id="multa"
+                type="number"
+                step="0.01"
+                min="0"
+                value={formData.multa}
+                onChange={(e) => handleChange("multa", e.target.value)}
+                placeholder="0.00"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="desconto_valor">Desconto</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="desconto_valor"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={formData.desconto_valor}
+                  onChange={(e) => handleChange("desconto_valor", e.target.value)}
+                  placeholder="0"
+                  className="w-20"
+                />
+                <Select value={formData.desconto_tipo} onValueChange={(v) => handleChange("desconto_tipo", v)}>
+                  <SelectTrigger className="w-24">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="PERCENT">%</SelectItem>
+                    <SelectItem value="FIXED">R$</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
 

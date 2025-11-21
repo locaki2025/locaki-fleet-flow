@@ -823,27 +823,64 @@ const handler = async (req: Request): Promise<Response> => {
           console.log("Generated deterministic idempotency key:", idemKey);
         }
 
-        // Prepare invoice creation payload
+        // Prepare invoice creation payload in the exact format expected by Cora API
         const invoicePayload = {
           code: boleto.code || crypto.randomUUID().substring(0, 8),
-          customer: boleto.customer,
-          services: boleto.services,
-          payment_terms: boleto.payment_terms,
-          notifications: boleto.notifications || {
-            channels: ["EMAIL"],
-            destination: {
-              name: boleto.customer?.name,
-              email: boleto.customer?.email,
+          customer: {
+            name: boleto.customer.name,
+            email: boleto.customer.email,
+            document: {
+              identity: boleto.customer.document?.identity || boleto.customer.document,
+              type: boleto.customer.document?.type || (boleto.customer.document?.identity?.length === 14 || boleto.customer.document?.length === 14 ? "CNPJ" : "CPF")
             },
-            rules: [
+            address: {
+              street: boleto.customer.address?.street || "",
+              number: boleto.customer.address?.number || "S/N",
+              district: boleto.customer.address?.district || "",
+              city: boleto.customer.address?.city || "",
+              state: boleto.customer.address?.state || "",
+              complement: boleto.customer.address?.complement || "N/A",
+              zip_code: boleto.customer.address?.zip_code || ""
+            }
+          },
+          services: (boleto.services || []).map((service: any) => ({
+            name: service.name || "Serviço",
+            description: service.description || "",
+            amount: service.amount
+          })),
+          payment_terms: {
+            due_date: boleto.payment_terms.due_date,
+            fine: {
+              amount: boleto.payment_terms.fine?.amount || 0
+            },
+            interest: {
+              rate: boleto.payment_terms.interest?.rate || 3.67
+            },
+            discount: boleto.payment_terms.discount ? {
+              type: boleto.payment_terms.discount.type || "PERCENT",
+              value: boleto.payment_terms.discount.value || 0
+            } : undefined
+          },
+          notifications: {
+            channels: boleto.notifications?.channels || ["EMAIL"],
+            destination: {
+              name: boleto.notifications?.destination?.name || boleto.customer.name,
+              email: boleto.notifications?.destination?.email || boleto.customer.email
+            },
+            rules: boleto.notifications?.rules || [
               "NOTIFY_TEN_DAYS_BEFORE_DUE_DATE",
               "NOTIFY_TWO_DAYS_BEFORE_DUE_DATE",
               "NOTIFY_ON_DUE_DATE",
               "NOTIFY_TWO_DAYS_AFTER_DUE_DATE",
-              "NOTIFY_WHEN_PAID",
-            ],
-          },
+              "NOTIFY_WHEN_PAID"
+            ]
+          }
         };
+        
+        // Remove undefined fields from payment_terms
+        if (invoicePayload.payment_terms.discount === undefined) {
+          delete invoicePayload.payment_terms.discount;
+        }
 
         console.log("Creating invoice with payload:", JSON.stringify(invoicePayload, null, 2));
 
