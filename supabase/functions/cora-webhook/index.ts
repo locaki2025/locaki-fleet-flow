@@ -32,7 +32,14 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const logWebhook = async (supabase: any, invoiceId: string, eventType: string, payload: any, status: string, amount?: number) => {
+const logWebhook = async (
+  supabase: any,
+  invoiceId: string,
+  eventType: string,
+  payload: any,
+  status: string,
+  amount?: number,
+) => {
   await supabase.from("webhook_logs").insert({
     invoice_id: invoiceId,
     event_type: eventType,
@@ -261,20 +268,19 @@ const fetchCoraInvoices = async (
     perPage?: number;
   },
 ) => {
-  try {
-    const PROXY_URL = "https://cora-mtls-proxy.onrender.com";
-    const PROXY_SECRET = "locakicoraproxy";
-    let accessToken = await getCoraAccessToken(supabase, userId, config);
-    const baseUrl = resolveCoraBaseUrl(config);
+  const PROXY_URL = "https://cora-mtls-proxy.onrender.com";
+  const PROXY_SECRET = "locakicoraproxy";
+  const baseUrl = resolveCoraBaseUrl(config);
 
-    const invoicesResponse = await fetch(`${PROXY_URL}/cora/invoices`, {
+  const makeRequest = async (token: string) => {
+    const response = await fetch(`${PROXY_URL}/cora/invoices`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "X-Proxy-Secret": PROXY_SECRET,
       },
       body: JSON.stringify({
-        access_token: accessToken,
+        access_token: token,
         base_url: baseUrl,
         start: filters?.start || "",
         end: filters?.end || "",
@@ -284,47 +290,39 @@ const fetchCoraInvoices = async (
       }),
     });
 
-    // If token expired, refresh and retry
-    if (invoicesResponse.status === 401 || invoicesResponse.status === 403) {
-      console.log("Token expired while fetching invoices, refreshing...");
+    // Consome o body **uma vez** como texto
+    const rawBody = await response.text();
+
+    let data: any;
+    try {
+      data = JSON.parse(rawBody);
+    } catch {
+      data = { raw: rawBody }; // fallback seguro
+    }
+
+    return { ok: response.ok, status: response.status, data, rawBody };
+  };
+
+  try {
+    let accessToken = await getCoraAccessToken(supabase, userId, config);
+    let result = await makeRequest(accessToken);
+
+    // Retry se token expirado ou inválido
+    if (!result.ok && (result.status === 401 || result.status === 403)) {
+      console.log("Token expirado, obtendo novo token...");
       await invalidateToken(supabase, userId);
       accessToken = await getCoraAccessToken(supabase, userId, config, true);
-
-      const retryResponse = await fetch(`${PROXY_URL}/cora/invoices`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Proxy-Secret": PROXY_SECRET,
-        },
-        body: JSON.stringify({
-          access_token: accessToken,
-          base_url: baseUrl,
-          start: filters?.start || "",
-          end: filters?.end || "",
-          state: filters?.state || "",
-          page: filters?.page || 1,
-          perPage: filters?.perPage || 50,
-        }),
-      });
-
-      if (!retryResponse.ok) {
-        const errorText = await retryResponse.text();
-        throw new Error(`Erro ao buscar boletos: ${retryResponse.status} - ${errorText}`);
-      }
-
-      const result = await retryResponse.json();
-      await syncInvoicesToDatabase(supabase, userId, result);
-      return result;
+      result = await makeRequest(accessToken);
     }
 
-    if (!invoicesResponse.ok) {
-      const errorText = await invoicesResponse.text();
-      throw new Error(`Erro ao buscar boletos: ${invoicesResponse.status} - ${errorText}`);
+    if (!result.ok) {
+      console.error("Erro ao buscar boletos:", result.data);
+      throw new Error(`Erro ao buscar boletos: ${result.status} - ${JSON.stringify(result.data)}`);
     }
 
-    const result = await invoicesResponse.json();
-    await syncInvoicesToDatabase(supabase, userId, result);
-    return result;
+    // Sincroniza com banco
+    await syncInvoicesToDatabase(supabase, userId, result.data);
+    return result.data;
   } catch (error) {
     console.error("Error fetching Cora invoices:", error);
     throw error;
@@ -480,9 +478,9 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Extract Authorization header for creating authenticated client
     const authHeader = req.headers.get("Authorization");
-    
+
     // Create authenticated Supabase client if auth header is present
-    const supabase = authHeader 
+    const supabase = authHeader
       ? createClient(supabaseUrl, supabaseAnonKey, {
           global: { headers: { Authorization: authHeader } },
         })
@@ -491,8 +489,11 @@ const handler = async (req: Request): Promise<Response> => {
     // Validate user if auth header is present
     let authenticatedUserId: string | null = null;
     if (authHeader) {
-      const token = authHeader.replace('Bearer ', '');
-      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+      const token = authHeader.replace("Bearer ", "");
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser(token);
       if (!authError && user) {
         authenticatedUserId = user.id;
         console.log("Authenticated user:", user.id);
@@ -508,7 +509,7 @@ const handler = async (req: Request): Promise<Response> => {
           headers: { "Content-Type": "application/json", ...corsHeaders },
         });
       }
-      
+
       // Validate that authenticated user matches requested user_id (if auth is present)
       if (authenticatedUserId && authenticatedUserId !== user_id) {
         return new Response(JSON.stringify({ error: "Forbidden", message: "Cannot access other user's data" }), {
@@ -805,7 +806,7 @@ const handler = async (req: Request): Promise<Response> => {
         }
 
         const baseUrlForCora: string = base_url || config.base_url;
-        
+
         // Generate deterministic idempotency key based on invoice data if not provided
         // This ensures that retries for the same invoice use the same key
         let idemKey: string;
@@ -815,9 +816,9 @@ const handler = async (req: Request): Promise<Response> => {
           // Create a deterministic key based on invoice data to avoid duplicates
           const keyData = `${user_id}-${boleto.customer?.document || boleto.customer?.email}-${boleto.payment_terms?.due_date}-${boleto.services?.[0]?.amount || 0}-${Date.now()}`;
           // Use a simple hash to create a UUID-like string
-          const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(keyData));
+          const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(keyData));
           const hashArray = Array.from(new Uint8Array(hash));
-          const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+          const hashHex = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
           idemKey = `${hashHex.substring(0, 8)}-${hashHex.substring(8, 12)}-${hashHex.substring(12, 16)}-${hashHex.substring(16, 20)}-${hashHex.substring(20, 32)}`;
           console.log("Generated deterministic idempotency key:", idemKey);
         }
@@ -871,20 +872,20 @@ const handler = async (req: Request): Promise<Response> => {
         let errorText = "";
         if (!response.ok) {
           errorText = await response.text();
-          
+
           // Check if it's an idempotency key error
           if (errorText.includes("idempotency_key_usada") || errorText.includes("idempotency")) {
             console.log("Idempotency key already used, generating new one and retrying...");
-            
+
             // Generate a completely new idempotency key with timestamp
             const newKeyData = `${user_id}-${boleto.customer?.document || boleto.customer?.email}-${Date.now()}-${crypto.randomUUID()}`;
-            const newHash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(newKeyData));
+            const newHash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(newKeyData));
             const newHashArray = Array.from(new Uint8Array(newHash));
-            const newHashHex = newHashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+            const newHashHex = newHashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
             const newIdemKey = `${newHashHex.substring(0, 8)}-${newHashHex.substring(8, 12)}-${newHashHex.substring(12, 16)}-${newHashHex.substring(16, 20)}-${newHashHex.substring(20, 32)}`;
-            
+
             console.log("New idempotency key:", newIdemKey);
-            
+
             // Retry with new idempotency key
             response = await fetch(`${PROXY_URL}/cora/invoices/create`, {
               method: "POST",
@@ -899,12 +900,12 @@ const handler = async (req: Request): Promise<Response> => {
                 boleto: invoicePayload,
               }),
             });
-            
+
             if (!response.ok) {
               errorText = await response.text();
             }
           }
-          
+
           if (!response.ok && (response.status === 401 || errorText.includes("invalid_client"))) {
             console.log("Create invoice returned 401/invalid_client, retrying with fresh token...");
             const freshToken = await getCoraAccessToken(supabase, user_id, config, true);
