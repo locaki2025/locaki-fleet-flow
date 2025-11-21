@@ -2,9 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
 interface CoraTransaction {
   id: string;
@@ -34,7 +32,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const logWebhook = async (invoiceId: string, eventType: string, payload: any, status: string, amount?: number) => {
+const logWebhook = async (supabase: any, invoiceId: string, eventType: string, payload: any, status: string, amount?: number) => {
   await supabase.from("webhook_logs").insert({
     invoice_id: invoiceId,
     event_type: eventType,
@@ -44,7 +42,7 @@ const logWebhook = async (invoiceId: string, eventType: string, payload: any, st
   });
 };
 
-const updateInvoiceStatus = async (coraChargeId: string, status: string, paidAmount?: number) => {
+const updateInvoiceStatus = async (supabase: any, coraChargeId: string, status: string, paidAmount?: number) => {
   // Find invoice by Cora charge ID (we'll need to store this in the boletos table)
   const { data: invoice, error: findError } = await supabase
     .from("boletos")
@@ -79,7 +77,7 @@ const updateInvoiceStatus = async (coraChargeId: string, status: string, paidAmo
 };
 
 // Get cached token from database
-const getCachedToken = async (userId: string): Promise<CachedToken | null> => {
+const getCachedToken = async (supabase: any, userId: string): Promise<CachedToken | null> => {
   const { data, error } = await supabase
     .from("tenant_config")
     .select("config_value")
@@ -104,7 +102,7 @@ const getCachedToken = async (userId: string): Promise<CachedToken | null> => {
 };
 
 // Save token to cache
-const cacheToken = async (userId: string, accessToken: string, expiresIn: number = 3600) => {
+const cacheToken = async (supabase: any, userId: string, accessToken: string, expiresIn: number = 3600) => {
   const expiresAt = new Date();
   expiresAt.setSeconds(expiresAt.getSeconds() + expiresIn);
 
@@ -126,7 +124,7 @@ const cacheToken = async (userId: string, accessToken: string, expiresIn: number
 };
 
 // Invalidate cached token
-const invalidateToken = async (userId: string) => {
+const invalidateToken = async (supabase: any, userId: string) => {
   await supabase.from("tenant_config").delete().eq("user_id", userId).eq("config_key", "cora_access_token");
 };
 
@@ -139,7 +137,7 @@ const resolveCoraBaseUrl = (config: CoraConfig): string => {
 };
 
 // Get Cora access token using mTLS proxy (with caching)
-const getCoraAccessToken = async (userId: string, config: CoraConfig, forceRefresh: boolean = false) => {
+const getCoraAccessToken = async (supabase: any, userId: string, config: CoraConfig, forceRefresh: boolean = false) => {
   const PROXY_URL = "https://cora-mtls-proxy.onrender.com";
   const PROXY_SECRET = "locakicoraproxy";
 
@@ -161,7 +159,7 @@ const getCoraAccessToken = async (userId: string, config: CoraConfig, forceRefre
 
     // Check cache first unless forced refresh
     if (!forceRefresh) {
-      const cachedToken = await getCachedToken(userId);
+      const cachedToken = await getCachedToken(supabase, userId);
       if (cachedToken) {
         console.log("Using cached Cora token");
         return cachedToken.access_token;
@@ -240,7 +238,7 @@ const getCoraAccessToken = async (userId: string, config: CoraConfig, forceRefre
     const expiresIn = data.expires_in || 3600; // Default 1 hour
 
     // Cache the token
-    await cacheToken(userId, accessToken, expiresIn);
+    await cacheToken(supabase, userId, accessToken, expiresIn);
 
     console.log("Successfully obtained and cached Cora access token");
     return accessToken;
@@ -252,6 +250,7 @@ const getCoraAccessToken = async (userId: string, config: CoraConfig, forceRefre
 
 // Fetch invoices from Cora API and sync to database
 const fetchCoraInvoices = async (
+  supabase: any,
   userId: string,
   config: CoraConfig,
   filters?: {
@@ -265,7 +264,7 @@ const fetchCoraInvoices = async (
   try {
     const PROXY_URL = "https://cora-mtls-proxy.onrender.com";
     const PROXY_SECRET = "locakicoraproxy";
-    let accessToken = await getCoraAccessToken(userId, config);
+    let accessToken = await getCoraAccessToken(supabase, userId, config);
     const baseUrl = resolveCoraBaseUrl(config);
 
     const invoicesResponse = await fetch(`${PROXY_URL}/cora/invoices`, {
@@ -288,8 +287,8 @@ const fetchCoraInvoices = async (
     // If token expired, refresh and retry
     if (invoicesResponse.status === 401 || invoicesResponse.status === 403) {
       console.log("Token expired while fetching invoices, refreshing...");
-      await invalidateToken(userId);
-      accessToken = await getCoraAccessToken(userId, config, true);
+      await invalidateToken(supabase, userId);
+      accessToken = await getCoraAccessToken(supabase, userId, config, true);
 
       const retryResponse = await fetch(`${PROXY_URL}/cora/invoices`, {
         method: "POST",
@@ -314,7 +313,7 @@ const fetchCoraInvoices = async (
       }
 
       const result = await retryResponse.json();
-      await syncInvoicesToDatabase(userId, result);
+      await syncInvoicesToDatabase(supabase, userId, result);
       return result;
     }
 
@@ -324,7 +323,7 @@ const fetchCoraInvoices = async (
     }
 
     const result = await invoicesResponse.json();
-    await syncInvoicesToDatabase(userId, result);
+    await syncInvoicesToDatabase(supabase, userId, result);
     return result;
   } catch (error) {
     console.error("Error fetching Cora invoices:", error);
@@ -333,7 +332,7 @@ const fetchCoraInvoices = async (
 };
 
 // Sync invoices from Cora API to database
-const syncInvoicesToDatabase = async (userId: string, apiResponse: any) => {
+const syncInvoicesToDatabase = async (supabase: any, userId: string, apiResponse: any) => {
   try {
     // Cora API returns 'items' not 'invoices'
     const invoices = apiResponse.items || apiResponse.invoices || [];
@@ -364,10 +363,6 @@ const syncInvoicesToDatabase = async (userId: string, apiResponse: any) => {
       };
       return statusMap[key] || "pendente";
     };
-
-    const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
-      global: { headers: { Authorization: req.headers.get("Authorization")! } },
-    });
 
     // Prepare boletos for upsert
     const boletosToUpsert = invoices.map((invoice: any) => {
@@ -429,7 +424,7 @@ const syncInvoicesToDatabase = async (userId: string, apiResponse: any) => {
 };
 
 // Get Cora config from database
-const getCoraConfig = async (userId: string): Promise<CoraConfig | null> => {
+const getCoraConfig = async (supabase: any, userId: string): Promise<CoraConfig | null> => {
   const { data, error } = await supabase
     .from("tenant_config")
     .select("config_value")
@@ -446,10 +441,10 @@ const getCoraConfig = async (userId: string): Promise<CoraConfig | null> => {
 };
 
 // Test Cora API connection through proxy
-const testCoraConnection = async (userId: string, config?: any) => {
+const testCoraConnection = async (supabase: any, userId: string, config?: any) => {
   try {
     // Fetch config from database if not provided
-    const coraConfig = config || (await getCoraConfig(userId));
+    const coraConfig = config || (await getCoraConfig(supabase, userId));
 
     if (!coraConfig) {
       throw new Error("Configuração do Cora não encontrada. Por favor, configure a integração primeiro.");
@@ -465,7 +460,7 @@ const testCoraConnection = async (userId: string, config?: any) => {
     const PROXY_SECRET = "locakicoraproxy";
 
     // Test by getting a token (will cache it for future use)
-    await getCoraAccessToken(userId, coraConfig as CoraConfig, true);
+    await getCoraAccessToken(supabase, userId, coraConfig as CoraConfig, true);
 
     return { success: true, message: "Conexão com Cora estabelecida com sucesso através do proxy mTLS" };
   } catch (error) {
@@ -480,6 +475,31 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    // Extract Authorization header and create authenticated Supabase client
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "Unauthorized", message: "Missing Authorization header" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+
+    // Validate user
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      console.error("Authentication error:", authError);
+      return new Response(JSON.stringify({ error: "Unauthorized", message: "Invalid or expired token" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+
+    console.log("Authenticated user:", user.id);
+
     const payload = await req.json();
     console.log("Received Cora request:", JSON.stringify(payload, null, 2));
 
@@ -493,7 +513,7 @@ const handler = async (req: Request): Promise<Response> => {
         });
       }
       try {
-        const result = await testCoraConnection(user_id, config);
+        const result = await testCoraConnection(supabase, user_id, config);
         return new Response(JSON.stringify(result), {
           headers: { "Content-Type": "application/json", ...corsHeaders },
         });
@@ -526,7 +546,7 @@ const handler = async (req: Request): Promise<Response> => {
         );
       }
 
-      const config = await getCoraConfig(user_id);
+      const config = await getCoraConfig(supabase, user_id);
       if (!config) {
         return new Response(
           JSON.stringify({
@@ -540,7 +560,7 @@ const handler = async (req: Request): Promise<Response> => {
       }
 
       try {
-        const result = await syncCoraTransactions(user_id, config, start_date, end_date);
+        const result = await syncCoraTransactions(supabase, user_id, config, start_date, end_date);
         return new Response(JSON.stringify(result), {
           headers: { "Content-Type": "application/json", ...corsHeaders },
         });
@@ -573,7 +593,7 @@ const handler = async (req: Request): Promise<Response> => {
         );
       }
 
-      const config = await getCoraConfig(user_id);
+      const config = await getCoraConfig(supabase, user_id);
       if (!config) {
         return new Response(
           JSON.stringify({
@@ -587,7 +607,7 @@ const handler = async (req: Request): Promise<Response> => {
       }
 
       try {
-        const result = await fetchCoraInvoices(user_id, config, filters);
+        const result = await fetchCoraInvoices(supabase, user_id, config, filters);
         return new Response(JSON.stringify(result), {
           headers: { "Content-Type": "application/json", ...corsHeaders },
         });
@@ -642,7 +662,7 @@ const handler = async (req: Request): Promise<Response> => {
 
             console.log(`Syncing invoices for user ${userId}...`);
 
-            const result = await fetchCoraInvoices(userId, config, {
+            const result = await fetchCoraInvoices(supabase, userId, config, {
               start: startDate.toISOString().split("T")[0],
               end: endDate.toISOString().split("T")[0],
               page: 1,
@@ -710,7 +730,7 @@ const handler = async (req: Request): Promise<Response> => {
         );
       }
 
-      const config = await getCoraConfig(user_id);
+      const config = await getCoraConfig(supabase, user_id);
       if (!config) {
         return new Response(
           JSON.stringify({
@@ -735,14 +755,14 @@ const handler = async (req: Request): Promise<Response> => {
           console.log("Obtaining Cora access token (from cache or new)...");
 
           // Check if we have a cached token first
-          const cachedToken = await getCachedToken(user_id);
+          const cachedToken = await getCachedToken(supabase, user_id);
           if (cachedToken) {
             tokenToUse = cachedToken.access_token;
             console.log("Using cached Cora token (still valid)");
           } else {
             // No valid cache, get a new token
             console.log("No valid cached token, fetching new token from Cora...");
-            tokenToUse = await getCoraAccessToken(user_id, config, true);
+            tokenToUse = await getCoraAccessToken(supabase, user_id, config, true);
             isNewToken = true;
 
             // Validate token was successfully obtained
@@ -810,7 +830,7 @@ const handler = async (req: Request): Promise<Response> => {
           errorText = await response.text();
           if (response.status === 401 || errorText.includes("invalid_client")) {
             console.log("Create invoice returned 401/invalid_client, retrying with fresh token...");
-            const freshToken = await getCoraAccessToken(user_id, config, true);
+            const freshToken = await getCoraAccessToken(supabase, user_id, config, true);
 
             // Validate fresh token
             if (!freshToken || typeof freshToken !== "string" || freshToken.trim() === "") {
@@ -844,7 +864,7 @@ const handler = async (req: Request): Promise<Response> => {
               const end = new Date(today);
               end.setDate(today.getDate() + 2);
 
-              const syncResult = await fetchCoraInvoices(user_id, config, {
+              const syncResult = await fetchCoraInvoices(supabase, user_id, config, {
                 start: start.toISOString().split("T")[0],
                 end: end.toISOString().split("T")[0],
                 page: 1,
@@ -900,7 +920,7 @@ const handler = async (req: Request): Promise<Response> => {
           const end = new Date(today);
           end.setDate(today.getDate() + 2);
 
-          const syncResult = await fetchCoraInvoices(user_id, config, {
+          const syncResult = await fetchCoraInvoices(supabase, user_id, config, {
             start: start.toISOString().split("T")[0],
             end: end.toISOString().split("T")[0],
             page: 1,
