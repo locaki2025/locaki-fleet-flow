@@ -805,7 +805,22 @@ const handler = async (req: Request): Promise<Response> => {
         }
 
         const baseUrlForCora: string = base_url || config.base_url;
-        const idemKey: string = idempotency_Key || idempotency_key || idempotencyKey || crypto.randomUUID();
+        
+        // Generate deterministic idempotency key based on invoice data if not provided
+        // This ensures that retries for the same invoice use the same key
+        let idemKey: string;
+        if (idempotency_Key || idempotency_key || idempotencyKey) {
+          idemKey = idempotency_Key || idempotency_key || idempotencyKey;
+        } else {
+          // Create a deterministic key based on invoice data to avoid duplicates
+          const keyData = `${user_id}-${boleto.customer?.document || boleto.customer?.email}-${boleto.payment_terms?.due_date}-${boleto.services?.[0]?.amount || 0}-${Date.now()}`;
+          // Use a simple hash to create a UUID-like string
+          const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(keyData));
+          const hashArray = Array.from(new Uint8Array(hash));
+          const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+          idemKey = `${hashHex.substring(0, 8)}-${hashHex.substring(8, 12)}-${hashHex.substring(12, 16)}-${hashHex.substring(16, 20)}-${hashHex.substring(20, 32)}`;
+          console.log("Generated deterministic idempotency key:", idemKey);
+        }
 
         // Prepare invoice creation payload
         const invoicePayload = {
@@ -856,7 +871,41 @@ const handler = async (req: Request): Promise<Response> => {
         let errorText = "";
         if (!response.ok) {
           errorText = await response.text();
-          if (response.status === 401 || errorText.includes("invalid_client")) {
+          
+          // Check if it's an idempotency key error
+          if (errorText.includes("idempotency_key_usada") || errorText.includes("idempotency")) {
+            console.log("Idempotency key already used, generating new one and retrying...");
+            
+            // Generate a completely new idempotency key with timestamp
+            const newKeyData = `${user_id}-${boleto.customer?.document || boleto.customer?.email}-${Date.now()}-${crypto.randomUUID()}`;
+            const newHash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(newKeyData));
+            const newHashArray = Array.from(new Uint8Array(newHash));
+            const newHashHex = newHashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+            const newIdemKey = `${newHashHex.substring(0, 8)}-${newHashHex.substring(8, 12)}-${newHashHex.substring(12, 16)}-${newHashHex.substring(16, 20)}-${newHashHex.substring(20, 32)}`;
+            
+            console.log("New idempotency key:", newIdemKey);
+            
+            // Retry with new idempotency key
+            response = await fetch(`${PROXY_URL}/cora/invoices/create`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "X-Proxy-Secret": PROXY_SECRET,
+              },
+              body: JSON.stringify({
+                access_token: tokenToUse,
+                idempotencyKey: newIdemKey,
+                base_url: baseUrlForCora,
+                boleto: invoicePayload,
+              }),
+            });
+            
+            if (!response.ok) {
+              errorText = await response.text();
+            }
+          }
+          
+          if (!response.ok && (response.status === 401 || errorText.includes("invalid_client"))) {
             console.log("Create invoice returned 401/invalid_client, retrying with fresh token...");
             const freshToken = await getCoraAccessToken(supabase, user_id, config, true);
 
