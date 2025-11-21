@@ -724,21 +724,34 @@ const handler = async (req: Request): Promise<Response> => {
       try {
         // Prefer provided token/base url/idempotency key when sent by the client
         let tokenToUse: string;
+        let isNewToken = false;
+        
         if (access_token) {
           tokenToUse = access_token;
           console.log("Using provided access token");
         } else {
-          console.log("Fetching new Cora access token...");
-          tokenToUse = await getCoraAccessToken(user_id, config);
+          console.log("Obtaining Cora access token (from cache or new)...");
           
-          // Validate token was successfully obtained
-          if (!tokenToUse || typeof tokenToUse !== 'string' || tokenToUse.trim() === '') {
-            throw new Error("Failed to obtain valid Cora access token");
+          // Check if we have a cached token first
+          const cachedToken = await getCachedToken(user_id);
+          if (cachedToken) {
+            tokenToUse = cachedToken.access_token;
+            console.log("Using cached Cora token (still valid)");
+          } else {
+            // No valid cache, get a new token
+            console.log("No valid cached token, fetching new token from Cora...");
+            tokenToUse = await getCoraAccessToken(user_id, config, true);
+            isNewToken = true;
+            
+            // Validate token was successfully obtained
+            if (!tokenToUse || typeof tokenToUse !== 'string' || tokenToUse.trim() === '') {
+              throw new Error("Failed to obtain valid Cora access token");
+            }
+            
+            console.log("New Cora access token obtained successfully, waiting before creating invoice...");
+            // Wait only for new tokens to ensure it's fully propagated in Cora's system
+            await new Promise(resolve => setTimeout(resolve, 1500));
           }
-          
-          console.log("Cora access token obtained successfully, waiting before creating invoice...");
-          // Wait a bit to ensure token is fully propagated in Cora's system
-          await new Promise(resolve => setTimeout(resolve, 1500));
         }
         
         const baseUrlForCora: string = base_url || config.base_url;
