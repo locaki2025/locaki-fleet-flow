@@ -962,7 +962,19 @@ const handler = async (req: Request): Promise<Response> => {
             }
           }
 
-          throw new Error(`Failed to create invoice: ${response.status} - ${bodyText}`);
+          console.error("Failed to create invoice", {
+            status: response.status,
+            bodyText,
+            token: tokenToUse?.slice(0, 10) + "...",
+          });
+          return new Response(
+            JSON.stringify({
+              error:
+                response.status === 401 || bodyText.includes("invalid_client") ? "invalid_client" : "internal_error",
+              message: bodyText || "Unknown error from Cora/proxy",
+            }),
+            { status: response.status, headers: { "Content-Type": "application/json", ...corsHeaders } },
+          );
         }
 
         // Safely handle possible empty or non-JSON responses from proxy/Cora
