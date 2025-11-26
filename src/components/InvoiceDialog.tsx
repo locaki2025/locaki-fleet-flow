@@ -47,8 +47,9 @@ const InvoiceDialog = ({ open, onOpenChange, onInvoiceCreated }: InvoiceDialogPr
     vencimento: "",
     observacoes: "",
     placa: "",
-    dataCriacao: new Date().toISOString().split("T")[0], // Data atual
-    taxa_juros: "3.67", // Taxa de juros padrão
+    dataCriacao: new Date().toISOString().split("T")[0],
+    taxa_juros: "0.33", // Taxa de juros padrão 0.33% ao mês (conforme boleto Cora)
+    multa_percentual: "2", // Multa padrão 2% do valor
     // Endereço do cliente
     rua: "",
     numero: "",
@@ -57,8 +58,7 @@ const InvoiceDialog = ({ open, onOpenChange, onInvoiceCreated }: InvoiceDialogPr
     estado: "",
     complemento: "",
     cep: "",
-    // Multa e desconto
-    multa: "0",
+    // Desconto
     desconto_tipo: "PERCENT",
     desconto_valor: "0",
   });
@@ -78,7 +78,8 @@ const InvoiceDialog = ({ open, onOpenChange, onInvoiceCreated }: InvoiceDialogPr
       observacoes: "",
       placa: "",
       dataCriacao: new Date().toISOString().split("T")[0],
-      taxa_juros: "3.67",
+      taxa_juros: "0.33",
+      multa_percentual: "2",
       rua: "",
       numero: "",
       bairro: "",
@@ -86,7 +87,6 @@ const InvoiceDialog = ({ open, onOpenChange, onInvoiceCreated }: InvoiceDialogPr
       estado: "",
       complemento: "",
       cep: "",
-      multa: "0",
       desconto_tipo: "PERCENT",
       desconto_valor: "0",
     });
@@ -206,7 +206,12 @@ const InvoiceDialog = ({ open, onOpenChange, onInvoiceCreated }: InvoiceDialogPr
       const cleanedDoc = (formData.cliente_id || "00000000000").replace(/\D/g, "");
       const docType = cleanedDoc.length === 14 ? "CNPJ" : "CPF";
       
-      // Montar payload no formato exato da API Cora
+      // Calcular valor da multa em centavos baseado no percentual
+      const valorReais = parseFloat(formData.valor) || 0;
+      const multaPercentual = parseFloat(formData.multa_percentual || "2") / 100;
+      const multaCentavos = Math.round(valorReais * multaPercentual * 100);
+      
+      // Montar payload no formato exato da API Cora (conforme boleto de referência)
       const payload: any = {
         action: "create_invoice",
         user_id: user.id,
@@ -233,16 +238,16 @@ const InvoiceDialog = ({ open, onOpenChange, onInvoiceCreated }: InvoiceDialogPr
             {
               name: formData.descricao || "Serviço de Locação",
               description: formData.observacoes || formData.descricao || "Serviço prestado",
-              amount: Math.round(parseFloat(formData.valor) * 100) // em centavos
+              amount: Math.round(valorReais * 100) // em centavos
             }
           ],
           payment_terms: {
             due_date: formData.vencimento,
             fine: {
-              amount: Math.round(parseFloat(formData.multa || "0") * 100)
+              amount: multaCentavos // multa em centavos (ex: R$ 14,96 = 1496)
             },
             interest: {
-              rate: parseFloat(formData.taxa_juros || "3.67")
+              rate: parseFloat(formData.taxa_juros || "0.33") // taxa de juros mensal (ex: 0.33%)
             },
             discount: parseFloat(formData.desconto_valor || "0") > 0 ? {
               type: formData.desconto_tipo || "PERCENT",
@@ -563,7 +568,7 @@ const InvoiceDialog = ({ open, onOpenChange, onInvoiceCreated }: InvoiceDialogPr
 
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="taxa_juros">Juros (% mês)</Label>
+              <Label htmlFor="taxa_juros">Juros (% ao mês)</Label>
               <Input
                 id="taxa_juros"
                 type="number"
@@ -572,19 +577,20 @@ const InvoiceDialog = ({ open, onOpenChange, onInvoiceCreated }: InvoiceDialogPr
                 max="100"
                 value={formData.taxa_juros}
                 onChange={(e) => handleChange("taxa_juros", e.target.value)}
-                placeholder="3.67"
+                placeholder="0.33"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="multa">Multa (R$)</Label>
+              <Label htmlFor="multa_percentual">Multa (%)</Label>
               <Input
-                id="multa"
+                id="multa_percentual"
                 type="number"
                 step="0.01"
                 min="0"
-                value={formData.multa}
-                onChange={(e) => handleChange("multa", e.target.value)}
-                placeholder="0.00"
+                max="100"
+                value={formData.multa_percentual}
+                onChange={(e) => handleChange("multa_percentual", e.target.value)}
+                placeholder="2"
               />
             </div>
             <div className="space-y-2">
