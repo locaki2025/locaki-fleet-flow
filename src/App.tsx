@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import Layout from "@/components/Layout";
+import ProtectedRoute from "@/components/ProtectedRoute";
 import Dashboard from "@/components/Dashboard";
 import Customers from "@/pages/Customers";
 import Vehicles from "@/pages/Vehicles";
@@ -32,20 +33,20 @@ const App = () => (
         <BrowserRouter>
           <Layout>
             <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/customers" element={<Customers />} />
-              <Route path="/vehicles" element={<Vehicles />} />
-              <Route path="/rentals" element={<Rentals />} />
-              <Route path="/maintenance" element={<Maintenance />} />
-              <Route path="/finance" element={<Finance />} />
-              <Route path="/invoices" element={<Invoices />} />
-              <Route path="/extrato-conta" element={<ExtratoConta />} />
-              <Route path="/devices" element={<Devices />} />
-              <Route path="/settings" element={<Settings />} />
-              <Route path="/map" element={<Map />} />
-              <Route path="/reports" element={<Reports />} />
-              <Route path="/traffic-fines" element={<TrafficFines />} />
-              <Route path="/users" element={<Users />} />
+              <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+              <Route path="/customers" element={<ProtectedRoute><Customers /></ProtectedRoute>} />
+              <Route path="/vehicles" element={<ProtectedRoute><Vehicles /></ProtectedRoute>} />
+              <Route path="/rentals" element={<ProtectedRoute><Rentals /></ProtectedRoute>} />
+              <Route path="/maintenance" element={<ProtectedRoute><Maintenance /></ProtectedRoute>} />
+              <Route path="/finance" element={<ProtectedRoute><Finance /></ProtectedRoute>} />
+              <Route path="/invoices" element={<ProtectedRoute><Invoices /></ProtectedRoute>} />
+              <Route path="/extrato-conta" element={<ProtectedRoute><ExtratoConta /></ProtectedRoute>} />
+              <Route path="/devices" element={<ProtectedRoute><Devices /></ProtectedRoute>} />
+              <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+              <Route path="/map" element={<ProtectedRoute><Map /></ProtectedRoute>} />
+              <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+              <Route path="/traffic-fines" element={<ProtectedRoute><TrafficFines /></ProtectedRoute>} />
+              <Route path="/users" element={<ProtectedRoute><Users /></ProtectedRoute>} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
