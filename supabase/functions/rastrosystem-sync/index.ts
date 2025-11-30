@@ -275,7 +275,17 @@ const handler = async (req: Request): Promise<Response> => {
     };
 
     if (!config.username || !config.password) {
-      throw new Error("Rastrosystem credentials not configured");
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "not_configured",
+          message: "Rastrosystem credentials not configured. Please configure in Settings > Integrations.",
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        }
+      );
     }
 
     let result;
