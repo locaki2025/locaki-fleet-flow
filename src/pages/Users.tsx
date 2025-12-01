@@ -25,7 +25,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Users2, Eye, EyeOff, Pencil, Trash2, Search } from "lucide-react";
-import Layout from "@/components/Layout";
 
 interface UserData {
   id: string;
@@ -222,8 +221,7 @@ export default function Users() {
   };
 
   return (
-    <Layout>
-      <div className="container mx-auto p-6 space-y-6">
+    <div className="container mx-auto p-6 space-y-6">
         <Card className="p-6">
           <div className="flex items-center gap-2 mb-6">
             <Users2 className="h-6 w-6 text-primary" />
@@ -459,6 +457,5 @@ export default function Users() {
           </Card>
         )}
       </div>
-    </Layout>
-  );
-}
+    );
+  }
