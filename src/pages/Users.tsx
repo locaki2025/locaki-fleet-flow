@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useUserRole } from "@/hooks/useUserRole";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -40,6 +41,7 @@ interface UserData {
 export default function Users() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { isAdmin } = useUserRole();
 
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
@@ -362,98 +364,100 @@ export default function Users() {
           </form>
         </Card>
 
-        <Card className="p-6">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-2">
-              <Users2 className="h-6 w-6 text-primary" />
-              <h2 className="text-2xl font-bold">Usuários Cadastrados</h2>
-              <Badge variant="secondary">{filteredUsers.length} registro{filteredUsers.length !== 1 ? 's' : ''}</Badge>
+        {isAdmin && (
+          <Card className="p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-2">
+                <Users2 className="h-6 w-6 text-primary" />
+                <h2 className="text-2xl font-bold">Usuários Cadastrados</h2>
+                <Badge variant="secondary">{filteredUsers.length} registro{filteredUsers.length !== 1 ? 's' : ''}</Badge>
+              </div>
             </div>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <Input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              placeholder="dd/mm/aaaa"
-            />
-            <Input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              placeholder="dd/mm/aaaa"
-            />
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
               <Input
-                placeholder="Nome, Login..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                placeholder="dd/mm/aaaa"
               />
+              <Input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                placeholder="dd/mm/aaaa"
+              />
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Nome, Login..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
             </div>
-          </div>
 
-          <div className="border rounded-lg">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>Login</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredUsers.length === 0 ? (
+            <div className="border rounded-lg">
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center text-muted-foreground">
-                      Nenhum usuário encontrado
-                    </TableCell>
+                    <TableHead>Nome</TableHead>
+                    <TableHead>Login</TableHead>
+                    <TableHead>Tipo</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
-                ) : (
-                  filteredUsers.map((userData) => (
-                    <TableRow key={userData.id}>
-                      <TableCell className="font-medium">
-                        {userData.full_name || "-"}
-                      </TableCell>
-                      <TableCell>{userData.email}</TableCell>
-                      <TableCell>
-                        <Badge variant={userData.role === "admin" ? "default" : "secondary"}>
-                          {userData.role === "admin" ? "Administrador" : "Funcionário"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={() => {
-                              toast({
-                                title: "Em desenvolvimento",
-                                description: "Funcionalidade de edição em breve",
-                              });
-                            }}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={() => handleDelete(userData.id)}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
+                </TableHeader>
+                <TableBody>
+                  {filteredUsers.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center text-muted-foreground">
+                        Nenhum usuário encontrado
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </Card>
+                  ) : (
+                    filteredUsers.map((userData) => (
+                      <TableRow key={userData.id}>
+                        <TableCell className="font-medium">
+                          {userData.full_name || "-"}
+                        </TableCell>
+                        <TableCell>{userData.email}</TableCell>
+                        <TableCell>
+                          <Badge variant={userData.role === "admin" ? "default" : "secondary"}>
+                            {userData.role === "admin" ? "Administrador" : "Funcionário"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => {
+                                toast({
+                                  title: "Em desenvolvimento",
+                                  description: "Funcionalidade de edição em breve",
+                                });
+                              }}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => handleDelete(userData.id)}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </Card>
+        )}
       </div>
     </Layout>
   );

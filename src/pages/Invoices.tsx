@@ -25,6 +25,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useUserRole } from "@/hooks/useUserRole";
 import InvoiceDialog from "@/components/InvoiceDialog";
 import CoraConfigDialog from "@/components/CoraConfigDialog";
 import {
@@ -37,6 +38,7 @@ import {
 const Invoices = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { isAdmin } = useUserRole();
   const [isInvoiceDialogOpen, setIsInvoiceDialogOpen] = useState(false);
   const [isCoraConfigOpen, setIsCoraConfigOpen] = useState(false);
   const [invoices, setInvoices] = useState<any[]>([]);
@@ -468,20 +470,22 @@ const Invoices = () => {
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-success">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Valor Total</CardTitle>
-            <DollarSign className="h-4 w-4 text-success" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              R$ {totalAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Valor total das faturas
-            </p>
-          </CardContent>
-        </Card>
+        {isAdmin && (
+          <Card className="border-l-4 border-l-success">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Valor Total</CardTitle>
+              <DollarSign className="h-4 w-4 text-success" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                R$ {totalAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Valor total das faturas
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
         <Card className="border-l-4 border-l-accent">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
