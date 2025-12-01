@@ -17,6 +17,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useUserRole } from "@/hooks/useUserRole";
 import InvoiceDialog from "@/components/InvoiceDialog";
 import FinancialEntryDialog from "@/components/FinancialEntryDialog";
 import FinancialExpenseDialog from "@/components/FinancialExpenseDialog";
@@ -25,6 +26,7 @@ import AddExpenseTypeDialog from "@/components/AddExpenseTypeDialog";
 const Finance = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { isAdmin } = useUserRole();
   const [isInvoiceDialogOpen, setIsInvoiceDialogOpen] = useState(false);
   const [isEntryDialogOpen, setIsEntryDialogOpen] = useState(false);
   const [isExpenseDialogOpen, setIsExpenseDialogOpen] = useState(false);
@@ -35,33 +37,15 @@ const Finance = () => {
   const [financialEntries, setFinancialEntries] = useState<any[]>([]);
   const [financialExpenses, setFinancialExpenses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [userRole, setUserRole] = useState<string>('user');
 
   useEffect(() => {
     if (user) {
-      fetchUserRole();
       fetchInvoices();
       fetchCustomers();
       fetchFinancialEntries();
       fetchFinancialExpenses();
     }
   }, [user]);
-
-  const fetchUserRole = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user?.id)
-        .single();
-
-      if (error) throw error;
-      setUserRole(data?.role || 'user');
-    } catch (error) {
-      console.error('Error fetching user role:', error);
-      setUserRole('user');
-    }
-  };
 
   const fetchInvoices = async () => {
     if (!user?.id) {
@@ -211,7 +195,7 @@ const Finance = () => {
       </div>
 
       {/* Financial KPIs - Apenas para Administradores */}
-      {userRole === 'admin' && (
+      {isAdmin && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <Card className="border-l-4 border-l-success">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
