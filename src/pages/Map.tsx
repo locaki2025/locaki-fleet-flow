@@ -243,8 +243,7 @@ const Map = () => {
       // First fetch devices from database (Rastrosystem data is stored here)
       const { data: devicesData, error: devicesError } = await supabase
         .from('devices')
-        .select('*')
-        .eq('user_id', user.id);
+        .select('*');
 
       if (devicesError) {
         console.error('Supabase error fetching devices:', devicesError);
@@ -272,8 +271,7 @@ const Map = () => {
       // Fetch updated devices data after sync attempt
       const { data: updatedDevices, error: updatedError } = await supabase
         .from('devices')
-        .select('*')
-        .eq('user_id', user.id);
+        .select('*');
 
       // Fetch active contracts with vehicle information to get renter names
       const { data: activeContracts } = await supabase
@@ -283,7 +281,6 @@ const Map = () => {
           cliente_nome,
           status
         `)
-        .eq('user_id', user.id)
         .eq('status', 'ativo');
 
       console.log('Contratos ativos encontrados:', activeContracts);
@@ -291,8 +288,7 @@ const Map = () => {
       // Fetch vehicles to map moto_id to plate and get IMEI
       const { data: vehiclesData } = await supabase
         .from('vehicles')
-        .select('id, plate, imei')
-        .eq('user_id', user.id);
+        .select('id, plate, imei');
 
       console.log('Veículos da base:', vehiclesData);
 
