@@ -3,7 +3,6 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const rastrosystemApiKey = Deno.env.get("RASTROSYSTEM_API_KEY")!;
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -14,8 +13,9 @@ const corsHeaders = {
 
 interface RastrosystemConfig {
   api_base_url: string;
-  username: string;
-  password: string;
+  login: string;
+  senha: string;
+  app: number;
   sync_interval: number;
 }
 
@@ -38,40 +38,85 @@ const logIntegration = async (
   });
 };
 
+// Autenticação com formato correto do Rastrosystem
 const authenticateRastrosystem = async (config: RastrosystemConfig) => {
+  console.log("Autenticando no Rastrosystem...");
+  console.log("URL:", `${config.api_base_url}/api_v2/login/`);
+  
   const response = await fetch(`${config.api_base_url}/api_v2/login/`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      username: config.username,
-      password: config.password,
+      login: config.login,
+      senha: config.senha,
+      app: config.app || 9,
     }),
   });
 
-  console.log("testando...:");
-
   if (!response.ok) {
-    throw new Error(`Rastrosystem authentication failed: ${response.statusText}`);
+    const errorText = await response.text();
+    console.error("Falha na autenticação:", response.status, errorText);
+    throw new Error(`Rastrosystem authentication failed: ${response.status} ${response.statusText}`);
   }
 
   const data = await response.json();
-  return data.token;
+  console.log("Login bem sucedido, cliente_id:", data.cliente_id);
+  return { token: data.token, cliente_id: data.cliente_id };
+};
+
+// Busca posições em tempo real - usado pelo mapa
+const fetchPositions = async (config: RastrosystemConfig) => {
+  console.log("Buscando posições em tempo real...");
+  
+  const { token, cliente_id } = await authenticateRastrosystem(config);
+  
+  const response = await fetch(`${config.api_base_url}/api_v2/veiculos/${cliente_id}/`, {
+    method: "GET",
+    headers: {
+      Authorization: `token ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("Falha ao buscar veículos:", response.status, errorText);
+    throw new Error(`Failed to fetch positions: ${response.status} ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  const dispositivos = data.dispositivos || data || [];
+  
+  console.log(`Retornando ${dispositivos.length} veículos com posições`);
+  
+  return dispositivos.map((d: any) => ({
+    id: d.unique_id || String(d.id),
+    imei: d.imei || d.unique_id,
+    placa: d.placa || d.name || 'Sem placa',
+    name: d.name || d.modelo || 'Dispositivo',
+    latitude: d.latitude,
+    longitude: d.longitude,
+    status: d.status,
+    speed: d.speed || d.velocidade || 0,
+    velocidade: d.velocidade || d.speed || 0,
+    server_time: d.server_time || d.time,
+    address: d.address,
+  }));
 };
 
 const syncDevicesFromRastrosystem = async (userId: string, config: RastrosystemConfig) => {
   console.log(`Syncing devices for user: ${userId}`);
 
   try {
-    // Authenticate with Rastrosystem
-    const token = await authenticateRastrosystem(config);
+    const { token, cliente_id } = await authenticateRastrosystem(config);
 
     // Get vehicles from Rastrosystem
-    const response = await fetch(`${config.api_base_url}/api_v2/veiculos/${userId}/`, {
+    const response = await fetch(`${config.api_base_url}/api_v2/veiculos/${cliente_id}/`, {
       method: "GET",
       headers: {
-        Authorization: `Bearer ${token}`,
+        Authorization: `token ${token}`,
         "Content-Type": "application/json",
       },
     });
@@ -80,38 +125,20 @@ const syncDevicesFromRastrosystem = async (userId: string, config: RastrosystemC
       throw new Error(`Failed to fetch vehicles: ${response.statusText}`);
     }
 
-    const vehicles = await response.json();
+    const data = await response.json();
+    const vehicles = data.dispositivos || data || [];
 
     console.log("📦 Retorno da API Rastrosystem - Veículos:");
     console.log(`Total de veículos retornados: ${vehicles?.length || 0}`);
-    console.log("Dados completos:", JSON.stringify(vehicles, null, 2));
 
-    await logIntegration(userId, "fetch_vehicles", { user_id: userId }, vehicles, "success");
+    await logIntegration(userId, "fetch_vehicles", { user_id: userId }, { count: vehicles.length }, "success");
 
     // Sync each vehicle to our vehicles and devices tables
     for (const vehicle of vehicles) {
-      // Get latest position for this vehicle
-      let lastPosition = null;
-      try {
-        const positionResponse = await fetch(`${config.api_base_url}/api_v2/veiculo/${vehicle.device_id}/`, {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        });
-
-        if (positionResponse.ok) {
-          lastPosition = await positionResponse.json();
-        }
-      } catch (error) {
-        console.log(`Error fetching position for vehicle ${vehicle.device_id}:`, error);
-      }
-
       // Extrair vehicle_id da API Rastrosystem
-      const apiVehicleId = String(vehicle.veiculo_id ?? vehicle.id ?? "");
+      const apiVehicleId = String(vehicle.veiculo_id ?? vehicle.id ?? vehicle.unique_id ?? "");
 
-      // Upsert vehicle no Supabase usando vehicle_id como identificador único
+      // Upsert vehicle no Supabase usando rastrosystem_id como identificador único
       const vehiclePayload: any = {
         user_id: userId,
         plate: vehicle.placa,
@@ -132,18 +159,19 @@ const syncDevicesFromRastrosystem = async (userId: string, config: RastrosystemC
 
       let vehicleDbId: string | null = null;
 
-      // Buscar veículo existente APENAS pelo vehicle_id da API
+      // Buscar veículo existente pela placa
       const { data: existingVehicle } = await supabase
         .from("vehicles")
         .select("id")
-        .eq("vehicle_id", apiVehicleId)
+        .eq("plate", vehicle.placa)
+        .eq("user_id", userId)
         .maybeSingle();
 
       if (existingVehicle?.id) {
         const { data: updated } = await supabase
           .from("vehicles")
           .update(vehiclePayload)
-          .eq("vehicle_id", apiVehicleId)
+          .eq("id", existingVehicle.id)
           .select("id")
           .maybeSingle();
         vehicleDbId = updated?.id ?? existingVehicle.id;
@@ -153,7 +181,7 @@ const syncDevicesFromRastrosystem = async (userId: string, config: RastrosystemC
       }
 
       if (!vehicleDbId) {
-        console.error(`Failed to upsert vehicle: ${vehicle.placa} (vehicle_id: ${apiVehicleId})`);
+        console.error(`Failed to upsert vehicle: ${vehicle.placa} (rastrosystem_id: ${apiVehicleId})`);
         continue;
       }
 
@@ -161,55 +189,43 @@ const syncDevicesFromRastrosystem = async (userId: string, config: RastrosystemC
       const gsm = (vehicle.attributes?.gsm ?? null) as number | null;
       const signalBars = gsm != null ? Math.max(0, Math.min(4, Math.round((Number(gsm) / 100) * 4))) : 0;
 
-      // Tentar parsear datas no formato dd/MM/yyyy HH:mm:ss
-      const parseBrDate = (s?: string) => {
-        try {
-          if (!s) return new Date();
-          const [datePart, timePart = "00:00:00"] = String(s).split(" ");
-          const [dd, mm, yyyy] = datePart.split("/").map(Number);
-          const [HH, II, SS] = timePart.split(":").map(Number);
-          return new Date(yyyy, (mm || 1) - 1, dd || 1, HH || 0, II || 0, SS || 0);
-        } catch (_) {
-          return new Date();
-        }
-      };
+      // Latitude e longitude
+      const lat = vehicle.latitude ?? null;
+      const lng = vehicle.longitude ?? null;
 
-      // Upsert device usando vehicle_id como chave estrangeira
+      // Upsert device
       const deviceData: any = {
         user_id: userId,
         name: vehicle.name || vehicle.nome || vehicle.placa,
         vehicle_plate: vehicle.placa,
         chip_number: vehicle.chip ?? null,
         tracker_model: vehicle.modelo || vehicle.modelo_equipamento || vehicle.protocolo || null,
-        status: vehicle.status === true || vehicle.status_veiculo === 1 ? "online" : "offline",
-        latitude: vehicle.latitude ?? lastPosition?.latitude ?? null,
-        longitude: vehicle.longitude ?? lastPosition?.longitude ?? null,
-        address: vehicle.address ?? lastPosition?.endereco ?? null,
-        last_update: vehicle.server_time
-          ? parseBrDate(vehicle.server_time)
-          : vehicle.time
-            ? parseBrDate(vehicle.time)
-            : new Date(),
-        battery: (vehicle.attributes?.battery ?? lastPosition?.bateria ?? 100) as number,
+        status: vehicle.status === true || vehicle.status === 1 ? "online" : "offline",
+        latitude: lat,
+        longitude: lng,
+        address: vehicle.address ?? null,
+        last_update: new Date().toISOString(),
+        battery: (vehicle.attributes?.battery ?? 100) as number,
         signal: signalBars,
-        vehicle_id: vehicleDbId, // FK para a tabela vehicles (UUID do Supabase)
+        rastrosystem_id: apiVehicleId,
         updated_at: new Date().toISOString(),
       };
 
-      // Verificar se já existe device APENAS pelo vehicle_id
+      // Verificar se já existe device pela placa
       const { data: existingDevice } = await supabase
         .from("devices")
         .select("id")
-        .eq("vehicle_id", vehicleDbId)
+        .eq("vehicle_plate", vehicle.placa)
+        .eq("user_id", userId)
         .maybeSingle();
 
       if (existingDevice) {
-        await supabase.from("devices").update(deviceData).eq("vehicle_id", vehicleDbId);
+        await supabase.from("devices").update(deviceData).eq("id", existingDevice.id);
       } else {
         await supabase.from("devices").insert(deviceData);
       }
 
-      console.log(`Synced vehicle and device: ${vehicle.placa} (vehicle_id: ${apiVehicleId})`);
+      console.log(`Synced vehicle and device: ${vehicle.placa} (lat: ${lat}, lng: ${lng})`);
     }
 
     return { success: true, count: vehicles.length };
@@ -230,12 +246,12 @@ const syncDevicesFromRastrosystem = async (userId: string, config: RastrosystemC
 };
 
 const sendCommandToDevice = async (deviceId: string, command: string, config: RastrosystemConfig) => {
-  const token = await authenticateRastrosystem(config);
+  const { token } = await authenticateRastrosystem(config);
 
   const response = await fetch(`${config.api_base_url}/api_v2/comando/`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${token}`,
+      Authorization: `token ${token}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
@@ -259,39 +275,67 @@ const handler = async (req: Request): Promise<Response> => {
   try {
     const { action, user_id, device_id, command } = await req.json();
 
-    // Get user's Rastrosystem config
-    const { data: configData } = await supabase
-      .from("tenant_config")
-      .select("*")
-      .eq("user_id", user_id)
-      .eq("config_key", "rastrosystem_settings")
-      .single();
+    // Get user's Rastrosystem config - first try user's config, then try any config
+    let configData = null;
+    
+    if (user_id) {
+      const { data } = await supabase
+        .from("tenant_config")
+        .select("*")
+        .eq("user_id", user_id)
+        .eq("config_key", "rastrosystem_settings")
+        .maybeSingle();
+      configData = data;
+    }
+    
+    // Se não encontrou config do usuário, busca qualquer config disponível
+    if (!configData) {
+      const { data } = await supabase
+        .from("tenant_config")
+        .select("*")
+        .eq("config_key", "rastrosystem_settings")
+        .limit(1)
+        .maybeSingle();
+      configData = data;
+    }
 
-    const config: RastrosystemConfig = configData?.config_value || {
-      api_base_url: "https://teste.rastrosystem.com.br",
-      username: "",
-      password: "",
+    // Configuração padrão com credenciais hardcoded como fallback
+    const defaultConfig: RastrosystemConfig = {
+      api_base_url: "https://locaki.rastrosystem.com.br",
+      login: "54858795000100",
+      senha: "123456",
+      app: 9,
       sync_interval: 60,
     };
 
-    if (!config.username || !config.password) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: "not_configured",
-          message: "Rastrosystem credentials not configured. Please configure in Settings > Integrations.",
-        }),
-        {
-          status: 200,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
+    const config: RastrosystemConfig = configData?.config_value 
+      ? {
+          api_base_url: configData.config_value.api_base_url || defaultConfig.api_base_url,
+          login: configData.config_value.login || configData.config_value.username || defaultConfig.login,
+          senha: configData.config_value.senha || configData.config_value.password || defaultConfig.senha,
+          app: configData.config_value.app || defaultConfig.app,
+          sync_interval: configData.config_value.sync_interval || defaultConfig.sync_interval,
         }
-      );
-    }
+      : defaultConfig;
+
+    console.log("Usando config:", { 
+      api_base_url: config.api_base_url, 
+      login: config.login ? "***" : "missing",
+      app: config.app 
+    });
 
     let result;
 
     switch (action) {
+      case "get_positions":
+        // Nova ação para buscar posições em tempo real (usado pelo mapa)
+        result = await fetchPositions(config);
+        break;
+
       case "sync_devices":
+        if (!user_id) {
+          throw new Error("user_id is required for sync_devices action");
+        }
         result = await syncDevicesFromRastrosystem(user_id, config);
         break;
 
@@ -301,14 +345,18 @@ const handler = async (req: Request): Promise<Response> => {
         }
         result = await sendCommandToDevice(device_id, command, config);
 
-        await logIntegration(user_id, "send_command", { device_id, command }, result, "success");
+        if (user_id) {
+          await logIntegration(user_id, "send_command", { device_id, command }, result, "success");
+        }
         break;
 
       case "test_connection":
-        const token = await authenticateRastrosystem(config);
-        result = { success: true, message: "Connection test successful", token: !!token };
+        const authResult = await authenticateRastrosystem(config);
+        result = { success: true, message: "Connection test successful", has_token: !!authResult.token };
 
-        await logIntegration(user_id, "test_connection", config, result, "success");
+        if (user_id) {
+          await logIntegration(user_id, "test_connection", { api_base_url: config.api_base_url }, result, "success");
+        }
         break;
 
       default:

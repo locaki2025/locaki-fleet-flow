@@ -71,40 +71,22 @@ const Map = () => {
       if (!hasVehiclesRef.current) return;
       
       try {
-        console.log('Atualizando posições via Rastrosystem...');
+        console.log('Atualizando posições via Edge Function...');
         
-        // Login no Rastrosystem
-        const loginRes = await fetch('https://locaki.rastrosystem.com.br/api_v2/login/', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ login: '54858795000100', senha: '123456', app: 9 })
+        // Usar edge function para buscar posições (evita CORS)
+        const { data: dispositivos, error } = await supabase.functions.invoke('rastrosystem-sync', {
+          body: { action: 'get_positions' }
         });
         
-        if (!loginRes.ok) {
-          console.error('Falha no login Rastrosystem');
+        if (error) {
+          console.error('Falha ao buscar posições via edge function:', error);
           return;
         }
         
-        const login = await loginRes.json();
-        const token = login.token;
-        const cliente_id = login.cliente_id;
-
-        // Buscar veículos
-        const vRes = await fetch(`https://locaki.rastrosystem.com.br/api_v2/veiculos/${cliente_id}/`, {
-          method: 'GET',
-          headers: { 
-            'Authorization': `token ${token}`, 
-            'Content-Type': 'application/json' 
-          }
-        });
-        
-        if (!vRes.ok) {
-          console.error('Falha ao buscar veículos no Rastrosystem');
+        if (!dispositivos || !Array.isArray(dispositivos)) {
+          console.error('Resposta inválida da edge function:', dispositivos);
           return;
         }
-        
-        const vJson = await vRes.json();
-        const dispositivos = vJson.dispositivos || vJson || [];
         
         console.log(`Atualizando ${dispositivos.length} veículos do Rastrosystem`);
         
@@ -451,7 +433,7 @@ const Map = () => {
     return false;
   });
 
-  // Fallback: se não houver coordenadas no banco, busca diretamente no Rastrosystem
+  // Fallback: se não houver coordenadas no banco, busca via edge function
   const fallbackTriedRef = useRef(false);
   useEffect(() => {
     const tryFallback = async () => {
@@ -463,45 +445,36 @@ const Map = () => {
       if (validCount === 0) {
         fallbackTriedRef.current = true;
         try {
-          console.log('Tentando fallback Rastrosystem para obter posições...');
-          const loginRes = await fetch('https://locaki.rastrosystem.com.br/api_v2/login/', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ login: '54858795000100', senha: '123456', app: 9 })
+          console.log('Tentando fallback via edge function para obter posições...');
+          
+          const { data: dispositivos, error } = await supabase.functions.invoke('rastrosystem-sync', {
+            body: { action: 'get_positions' }
           });
-          if (!loginRes.ok) throw new Error('Falha no login Rastrosystem');
-          const login = await loginRes.json();
-          const token = login.token;
-          const cliente_id = login.cliente_id;
-
-          const vRes = await fetch(`https://locaki.rastrosystem.com.br/api_v2/veiculos/${cliente_id}/`, {
-            method: 'GET',
-            headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' }
-          });
-          if (!vRes.ok) throw new Error('Falha ao buscar veículos no Rastrosystem');
-          const vJson = await vRes.json();
-          const dispositivos = vJson.dispositivos || vJson || [];
+          
+          if (error) throw new Error(error.message || 'Falha na edge function');
+          if (!dispositivos || !Array.isArray(dispositivos)) throw new Error('Resposta inválida');
+          
           const mapped = dispositivos.map((d: any) => ({
-            id: d.unique_id || String(d.id),
+            id: d.id || d.unique_id || String(d.imei),
             imei: d.imei || d.unique_id,
             plate: d.placa || d.name || 'Sem placa',
-            brand: d.modelo ? String(d.modelo).split(' ')[0] : (d.name?.split(' ')[0] || 'Veículo'),
-            model: d.name || d.modelo || 'Dispositivo',
+            brand: d.name ? String(d.name).split(' ')[0] : 'Veículo',
+            model: d.name || 'Dispositivo',
             latitude: typeof d.latitude === 'number' ? d.latitude : Number(d.latitude),
             longitude: typeof d.longitude === 'number' ? d.longitude : Number(d.longitude),
             status: d.status ? 'online' : 'offline',
             speed: d.speed || d.velocidade || 0,
             velocidade: d.velocidade || d.speed || 0,
-            last_update: d.server_time || d.time,
+            last_update: d.server_time,
             address: d.address || null
-          })).filter((v: any) => !isNaN(Number(v.latitude)) && !isNaN(Number(v.longitude)));
+          })).filter((v: any) => !isNaN(Number(v.latitude)) && !isNaN(Number(v.longitude)) && v.latitude !== 0 && v.longitude !== 0);
 
-          console.log('Fallback Rastrosystem mapeou veículos:', mapped.length, mapped);
+          console.log('Fallback edge function mapeou veículos:', mapped.length);
           if (mapped.length > 0) {
             setVehicles(mapped);
           }
         } catch (err) {
-          console.error('Fallback Rastrosystem falhou:', err);
+          console.error('Fallback edge function falhou:', err);
         }
       }
     };
