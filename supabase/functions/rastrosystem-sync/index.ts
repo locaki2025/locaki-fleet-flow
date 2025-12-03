@@ -211,18 +211,22 @@ const syncDevicesFromRastrosystem = async (userId: string, config: RastrosystemC
         updated_at: new Date().toISOString(),
       };
 
-      // Verificar se já existe device pela placa
+      // Verificar se já existe device pela placa (sem filtro de user_id para atualizar qualquer device existente)
       const { data: existingDevice } = await supabase
         .from("devices")
-        .select("id")
+        .select("id, user_id")
         .eq("vehicle_plate", vehicle.placa)
-        .eq("user_id", userId)
         .maybeSingle();
 
       if (existingDevice) {
-        await supabase.from("devices").update(deviceData).eq("id", existingDevice.id);
+        // Mantém o user_id original do device existente
+        const updateData = { ...deviceData };
+        delete updateData.user_id; // Não sobrescreve o user_id original
+        await supabase.from("devices").update(updateData).eq("id", existingDevice.id);
+        console.log(`Updated existing device: ${vehicle.placa}`);
       } else {
         await supabase.from("devices").insert(deviceData);
+        console.log(`Inserted new device: ${vehicle.placa}`);
       }
 
       console.log(`Synced vehicle and device: ${vehicle.placa} (lat: ${lat}, lng: ${lng})`);
