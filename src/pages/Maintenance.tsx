@@ -44,7 +44,7 @@ const Maintenance = () => {
       // Since there's no maintenance table yet, we'll simulate it
       // You should create a maintenance_orders table in Supabase
       const [vehiclesRes] = await Promise.all([
-        supabase.from('vehicles').select('*').eq('user_id', user.id)
+        supabase.from('vehicles').select('*')
       ]);
 
       if (vehiclesRes.error) throw vehiclesRes.error;

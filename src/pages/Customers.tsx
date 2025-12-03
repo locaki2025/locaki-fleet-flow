@@ -36,7 +36,6 @@ const Customers = () => {
       const { data, error } = await supabase
         .from('customers')
         .select('*')
-        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -60,7 +59,6 @@ const Customers = () => {
         const { data: dataAfter } = await supabase
           .from('customers')
           .select('*')
-          .eq('user_id', user.id)
           .order('created_at', { ascending: false });
         setCustomers(dataAfter || []);
       }

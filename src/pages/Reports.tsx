@@ -41,10 +41,10 @@ const Reports = () => {
     try {
       setLoading(true);
       const [vehiclesRes, customersRes, invoicesRes, contractsRes] = await Promise.all([
-        supabase.from('vehicles').select('*').eq('user_id', user.id),
-        supabase.from('customers').select('*').eq('user_id', user.id),
-        supabase.from('boletos').select('*').eq('user_id', user.id),
-        supabase.from('contratos').select('*').eq('user_id', user.id)
+        supabase.from('vehicles').select('*'),
+        supabase.from('customers').select('*'),
+        supabase.from('boletos').select('*'),
+        supabase.from('contratos').select('*')
       ]);
 
       if (vehiclesRes.error) throw vehiclesRes.error;

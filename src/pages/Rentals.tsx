@@ -49,9 +49,9 @@ const Rentals = () => {
     try {
       setLoading(true);
       const [contractsRes, customersRes, vehiclesRes] = await Promise.all([
-        supabase.from("contratos").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
-        supabase.from("customers").select("*").eq("user_id", user.id),
-        supabase.from("vehicles").select("*").eq("user_id", user.id),
+        supabase.from("contratos").select("*").order("created_at", { ascending: false }),
+        supabase.from("customers").select("*"),
+        supabase.from("vehicles").select("*"),
       ]);
 
       if (contractsRes.error) throw contractsRes.error;

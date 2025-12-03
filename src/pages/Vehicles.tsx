@@ -70,7 +70,6 @@ const Vehicles = () => {
       const { data, error } = await supabase
         .from("vehicles")
         .select("*")
-        .eq("user_id", user.id)
         .order("created_at", { ascending: false });
 
       if (error) {
@@ -96,7 +95,7 @@ const Vehicles = () => {
     if (!user?.id) return;
 
     try {
-      const { data, error } = await supabase.from("contratos").select("*").eq("user_id", user.id).eq("status", "ativo");
+      const { data, error } = await supabase.from("contratos").select("*").eq("status", "ativo");
 
       if (error) {
         console.error("Error fetching contracts:", error);
