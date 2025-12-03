@@ -144,7 +144,6 @@ const Invoices = () => {
       const { data, error } = await supabase
         .from('boletos')
         .select('*')
-        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -175,8 +174,7 @@ const Invoices = () => {
     try {
       const { data, error } = await supabase
         .from('customers')
-        .select('*')
-        .eq('user_id', user.id);
+        .select('*');
 
       if (error) {
         console.error('Supabase error fetching customers:', error);

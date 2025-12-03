@@ -141,7 +141,6 @@ const ExtratoConta = () => {
       const { data: faturas, error: faturaError } = await supabase
         .from('boletos')
         .select('*')
-        .eq('user_id', user.id)
         .gte('vencimento', dataInicio)
         .lte('vencimento', dataFim)
         .order('vencimento', { ascending: false });
@@ -152,7 +151,6 @@ const ExtratoConta = () => {
       const { data: despesas, error: despesaError } = await supabase
         .from('financial_expenses')
         .select('*')
-        .eq('user_id', user.id)
         .gte('due_date', dataInicio)
         .lte('due_date', dataFim)
         .order('due_date', { ascending: false });
@@ -163,7 +161,6 @@ const ExtratoConta = () => {
       const { data: coraTransactions, error: coraError } = await supabase
         .from('cora_transactions')
         .select('*')
-        .eq('user_id', user.id)
         .gte('transaction_date', dataInicio + 'T00:00:00')
         .lte('transaction_date', dataFim + 'T23:59:59')
         .order('transaction_date', { ascending: false });

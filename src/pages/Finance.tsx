@@ -57,8 +57,7 @@ const Finance = () => {
     try {
       const { data, error } = await supabase
         .from('boletos')
-        .select('*')
-        .eq('user_id', user.id);
+        .select('*');
 
       if (error) {
         console.error('Supabase error fetching invoices:', error);
@@ -89,8 +88,7 @@ const Finance = () => {
     try {
       const { data, error } = await supabase
         .from('customers')
-        .select('*')
-        .eq('user_id', user.id);
+        .select('*');
 
       if (error) {
         console.error('Supabase error fetching customers:', error);
@@ -114,7 +112,6 @@ const Finance = () => {
       const { data, error } = await supabase
         .from('financial_entries')
         .select('*')
-        .eq('user_id', user?.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -129,7 +126,6 @@ const Finance = () => {
       const { data, error } = await supabase
         .from('financial_expenses')
         .select('*')
-        .eq('user_id', user?.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;

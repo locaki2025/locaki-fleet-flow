@@ -172,7 +172,6 @@ const Devices = () => {
         const { data: vehiclesData } = await supabase
           .from("vehicles")
           .select("*")
-          .eq("user_id", user.id)
           .order("created_at", { ascending: false });
 
         console.log("vehiclesData:", vehiclesData);
@@ -184,7 +183,6 @@ const Devices = () => {
               .from("devices")
               .select("rastrosystem_id, battery, signal, last_update, latitude, longitude, address")
               .in("rastrosystem_id", rastrosystemIds)
-              .eq("user_id", user.id)
           : { data: [] };
 
         const deviceMap = new Map((devicesData || []).map((d: any) => [d.rastrosystem_id, d]));
