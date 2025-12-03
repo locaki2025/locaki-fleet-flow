@@ -211,22 +211,42 @@ const syncDevicesFromRastrosystem = async (userId: string, config: RastrosystemC
         updated_at: new Date().toISOString(),
       };
 
-      // Verificar se já existe device pela placa (sem filtro de user_id para atualizar qualquer device existente)
-      const { data: existingDevice } = await supabase
+      // Verificar se já existe device pela placa - usar limit(1) para evitar erro com duplicatas
+      const { data: existingDevices, error: deviceLookupError } = await supabase
         .from("devices")
         .select("id, user_id")
         .eq("vehicle_plate", vehicle.placa)
-        .maybeSingle();
+        .limit(1);
+
+      if (deviceLookupError) {
+        console.error(`Error looking up device ${vehicle.placa}:`, deviceLookupError);
+        continue;
+      }
+
+      const existingDevice = existingDevices?.[0];
 
       if (existingDevice) {
         // Mantém o user_id original do device existente
         const updateData = { ...deviceData };
         delete updateData.user_id; // Não sobrescreve o user_id original
-        await supabase.from("devices").update(updateData).eq("id", existingDevice.id);
-        console.log(`Updated existing device: ${vehicle.placa}`);
+        
+        const { error: updateError } = await supabase
+          .from("devices")
+          .update(updateData)
+          .eq("id", existingDevice.id);
+        
+        if (updateError) {
+          console.error(`Error updating device ${vehicle.placa}:`, updateError);
+        } else {
+          console.log(`Updated device: ${vehicle.placa} (lat: ${lat}, lng: ${lng})`);
+        }
       } else {
-        await supabase.from("devices").insert(deviceData);
-        console.log(`Inserted new device: ${vehicle.placa}`);
+        const { error: insertError } = await supabase.from("devices").insert(deviceData);
+        if (insertError) {
+          console.error(`Error inserting device ${vehicle.placa}:`, insertError);
+        } else {
+          console.log(`Inserted new device: ${vehicle.placa}`);
+        }
       }
 
       console.log(`Synced vehicle and device: ${vehicle.placa} (lat: ${lat}, lng: ${lng})`);
